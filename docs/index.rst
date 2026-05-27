@@ -19,10 +19,14 @@ Another underlying motivation is to release code for the gradSLAM paper, where w
    :caption: API Reference:
 
    modules/config
+   modules/backend
    modules/datasets
    modules/geometry
+   modules/icp
+   modules/mapping
    modules/metrics
    modules/odometry
+   modules/rendering
    modules/slam
    modules/structures
    modules/utils

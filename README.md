@@ -3,7 +3,7 @@
 
 --------------------------------------------------------------------------------
 
-[![MITLicense](https://img.shields.io/badge/license-MIT-green)](https://opensource.org/licenses/MIT) [![CircleCI](https://circleci.com/gh/gradslam/gradslam.svg?style=shield&circle-token=109c43f395121b987111c85a9cf51d5fd75ea72c)](https://circleci.com/gh/gradslam/gradslam/tree/master) [![Docs](https://readthedocs.org/projects/gradslam/badge/?version=latest)](https://gradslam.readthedocs.io/en/latest/?badge=latest) [![PyPI version](https://badge.fury.io/py/gradslam.svg)](https://badge.fury.io/py/gradslam)
+[![MITLicense](https://img.shields.io/badge/license-MIT-green)](https://opensource.org/licenses/MIT) [![CircleCI](https://circleci.com/gh/gradslam/gradslam.svg?style=shield&circle-token=109c43f395121b987111c85a9cf51d5fd75ea72c)](https://circleci.com/gh/gradslam/gradslam/tree/master) [![Docs](https://readthedocs.org/projects/gradslam/badge/?version=latest)](https://gradslam.readthedocs.io/en/latest/?badge=latest) [![PyPI version](https://badge.fury.io/py/opengradslam.svg)](https://badge.fury.io/py/opengradslam)
 
 
 <p align="center">
@@ -31,25 +31,28 @@ pointclouds.plotly(0).show()
 ## Installation
 
 ### Requirements
-- `pytorch>=1.6.0` (for other pytorch versions see [here](#install-from-local-clone-recommended))
+- Install a matching `torch` build first.
+- ROCm users should use the provided container or another ROCm-compatible PyTorch environment.
 
-### Using pip (Experimental)
+### Using pip
 
-`pip install gradslam`
+`pip install opengradslam`
+
+If you want the Open3D-based pointcloud export helpers, install the optional extra:
+
+`pip install "opengradslam[open3d]"`
+
+The distribution name is `opengradslam`; the import package is still `gradslam`.
 
 ### Install from GitHub
 
-`pip install 'git+https://github.com/gradslam/gradslam.git'`
+`pip install 'git+https://github.com/bjoernellens1/gradslam.git'`
 
 ### Install from local clone (Recommended)
 ```
-git clone https://github.com/krrish94/chamferdist.git
-cd chamferdist
-pip install .
-cd ..
-git clone https://github.com/gradslam/gradslam.git
+git clone https://github.com/bjoernellens1/gradslam.git
 cd gradslam
-pip install -e .[dev]
+pip install -e ".[dev]"
 ```
 
 ### Verifying the installation

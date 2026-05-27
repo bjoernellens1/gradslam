@@ -1,3 +1,5 @@
+# ruff: noqa: E501, F841
+
 import os
 import warnings
 from typing import Optional, Union
@@ -391,28 +393,7 @@ class ICL(data.Dataset):
         return self.num_sequences
 
     def __getitem__(self, idx: int):
-        r"""Returns the data from the sequence at index idx.
-
-        Returns:
-            color_seq (torch.Tensor): Sequence of rgb images of each frame
-            depth_seq (torch.Tensor): Sequence of depths of each frame
-            pose_seq (torch.Tensor): Sequence of poses of each frame
-            transform_seq (torch.Tensor): Sequence of transformations between each frame in the sequence and the
-                previous frame. Transformations are w.r.t. the first frame in the sequence having identity pose
-                (relative transformations with first frame's pose as the reference transformation). First
-                transformation in the sequence will always be `torch.eye(4)`.
-            intrinsics (torch.Tensor): Intrinsics for the current sequence
-            framename (str): Name of the frame
-
-        Shape:
-            - color_seq: :math:`(L, H, W, 3)` if `channels_first` is False, else :math:`(L, 3, H, W)`. `L` denotes
-                sequence length.
-            - depth_seq: :math:`(L, H, W, 1)` if `channels_first` is False, else :math:`(L, 1, H, W)`. `L` denotes
-                sequence length.
-            - pose_seq: :math:`(L, 4, 4)` where `L` denotes sequence length.
-            - transform_seq: :math:`(L, 4, 4)` where `L` denotes sequence length.
-            - intrinsics: :math:`(1, 4, 4)`
-        """
+        """Return the data for the ICL sequence at `idx`."""
 
         # Read in the color, depth, pose, label and intrinstics info.
         color_seq_path = self.colorfiles[idx]

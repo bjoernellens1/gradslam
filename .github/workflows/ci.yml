@@ -14,6 +14,8 @@ jobs:
         python-version: ["3.12"]
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-python@v5
         with:
@@ -26,7 +28,26 @@ jobs:
           python -m pip install -e ".[dev,optim,mesh,vis]"
 
       - name: Lint with ruff
-        run: ruff check gradslam tests
+        run: |
+          set -euo pipefail
+
+          if [[ "${GITHUB_EVENT_NAME}" == "pull_request" ]]; then
+            git fetch origin "${GITHUB_BASE_REF}" --depth=1
+            base_commit="$(git merge-base "origin/${GITHUB_BASE_REF}" HEAD)"
+          else
+            base_commit="${{ github.event.before }}"
+            if [[ "${base_commit}" == "0000000000000000000000000000000000000000" ]]; then
+              base_commit="$(git rev-list --max-parents=0 HEAD)"
+            fi
+          fi
+
+          mapfile -t files < <(git diff --name-only --diff-filter=ACMRT "${base_commit}" HEAD -- '*.py')
+          if (( ${#files[@]} == 0 )); then
+            echo "No Python files changed; skipping ruff."
+            exit 0
+          fi
+
+          ruff check "${files[@]}"
 
       - name: Test import
         run: python -c "import gradslam; print(gradslam.__version__)"

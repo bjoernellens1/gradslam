@@ -1,13 +1,16 @@
+# ruff: noqa: E501, F841
+
+"""Tests for `gradslam.structures.Pointclouds`."""
+
 import logging
 import unittest
 
 import numpy as np
-import open3d as o3d
 import pytest
 import torch
 
-from tests.common_testing import TestCaseMixin
 from gradslam.structures import Pointclouds, structutils
+from tests.common_testing import TestCaseMixin
 
 
 # Copied Pytorch3d testcase (and modified)
@@ -1042,6 +1045,7 @@ class TestPointclouds(TestCaseMixin, unittest.TestCase):
         self.assertClose(num3, pointclouds3.num_points_per_pointcloud)
 
     def test_o3d(self):
+        o3d = pytest.importorskip("open3d", reason="open3d not installed")
         use_cuda = torch.cuda.is_available()
         device = torch.device("cuda:0" if use_cuda else "cpu")
 

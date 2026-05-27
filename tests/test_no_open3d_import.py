@@ -1,23 +1,18 @@
 """Regression test: import gradslam without segfault or open3d import."""
 
-import sys
 import subprocess
+import sys
 
 
 def test_import_without_open3d():
-    """Ensure gradslam imports without requiring open3d at module level."""
-    # Run in subprocess to isolate from current environment
+    """Ensure gradslam imports without pulling open3d into sys.modules."""
     code = """
 import sys
-try:
-    import open3d
-    print("ERROR: open3d was imported at module level")
-    sys.exit(1)
-except ImportError:
-    pass
-
 import gradslam
-print("OK: gradslam imported successfully without open3d")
+if "open3d" in sys.modules:
+    print("ERROR: open3d was imported during gradslam import")
+    sys.exit(1)
+print("OK: gradslam imported successfully without importing open3d")
 """
     result = subprocess.run(
         [sys.executable, "-c", code],

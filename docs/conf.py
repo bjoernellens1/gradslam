@@ -4,15 +4,14 @@
 
 import os
 import sys
+from importlib import metadata
 
-# Get version number
-with open(os.path.join(os.path.dirname(__file__), '..', 'gradslam', 'version.py'), 'r') as f:
-    for row in f:
-        if '__version__' in row:
-            gradslam_version = row.split("\"")[-2]
-            break
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+try:
+    gradslam_version = metadata.version("opengradslam")
+except metadata.PackageNotFoundError:
+    gradslam_version = "0.0.0+editable"
 
 # The master toctree document.
 master_doc = 'index'
@@ -37,6 +36,8 @@ extensions = [
     'sphinx.ext.autosectionlabel',
     'nbsphinx',
 ]
+
+autosectionlabel_prefix_document = True
 
 # Napoleon (Google-style docstrings)
 napoleon_use_ivar = True
@@ -78,13 +79,14 @@ todo_include_todos = False
 html_theme = 'sphinx_rtd_theme'
 html_theme_options = {
     'logo_only': False,
-    'display_version': True,
     'prev_next_buttons_location': 'bottom',
 }
 
-if os.path.exists(os.path.join(os.path.dirname(__file__), '_static/img/gradslam-logo.png')):
+_STATIC_IMG_DIR = os.path.join(os.path.dirname(__file__), "_static", "img")
+
+if os.path.exists(os.path.join(_STATIC_IMG_DIR, "gradslam-logo.png")):
     html_logo = '_static/img/gradslam-logo.png'
-if os.path.exists(os.path.join(os.path.dirname(__file__), '_static/img/gradslam-favicon-32x32.png')):
+if os.path.exists(os.path.join(_STATIC_IMG_DIR, "gradslam-favicon-32x32.png")):
     html_favicon = '_static/img/gradslam-favicon-32x32.png'
 
 html_static_path = ['_static']
