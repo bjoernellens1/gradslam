@@ -34,11 +34,11 @@ jobs:
           if [[ "${GITHUB_EVENT_NAME}" == "pull_request" ]]; then
             git fetch origin "${GITHUB_BASE_REF}" --depth=1
             base_commit="$(git merge-base "origin/${GITHUB_BASE_REF}" HEAD)"
+          elif git rev-parse --verify HEAD^ >/dev/null 2>&1; then
+            # On push, lint only the files touched by the tip commit.
+            base_commit="$(git rev-parse HEAD^)"
           else
-            base_commit="${{ github.event.before }}"
-            if [[ "${base_commit}" == "0000000000000000000000000000000000000000" ]]; then
-              base_commit="$(git rev-list --max-parents=0 HEAD)"
-            fi
+            base_commit="$(git rev-list --max-parents=0 HEAD)"
           fi
 
           mapfile -t files < <(git diff --name-only --diff-filter=ACMRT "${base_commit}" HEAD -- '*.py')
