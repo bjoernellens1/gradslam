@@ -1,8 +1,5 @@
-from .version import __version__
-
+from . import odometry, slam, utils
 from .geometry import *
 from .metrics import *
-from . import odometry
-from . import slam
 from .structures import *
-from . import utils
+from .version import __version__

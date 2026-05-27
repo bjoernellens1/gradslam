@@ -9,7 +9,6 @@ from ..structures.rgbdimages import RGBDImages
 from .fusionutils import update_map_fusion
 from .icpslam import ICPSLAM
 
-
 __all__ = ["PointFusion"]
 
 

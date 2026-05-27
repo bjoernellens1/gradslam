@@ -34,11 +34,11 @@ Util functions used in structures. `list_to_padded` and `padded_to_list` functio
 https://github.com/facebookresearch/pytorch3d
 """
 import base64
+from typing import List, Union
+
 import cv2
 import numpy as np
 import plotly.graph_objects as go
-from typing import List, Union
-
 import torch
 
 __all__ = []

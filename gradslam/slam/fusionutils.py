@@ -9,7 +9,6 @@ from ..structures.pointclouds import Pointclouds
 from ..structures.rgbdimages import RGBDImages
 from ..structures.utils import pointclouds_from_rgbdimages
 
-
 __all__ = ["update_map_fusion", "update_map_aggregate"]
 
 

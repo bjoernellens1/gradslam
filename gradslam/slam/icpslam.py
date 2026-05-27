@@ -1,12 +1,12 @@
-from typing import Optional, Union
 import warnings
+from typing import Optional, Union
 
 import torch
 import torch.nn as nn
 from kornia.geometry.linalg import compose_transformations
 
-from ..odometry.icp import ICPOdometryProvider
 from ..odometry.gradicp import GradICPOdometryProvider
+from ..odometry.icp import ICPOdometryProvider
 from ..odometry.icputils import downsample_pointclouds, downsample_rgbdimages
 from ..structures.pointclouds import Pointclouds
 from ..structures.rgbdimages import RGBDImages

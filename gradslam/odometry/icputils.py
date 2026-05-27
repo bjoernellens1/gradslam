@@ -2,13 +2,11 @@ from typing import Optional, Union
 
 import torch
 
-from ..geometry.knn import knn_points
-
 from ..geometry.geometryutils import transform_pointcloud
+from ..geometry.knn import knn_points
 from ..geometry.se3utils import se3_exp
 from ..structures.pointclouds import Pointclouds
 from ..structures.rgbdimages import RGBDImages
-
 
 __all__ = [
     "solve_linear_system",

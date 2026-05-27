@@ -43,10 +43,10 @@ images to depth images.
 This script contains helpers for reading the time stamps from e.g. the "rgb.txt" file and the "depth.txt" file, 
 and joining them by finding the best matches.
 """
+import warnings
 from typing import Optional
 
 import numpy as np
-import warnings
 
 __all__ = ["read_trajectory", "read_file_list", "associate"]
 

@@ -1,5 +1,5 @@
-from .rgbdimages import RGBDImages
 from .pointclouds import Pointclouds
+from .rgbdimages import RGBDImages
 
 __all__ = ["pointclouds_from_rgbdimages"]
 

@@ -6,8 +6,8 @@ from dataclasses import dataclass
 
 import torch
 
-from ..icp.projective import ProjectiveICPTracker, ProjectiveICPConfig
-from ..mapping.tsdf import TSDFVolume, TSDFConfig
+from ..icp.projective import ProjectiveICPConfig, ProjectiveICPTracker
+from ..mapping.tsdf import TSDFConfig, TSDFVolume
 
 
 @dataclass

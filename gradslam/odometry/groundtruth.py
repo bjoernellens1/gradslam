@@ -1,6 +1,6 @@
 import torch
-from ..geometry.geometryutils import relative_transformation
 
+from ..geometry.geometryutils import relative_transformation
 from ..structures.rgbdimages import RGBDImages
 from .base import OdometryProvider
 

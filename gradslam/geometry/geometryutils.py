@@ -219,7 +219,7 @@ def inverse_transfom_3d(trans: torch.Tensor):
                 type(trans)
             )
         )
-    if not trans.dim() in (2, 3) and trans.shape[-2, :] == (4, 4):
+    if trans.dim() not in (2, 3) and trans.shape[-2, :] == (4, 4):
         raise ValueError(
             "Input size must be N x 4 x 4 or 4 x 4. Got {} instead.".format(trans.shape)
         )
@@ -260,7 +260,7 @@ def compose_transforms_3d(trans1: torch.Tensor, trans2: torch.Tensor) -> torch.T
                 type(trans1)
             )
         )
-    if not trans1.dim() in (2, 3) and trans1.shape[-2, :] == (4, 4):
+    if trans1.dim() not in (2, 3) and trans1.shape[-2, :] == (4, 4):
         raise ValueError(
             "Input size must be N x 4 x 4 or 4 x 4. Got {} instead.".format(
                 trans1.shape
@@ -272,7 +272,7 @@ def compose_transforms_3d(trans1: torch.Tensor, trans2: torch.Tensor) -> torch.T
                 type(trans2)
             )
         )
-    if not trans2.dim() in (2, 3) and trans2.shape[-2, :] == (4, 4):
+    if trans2.dim() not in (2, 3) and trans2.shape[-2, :] == (4, 4):
         raise ValueError(
             "Input size must be N x 4 x 4 or 4 x 4. Got {} instead.".format(
                 trans2.shape
@@ -453,12 +453,12 @@ def relative_transformation(
         raise TypeError(
             "Input trans_02 type is not a torch.Tensor. Got {}".format(type(trans_02))
         )
-    if not trans_01.dim() in (2, 3) and trans_01.shape[-2:] == (4, 4):
+    if trans_01.dim() not in (2, 3) and trans_01.shape[-2:] == (4, 4):
         raise ValueError(
             "Input must be a of the shape Nx4x4 or 4x4."
             " Got {}".format(trans_01.shape)
         )
-    if not trans_02.dim() in (2, 3) and trans_02.shape[-2:] == (4, 4):
+    if trans_02.dim() not in (2, 3) and trans_02.shape[-2:] == (4, 4):
         raise ValueError(
             "Input must be a of the shape Nx4x4 or 4x4."
             " Got {}".format(trans_02.shape)

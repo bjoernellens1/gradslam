@@ -6,9 +6,9 @@ import cv2
 import imageio
 import numpy as np
 import torch
-from ..geometry.geometryutils import relative_transformation
 from torch.utils import data
 
+from ..geometry.geometryutils import relative_transformation
 from . import datautils
 
 __all__ = ["ICL"]
