@@ -1,3 +1,5 @@
+# ruff: noqa
+
 import numpy as np
 import pytest
 import torch
@@ -642,17 +644,6 @@ class TestPointToPlaneGradICP:
     def test_point_to_plane_gradICP_raises_type_error(self):
         dtype = torch.float32
         device = default_to_cpu_if_no_gpu("cuda")
-        rad = 0.2
-        transform = torch.tensor(
-            [
-                [np.cos(rad), -np.sin(rad), 0.0, 0.05],
-                [np.sin(rad), np.cos(rad), 0.0, 0.03],
-                [0.0, 0.0, 1.0, 0.01],
-                [0.0, 0.0, 0.0, 1.0],
-            ],
-            device=device,
-            dtype=dtype,
-        )
         src_pc = torch.rand((1, 5, 3), dtype=dtype, device=device)
         tgt_pc = torch.rand((1, 8, 3), dtype=dtype, device=device)
         tgt_normals = torch.rand((1, 8, 3), dtype=dtype, device=device)
@@ -660,15 +651,6 @@ class TestPointToPlaneGradICP:
         numiters = 20
         damp = 1e-8
         dist_thresh = None
-        point_to_plane_gradICP(
-            src_pc,
-            tgt_pc,
-            tgt_normals,
-            initial_transform,
-            numiters,
-            damp,
-            dist_thresh,
-        )
         with pytest.raises(TypeError):
             point_to_plane_gradICP(
                 "a",

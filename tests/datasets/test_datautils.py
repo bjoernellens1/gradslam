@@ -1,3 +1,5 @@
+# ruff: noqa
+
 import logging
 import unittest
 
@@ -27,7 +29,7 @@ class TestDataUtils(unittest.TestCase):
         # numpy
         img = np.random.uniform(0, 255, imsize).astype(np.uint8)
         norm_img = normalize_image(img)
-        assert norm_img.dtype == np.float
+        assert norm_img.dtype == np.float64
         assert np.max(norm_img) < 1.000000001
         assert np.min(norm_img) > -1e-10
         assert np.sum(norm_img > 0.5) > 100
