@@ -1,4 +1,5 @@
-import open3d as o3d
+pytest_importorskip = __import__("pytest").importorskip
+o3d = pytest_importorskip("open3d", reason="open3d not installed")
 import pytest
 import torch
 from torch.autograd import gradcheck
