@@ -221,20 +221,14 @@ class TUM(data.Dataset):
         for item in os.listdir(basedir):
             if os.path.isdir(os.path.join(basedir, item)):
                 split = item.split("_")
-                if (
-                    split[0] != "rgbd"
-                    or split[1] != "dataset"
-                    or split[2][:-1] != "freiburg"
-                    or len(split) < 4
-                ):
-                    msg = 'Incorrect folder names in "basedir" ({0}). '.format(basedir)
-                    msg += "Folder names of extracted .tgz files from TUM should follow the following naming "
-                    msg += (
-                        'convention: "rgbd_dataset_freiburgX_NAME". Got "{0}".'.format(
-                            item
-                        )
-                    )
-                    raise ValueError(msg)
+                is_tum_seq = (
+                    len(split) >= 4
+                    and split[0] == "rgbd"
+                    and split[1] == "dataset"
+                    and split[2][:-1] == "freiburg"
+                )
+                if not is_tum_seq:
+                    continue  # skip non-TUM dirs (e.g. rosbag/, groundtruth/, raw_tgz/)
                 if sequences is None or (sequences is not None and item in sequences):
                     sequence_paths.append(os.path.join(basedir, item))
         if len(sequence_paths) == 0:

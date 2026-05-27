@@ -22,14 +22,15 @@ def main():
     parser.add_argument(
         "--dataset-root",
         type=str,
-        default="/workspace/datasets/public/TUM/groundtruth",
-        help="Root directory containing TUM sequences (inside container: /workspace/datasets/public/TUM/groundtruth)",
+        default="/workspace/datasets/public/TUM/tum_rgbd",
+        help="Root directory containing TUM sequences",
     )
     parser.add_argument(
         "--sequence",
         type=str,
-        default="rgbd_dataset_freiburg1_desk",
-        help="Name of the sequence to process",
+        default="freiburg1_desk",
+        help="Sequence name. For tum_rgbd layout use short name (e.g. freiburg1_desk); "
+             "for groundtruth layout use full name (e.g. rgbd_dataset_freiburg1_desk)",
     )
     parser.add_argument(
         "--stride",
@@ -75,11 +76,23 @@ def main():
     print(backend_report())
     print(f"Using device: {device}\n")
 
-    # Load dataset
-    print(f"Loading TUM sequence: {args.sequence}")
+    # Resolve basedir and sequence name.
+    # tum_rgbd layout: <root>/<short>/ contains rgbd_dataset_<short>/
+    # groundtruth layout: <root>/ directly contains rgbd_dataset_<full>/
+    root = Path(args.dataset_root)
+    seq = args.sequence
+    tum_rgbd_subdir = root / seq / f"rgbd_dataset_{seq}"
+    if tum_rgbd_subdir.exists():
+        basedir = str(root / seq)
+        seq_name = f"rgbd_dataset_{seq}"
+    else:
+        basedir = str(root)
+        seq_name = seq
+
+    print(f"Loading TUM sequence: {seq_name} from {basedir}")
     dataset = TUM(
-        basedir=args.dataset_root,
-        sequences=(args.sequence,),
+        basedir=basedir,
+        sequences=(seq_name,),
         seqlen=1,
         dilation=0,
         stride=args.stride,
