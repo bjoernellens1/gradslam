@@ -1,0 +1,916 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>gradslam.slam.fusionutils &mdash; gradslam 0.2.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
+
+  
+    <link rel="shortcut icon" href="../../../_static/gradslam-favicon-32x32.png"/>
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=938c9ccc"></script>
+      <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            gradslam
+              <img src="../../../_static/gradslam-logo.png" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials/tutorial_prerequisits.html">Prerequisits</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials.html">Getting started with RGBDImages</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials.html#getting-started-with-pointclouds">Getting started with Pointclouds</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials.html#pointfusion-slam">PointFusion SLAM</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/config.html">gradslam.config</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/backend.html">Backend</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/datasets.html">gradslam.datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/geometry.html">gradslam.geometry</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/icp.html">ICP Tracking</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/mapping.html">Mapping &amp; Fusion</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/metrics.html">gradslam.metrics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/odometry.html">gradslam.odometry</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/rendering.html">Rendering</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/slam.html">gradslam.slam</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/structures.html">gradslam.structures</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/utils.html">gradslam.utils</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">gradslam</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">gradslam.slam.fusionutils</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for gradslam.slam.fusionutils</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Union</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">kornia.geometry.linalg</span><span class="w"> </span><span class="kn">import</span> <span class="n">inverse_transformation</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">..geometry.geometryutils</span><span class="w"> </span><span class="kn">import</span> <span class="n">create_meshgrid</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">..structures.pointclouds</span><span class="w"> </span><span class="kn">import</span> <span class="n">Pointclouds</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">..structures.rgbdimages</span><span class="w"> </span><span class="kn">import</span> <span class="n">RGBDImages</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">..structures.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">pointclouds_from_rgbdimages</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;update_map_fusion&quot;</span><span class="p">,</span> <span class="s2">&quot;update_map_aggregate&quot;</span><span class="p">]</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">get_alpha</span><span class="p">(</span>
+    <span class="n">points</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+    <span class="n">sigma</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span>
+    <span class="n">dim</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span>
+    <span class="n">keepdim</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">eps</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-7</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Computes sample confidence alpha.</span>
+<span class="sd">    (See section 4.1 of Point-based Fusion paper: http://reality.cs.ucl.ac.uk/projects/kinect/keller13realtime.pdf )</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        points (torch.Tensor): Tensor of points.</span>
+<span class="sd">        sigma (torch.Tensor or float or int): Standard deviation of the Gaussian. Original paper uses 0.6 emperically.</span>
+<span class="sd">        dim (int): Dimension along which :math:`(X, Y, Z)` of points is stored. Default: -1</span>
+<span class="sd">        keepdim (bool): Whether the output tensor has `dim` retained or not. Default: False</span>
+<span class="sd">        eps (float): Minimum value for alpha (to avoid numerical instability). Default: 1e-7</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        alpha (torch.Tensor): Sample confidence.</span>
+
+<span class="sd">    Shape:</span>
+<span class="sd">        - points: :math:`(*, 3, *)`</span>
+<span class="sd">        - sigma: Scalar</span>
+<span class="sd">        - alpha: Same shape as input points without the `dim`-th dimension.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">torch</span><span class="o">.</span><span class="n">is_tensor</span><span class="p">(</span><span class="n">points</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+            <span class="s2">&quot;Expected input points to be of type torch.Tensor. Got </span><span class="si">{0}</span><span class="s2"> instead.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="nb">type</span><span class="p">(</span><span class="n">points</span><span class="p">)</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span>
+        <span class="n">torch</span><span class="o">.</span><span class="n">is_tensor</span><span class="p">(</span><span class="n">sigma</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">sigma</span><span class="p">,</span> <span class="nb">float</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">sigma</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span>
+    <span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+            <span class="s2">&quot;Expected input sigma to be of type torch.Tensor or float or int. Got </span><span class="si">{0}</span><span class="s2"> instead.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="nb">type</span><span class="p">(</span><span class="n">sigma</span><span class="p">)</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">eps</span><span class="p">,</span> <span class="nb">float</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+            <span class="s2">&quot;Expected input eps to be of type float. Got </span><span class="si">{0}</span><span class="s2"> instead.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">eps</span><span class="p">))</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="n">points</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="n">dim</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">3</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">&quot;Expected length of dim-th (</span><span class="si">{0}</span><span class="s2">th) dimension to be 3. Got </span><span class="si">{1}</span><span class="s2"> instead.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">dim</span><span class="p">,</span> <span class="n">points</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="n">dim</span><span class="p">]</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="n">torch</span><span class="o">.</span><span class="n">is_tensor</span><span class="p">(</span><span class="n">sigma</span><span class="p">)</span> <span class="ow">and</span> <span class="n">sigma</span><span class="o">.</span><span class="n">ndim</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">&quot;Expected sigma.ndim to be 0 (scalar). Got </span><span class="si">{0}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">sigma</span><span class="o">.</span><span class="n">ndim</span><span class="p">)</span>
+        <span class="p">)</span>
+    <span class="n">alpha</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span>
+        <span class="o">-</span><span class="n">torch</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">points</span> <span class="o">**</span> <span class="mi">2</span><span class="p">,</span> <span class="n">dim</span><span class="p">,</span> <span class="n">keepdim</span><span class="o">=</span><span class="n">keepdim</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="p">(</span><span class="n">sigma</span> <span class="o">**</span> <span class="mi">2</span><span class="p">))</span>
+    <span class="p">)</span>
+    <span class="n">alpha</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">clamp</span><span class="p">(</span><span class="n">alpha</span><span class="p">,</span> <span class="nb">min</span><span class="o">=</span><span class="n">eps</span><span class="p">,</span> <span class="nb">max</span><span class="o">=</span><span class="mf">1.01</span><span class="p">)</span>  <span class="c1"># make sure alpha is non-zero</span>
+    <span class="k">return</span> <span class="n">alpha</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">are_points_close</span><span class="p">(</span>
+    <span class="n">tensor1</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+    <span class="n">tensor2</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+    <span class="n">dist_th</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span>
+    <span class="n">dim</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Returns bool tensor indicating the euclidean distance between two tensors of vertices along given dimension</span>
+<span class="sd">    `dim` is smaller than the given threshold value `dist_th`.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        tensor1 (torch.Tensor): Input to compute distance on. `dim` must be of length 3 :math:`(X, Y, Z)`.</span>
+<span class="sd">        tensor2 (torch.Tensor): Input to compute distance on. `dim` must be of length 3 :math:`(X, Y, Z)`.</span>
+<span class="sd">        dist_th (float or int): Distance threshold.</span>
+<span class="sd">        dim (int): The dimension to compute distance along. Default: -1</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Output (torch.Tensor): Tensor of bool</span>
+
+<span class="sd">    Shape:</span>
+<span class="sd">        - tensor1: :math:`(*, 3, *)`</span>
+<span class="sd">        - tensor2: :math:`(*, 3, *)`</span>
+<span class="sd">        - dist_th: Scalar</span>
+<span class="sd">        - Output: Similar dimensions to `tensor1` except `dim` is squeezed and output tensor has 1 fewer dimension.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">torch</span><span class="o">.</span><span class="n">is_tensor</span><span class="p">(</span><span class="n">tensor1</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+            <span class="s2">&quot;Expected input tensor1 to be of type torch.Tensor. Got </span><span class="si">{0}</span><span class="s2"> instead.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="nb">type</span><span class="p">(</span><span class="n">tensor1</span><span class="p">)</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">torch</span><span class="o">.</span><span class="n">is_tensor</span><span class="p">(</span><span class="n">tensor2</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+            <span class="s2">&quot;Expected input tensor2 to be of type torch.Tensor. Got </span><span class="si">{0}</span><span class="s2"> instead.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="nb">type</span><span class="p">(</span><span class="n">tensor2</span><span class="p">)</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">dist_th</span><span class="p">,</span> <span class="nb">float</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">dist_th</span><span class="p">,</span> <span class="nb">int</span><span class="p">)):</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+            <span class="s2">&quot;Expected input dist_th to be of type float or int. Got </span><span class="si">{0}</span><span class="s2"> instead.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="nb">type</span><span class="p">(</span><span class="n">dist_th</span><span class="p">)</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="n">tensor1</span><span class="o">.</span><span class="n">shape</span> <span class="o">!=</span> <span class="n">tensor2</span><span class="o">.</span><span class="n">shape</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">&quot;tensor1 and tensor2 should have the same shape, but had shapes </span><span class="si">{0}</span><span class="s2"> and </span><span class="si">{1}</span><span class="s2"> respectively.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">tensor1</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">tensor2</span><span class="o">.</span><span class="n">shape</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="n">tensor1</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="n">dim</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">3</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">&quot;Expected length of input tensors&#39; dim-th (</span><span class="si">{0}</span><span class="s2">th) dimension to be 3. Got </span><span class="si">{1}</span><span class="s2"> instead.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">dim</span><span class="p">,</span> <span class="n">tensor1</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="n">dim</span><span class="p">]</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">tensor1</span> <span class="o">-</span> <span class="n">tensor2</span><span class="p">)</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="n">dim</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">dist_th</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">are_normals_similar</span><span class="p">(</span>
+    <span class="n">tensor1</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+    <span class="n">tensor2</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+    <span class="n">dot_th</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span>
+    <span class="n">dim</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Returns bool tensor indicating dot product of two tensors containing normals along given dimension `dim` is</span>
+<span class="sd">    greater than the given threshold value `dot_th`.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        tensor1 (torch.Tensor): Input to compute dot product on. `dim` must be of length 3 :math:`(N_x, N_y, N_z)`.</span>
+<span class="sd">        tensor2 (torch.Tensor): Input to compute dot product on. `dim` must be of length 3 :math:`(N_x, N_y, N_z)`.</span>
+<span class="sd">        dot_th (float or int): Dot product threshold.</span>
+<span class="sd">        dim (int): The dimension to compute product along. Default: -1</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Output (torch.Tensor): Tensor of bool</span>
+
+<span class="sd">    Shape:</span>
+<span class="sd">        - tensor1: :math:`(*, 3, *)`</span>
+<span class="sd">        - tensor2: :math:`(*, 3, *)`</span>
+<span class="sd">        - dot_th: Scalar</span>
+<span class="sd">        - Output: Similar dimensions to `tensor1` except `dim` is squeezed and output tensor has 1 fewer dimension.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">torch</span><span class="o">.</span><span class="n">is_tensor</span><span class="p">(</span><span class="n">tensor1</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+            <span class="s2">&quot;Expected input tensor1 to be of type torch.Tensor. Got </span><span class="si">{0}</span><span class="s2"> instead.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="nb">type</span><span class="p">(</span><span class="n">tensor1</span><span class="p">)</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">torch</span><span class="o">.</span><span class="n">is_tensor</span><span class="p">(</span><span class="n">tensor2</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+            <span class="s2">&quot;Expected input tensor2 to be of type torch.Tensor. Got </span><span class="si">{0}</span><span class="s2"> instead.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="nb">type</span><span class="p">(</span><span class="n">tensor2</span><span class="p">)</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">dot_th</span><span class="p">,</span> <span class="nb">float</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">dot_th</span><span class="p">,</span> <span class="nb">int</span><span class="p">)):</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+            <span class="s2">&quot;Expected input dot_th to be of type float or int. Got </span><span class="si">{0}</span><span class="s2"> instead.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="nb">type</span><span class="p">(</span><span class="n">dot_th</span><span class="p">)</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="n">tensor1</span><span class="o">.</span><span class="n">shape</span> <span class="o">!=</span> <span class="n">tensor2</span><span class="o">.</span><span class="n">shape</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">&quot;tensor1 and tensor2 should have the same shape, but had shapes </span><span class="si">{0}</span><span class="s2"> and </span><span class="si">{1}</span><span class="s2"> respectively.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">tensor1</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">tensor2</span><span class="o">.</span><span class="n">shape</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="n">tensor1</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="n">dim</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">3</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">&quot;Expected length of input tensors&#39; dim-th (</span><span class="si">{0}</span><span class="s2">th) dimension to be 3. Got </span><span class="si">{1}</span><span class="s2"> instead.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">dim</span><span class="p">,</span> <span class="n">tensor1</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="n">dim</span><span class="p">]</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+    <span class="n">dot_res</span> <span class="o">=</span> <span class="p">(</span><span class="n">tensor1</span> <span class="o">*</span> <span class="n">tensor2</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">dim</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">dot_res</span><span class="o">.</span><span class="n">max</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mf">1.001</span><span class="p">:</span>
+        <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+            <span class="s2">&quot;Max of dot product was </span><span class="si">{0}</span><span class="s2"> &gt; 1. Inputs were not normalized along dim (</span><span class="si">{1}</span><span class="s2">). Was this intentional?&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">dot_res</span><span class="o">.</span><span class="n">max</span><span class="p">(),</span> <span class="n">dim</span>
+            <span class="p">),</span>
+            <span class="ne">RuntimeWarning</span><span class="p">,</span>
+        <span class="p">)</span>
+    <span class="k">return</span> <span class="n">dot_res</span> <span class="o">&gt;</span> <span class="n">dot_th</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">find_active_map_points</span><span class="p">(</span>
+    <span class="n">pointclouds</span><span class="p">:</span> <span class="n">Pointclouds</span><span class="p">,</span> <span class="n">rgbdimages</span><span class="p">:</span> <span class="n">RGBDImages</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Returns lookup table for indices of active global map points and their position inside the live frames.</span>
+<span class="sd">    (See section 4.1 of Point-based Fusion paper: http://reality.cs.ucl.ac.uk/projects/kinect/keller13realtime.pdf )</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        pointclouds (gradslam.Pointclouds): Batch of `B` global maps</span>
+<span class="sd">        rgbdimages (gradslam.RGBDImages): Batch of `B` live frames from the latest sequence. `poses`, `intrinsics`,</span>
+<span class="sd">            heights and widths of frames are used.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        pc2im_bnhw (torch.Tensor): Active map points lookup table. Each row contains batch index `b`, point index (in</span>
+<span class="sd">            pointclouds) `n`, and height and width index after projection to live frame `h` and `w` respectively.</span>
+
+<span class="sd">    Shape:</span>
+<span class="sd">        - pc2im_bnhw: :math:`(\text{num_active_map_points}, 4)`</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">pointclouds</span><span class="p">,</span> <span class="n">Pointclouds</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+            <span class="s2">&quot;Expected pointclouds to be of type gradslam.Pointclouds. Got </span><span class="si">{0}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="nb">type</span><span class="p">(</span><span class="n">pointclouds</span><span class="p">)</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">rgbdimages</span><span class="p">,</span> <span class="n">RGBDImages</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+            <span class="s2">&quot;Expected rgbdimages to be of type gradslam.RGBDImages. Got </span><span class="si">{0}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="nb">type</span><span class="p">(</span><span class="n">rgbdimages</span><span class="p">)</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="n">rgbdimages</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">&quot;Expected rgbdimages to have sequence length of 1. Got </span><span class="si">{0}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">rgbdimages</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+    <span class="n">device</span> <span class="o">=</span> <span class="n">pointclouds</span><span class="o">.</span><span class="n">device</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">pointclouds</span><span class="o">.</span><span class="n">has_points</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">empty</span><span class="p">((</span><span class="mi">0</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">int64</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">rgbdimages</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">pointclouds</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">&quot;Expected equal batch sizes for pointclouds and rgbdimages. Got </span><span class="si">{0}</span><span class="s2"> and </span><span class="si">{1}</span><span class="s2"> respectively.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="nb">len</span><span class="p">(</span><span class="n">pointclouds</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">rgbdimages</span><span class="p">)</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+
+    <span class="n">batch_size</span><span class="p">,</span> <span class="n">seq_len</span><span class="p">,</span> <span class="n">height</span><span class="p">,</span> <span class="n">width</span> <span class="o">=</span> <span class="n">rgbdimages</span><span class="o">.</span><span class="n">shape</span>
+
+    <span class="n">tinv</span> <span class="o">=</span> <span class="n">inverse_transformation</span><span class="p">(</span><span class="n">rgbdimages</span><span class="o">.</span><span class="n">poses</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span>
+    <span class="n">pointclouds_transformed</span> <span class="o">=</span> <span class="n">pointclouds</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">tinv</span><span class="p">)</span>
+    <span class="n">is_front_of_plane</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">pointclouds_transformed</span><span class="o">.</span><span class="n">points_padded</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">0</span>
+    <span class="p">)</span>  <span class="c1"># don&#39;t consider missing depth values</span>
+    <span class="n">pointclouds_transformed</span><span class="o">.</span><span class="n">pinhole_projection_</span><span class="p">(</span>
+        <span class="n">rgbdimages</span><span class="o">.</span><span class="n">intrinsics</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+    <span class="p">)</span>  <span class="c1"># IN-PLACE operation</span>
+    <span class="n">img_plane_points</span> <span class="o">=</span> <span class="n">pointclouds_transformed</span><span class="o">.</span><span class="n">points_padded</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>  <span class="c1"># width, height</span>
+
+    <span class="n">is_in_frame</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="p">(</span><span class="n">img_plane_points</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">&gt;</span> <span class="o">-</span><span class="mf">1e-3</span><span class="p">)</span>
+        <span class="o">&amp;</span> <span class="p">(</span><span class="n">img_plane_points</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">width</span> <span class="o">-</span> <span class="mf">0.999</span><span class="p">)</span>
+        <span class="o">&amp;</span> <span class="p">(</span><span class="n">img_plane_points</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">&gt;</span> <span class="o">-</span><span class="mf">1e-3</span><span class="p">)</span>
+        <span class="o">&amp;</span> <span class="p">(</span><span class="n">img_plane_points</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">height</span> <span class="o">-</span> <span class="mf">0.999</span><span class="p">)</span>
+        <span class="o">&amp;</span> <span class="n">is_front_of_plane</span>
+        <span class="o">&amp;</span> <span class="n">pointclouds</span><span class="o">.</span><span class="n">nonpad_mask</span>
+    <span class="p">)</span>
+    <span class="n">in_plane_pos</span> <span class="o">=</span> <span class="n">img_plane_points</span><span class="o">.</span><span class="n">round</span><span class="p">()</span><span class="o">.</span><span class="n">long</span><span class="p">()</span>
+    <span class="n">in_plane_pos</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span>
+        <span class="p">[</span>
+            <span class="n">in_plane_pos</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">1</span><span class="p">:</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">clamp</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">height</span> <span class="o">-</span> <span class="mi">1</span><span class="p">),</span>
+            <span class="n">in_plane_pos</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">0</span><span class="p">:</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">clamp</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">width</span> <span class="o">-</span> <span class="mi">1</span><span class="p">),</span>
+        <span class="p">],</span>
+        <span class="o">-</span><span class="mi">1</span><span class="p">,</span>
+    <span class="p">)</span>  <span class="c1"># height, width</span>
+    <span class="n">batch_size</span><span class="p">,</span> <span class="n">num_points</span> <span class="o">=</span> <span class="n">in_plane_pos</span><span class="o">.</span><span class="n">shape</span><span class="p">[:</span><span class="mi">2</span><span class="p">]</span>
+    <span class="n">batch_point_idx</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">create_meshgrid</span><span class="p">(</span><span class="n">batch_size</span><span class="p">,</span> <span class="n">num_points</span><span class="p">,</span> <span class="n">normalized_coords</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+        <span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="p">)</span>
+    <span class="p">)</span>
+    <span class="n">idx_and_plane_pos</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">batch_point_idx</span><span class="o">.</span><span class="n">long</span><span class="p">(),</span> <span class="n">in_plane_pos</span><span class="p">],</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">pc2im_bnhw</span> <span class="o">=</span> <span class="n">idx_and_plane_pos</span><span class="p">[</span><span class="n">is_in_frame</span><span class="p">]</span>  <span class="c1"># (?, 4)</span>
+
+    <span class="k">if</span> <span class="n">pc2im_bnhw</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s2">&quot;No active map points were found&quot;</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">pc2im_bnhw</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">find_similar_map_points</span><span class="p">(</span>
+    <span class="n">pointclouds</span><span class="p">:</span> <span class="n">Pointclouds</span><span class="p">,</span>
+    <span class="n">rgbdimages</span><span class="p">:</span> <span class="n">RGBDImages</span><span class="p">,</span>
+    <span class="n">pc2im_bnhw</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+    <span class="n">dist_th</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span>
+    <span class="n">dot_th</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Returns lookup table for points from global maps that are close and have similar normals to points from live</span>
+<span class="sd">    frames occupying the same pixel as their projection (onto that live frame).</span>
+<span class="sd">    (See section 4.1 of Point-based Fusion paper: http://reality.cs.ucl.ac.uk/projects/kinect/keller13realtime.pdf )</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        pointclouds (gradslam.Pointclouds): Pointclouds of globalmaps</span>
+<span class="sd">        rgbdimages (gradslam.RGBDImages): Live frames from the latest sequence</span>
+<span class="sd">        pc2im_bnhw (torch.Tensor): Active map points lookup table. Each row contains batch index `b`, point index (in</span>
+<span class="sd">            pointclouds) `n`, and height and width index after projection to live frame `h` and `w` respectively.</span>
+<span class="sd">        dist_th (float or int): Distance threshold.</span>
+<span class="sd">        dot_th (float or int): Dot product threshold.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        pc2im_bnhw_similar (torch.Tensor): Lookup table of points from global map that are close and have have normals</span>
+<span class="sd">            that are similar to the live frame points.</span>
+<span class="sd">        is_similar_mask (torch.Tensor): bool mask indicating which rows from input `pc2im_bnhw` are retained.</span>
+
+<span class="sd">    Shape:</span>
+<span class="sd">        - pc2im_bnhw: :math:`(\text{num_active_map_points}, 4)`</span>
+<span class="sd">        - dist_th: Scalar</span>
+<span class="sd">        - dot_th: Scalar</span>
+<span class="sd">        - pc2im_bnhw_similar: :math:`(\text{num_similar_map_points}, 4)` where</span>
+<span class="sd">            :math:`\text{num_similar_map_points}\leq\text{num_active_map_points}`</span>
+<span class="sd">        - is_similar_mask: :math:`(\text{num_active_map_points})` where</span>
+<span class="sd">            :math:`\text{num_similar_map_points}\leq\text{num_active_map_points}</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">pointclouds</span><span class="p">,</span> <span class="n">Pointclouds</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+            <span class="s2">&quot;Expected pointclouds to be of type gradslam.Pointclouds. Got </span><span class="si">{0}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="nb">type</span><span class="p">(</span><span class="n">pointclouds</span><span class="p">)</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">rgbdimages</span><span class="p">,</span> <span class="n">RGBDImages</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+            <span class="s2">&quot;Expected rgbdimages to be of type gradslam.RGBDImages. Got </span><span class="si">{0}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="nb">type</span><span class="p">(</span><span class="n">rgbdimages</span><span class="p">)</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">torch</span><span class="o">.</span><span class="n">is_tensor</span><span class="p">(</span><span class="n">pc2im_bnhw</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+            <span class="s2">&quot;Expected input pc2im_bnhw to be of type torch.Tensor. Got </span><span class="si">{0}</span><span class="s2"> instead.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="nb">type</span><span class="p">(</span><span class="n">pc2im_bnhw</span><span class="p">)</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="n">pc2im_bnhw</span><span class="o">.</span><span class="n">dtype</span> <span class="o">!=</span> <span class="n">torch</span><span class="o">.</span><span class="n">int64</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+            <span class="s2">&quot;Expected input pc2im_bnhw to have dtype of torch.int64 (torch.long), not </span><span class="si">{0}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">pc2im_bnhw</span><span class="o">.</span><span class="n">dtype</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="n">rgbdimages</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">&quot;Expected rgbdimages to have sequence length of 1. Got </span><span class="si">{0}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">rgbdimages</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="n">pc2im_bnhw</span><span class="o">.</span><span class="n">ndim</span> <span class="o">!=</span> <span class="mi">2</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">&quot;Expected pc2im_bnhw.ndim of 2. Got </span><span class="si">{0}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">pc2im_bnhw</span><span class="o">.</span><span class="n">ndim</span><span class="p">)</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="n">pc2im_bnhw</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">4</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">&quot;Expected pc2im_bnhw.shape[1] to be 4. Got </span><span class="si">{0}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">pc2im_bnhw</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="p">)</span>
+
+    <span class="n">device</span> <span class="o">=</span> <span class="n">pointclouds</span><span class="o">.</span><span class="n">device</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">pointclouds</span><span class="o">.</span><span class="n">has_points</span> <span class="ow">or</span> <span class="n">pc2im_bnhw</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">empty</span><span class="p">((</span><span class="mi">0</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">int64</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">),</span> <span class="n">torch</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span>
+            <span class="mi">0</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">bool</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span>
+        <span class="p">)</span>
+
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">rgbdimages</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">pointclouds</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">&quot;Expected equal batch sizes for pointclouds and rgbdimages. Got </span><span class="si">{0}</span><span class="s2"> and </span><span class="si">{1}</span><span class="s2"> respectively.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="nb">len</span><span class="p">(</span><span class="n">pointclouds</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">rgbdimages</span><span class="p">)</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">pointclouds</span><span class="o">.</span><span class="n">has_normals</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">&quot;Pointclouds must have normals for finding similar map points, but did not.&quot;</span>
+        <span class="p">)</span>
+
+    <span class="n">vertex_maps</span> <span class="o">=</span> <span class="n">rgbdimages</span><span class="o">.</span><span class="n">global_vertex_map</span>
+    <span class="n">normal_maps</span> <span class="o">=</span> <span class="n">rgbdimages</span><span class="o">.</span><span class="n">global_normal_map</span>
+
+    <span class="n">frame_points</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">pointclouds</span><span class="o">.</span><span class="n">points_padded</span><span class="p">)</span>
+    <span class="n">frame_normals</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">pointclouds</span><span class="o">.</span><span class="n">normals_padded</span><span class="p">)</span>
+
+    <span class="c1"># vertex_maps -&gt; frame_points will be a one-many mapping</span>
+    <span class="n">frame_points</span><span class="p">[</span><span class="n">pc2im_bnhw</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">pc2im_bnhw</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]]</span> <span class="o">=</span> <span class="n">vertex_maps</span><span class="p">[</span>
+        <span class="n">pc2im_bnhw</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="mi">0</span><span class="p">,</span> <span class="n">pc2im_bnhw</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">],</span> <span class="n">pc2im_bnhw</span><span class="p">[:,</span> <span class="mi">3</span><span class="p">]</span>
+    <span class="p">]</span>
+    <span class="n">frame_normals</span><span class="p">[</span><span class="n">pc2im_bnhw</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">pc2im_bnhw</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]]</span> <span class="o">=</span> <span class="n">normal_maps</span><span class="p">[</span>
+        <span class="n">pc2im_bnhw</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="mi">0</span><span class="p">,</span> <span class="n">pc2im_bnhw</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">],</span> <span class="n">pc2im_bnhw</span><span class="p">[:,</span> <span class="mi">3</span><span class="p">]</span>
+    <span class="p">]</span>
+
+    <span class="c1"># zero normals will automatically get rejected: rgbdimages missing depth values (and pointclouds paddings)</span>
+    <span class="n">is_close</span> <span class="o">=</span> <span class="n">are_points_close</span><span class="p">(</span><span class="n">frame_points</span><span class="p">,</span> <span class="n">pointclouds</span><span class="o">.</span><span class="n">points_padded</span><span class="p">,</span> <span class="n">dist_th</span><span class="p">)</span>
+    <span class="n">is_similar</span> <span class="o">=</span> <span class="n">are_normals_similar</span><span class="p">(</span><span class="n">frame_normals</span><span class="p">,</span> <span class="n">pointclouds</span><span class="o">.</span><span class="n">normals_padded</span><span class="p">,</span> <span class="n">dot_th</span><span class="p">)</span>
+
+    <span class="n">mask</span> <span class="o">=</span> <span class="n">is_close</span> <span class="o">&amp;</span> <span class="n">is_similar</span>  <span class="c1"># shape (B, N)</span>
+    <span class="n">is_similar_mask</span> <span class="o">=</span> <span class="n">mask</span><span class="p">[</span><span class="n">pc2im_bnhw</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">pc2im_bnhw</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]]</span>
+    <span class="n">pc2im_bnhw_similar</span> <span class="o">=</span> <span class="n">pc2im_bnhw</span><span class="p">[</span><span class="n">is_similar_mask</span><span class="p">]</span>
+
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">pc2im_bnhw_similar</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+            <span class="s2">&quot;No similar map points were found (despite total </span><span class="si">{0}</span><span class="s2"> active points across the batch)&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">pc2im_bnhw</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="p">),</span>
+            <span class="ne">RuntimeWarning</span><span class="p">,</span>
+        <span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">pc2im_bnhw_similar</span><span class="p">,</span> <span class="n">is_similar_mask</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">find_best_unique_correspondences</span><span class="p">(</span>
+    <span class="n">pointclouds</span><span class="p">:</span> <span class="n">Pointclouds</span><span class="p">,</span>
+    <span class="n">rgbdimages</span><span class="p">:</span> <span class="n">RGBDImages</span><span class="p">,</span>
+    <span class="n">pc2im_bnhw</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Amongst global map points which project to the same frame pixel, find the ones which have the highest</span>
+<span class="sd">    confidence counter (and if confidence counter is equal then find the closest one to viewing ray).</span>
+<span class="sd">    (See section 4.1 of Point-based Fusion paper: http://reality.cs.ucl.ac.uk/projects/kinect/keller13realtime.pdf )</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        pointclouds (gradslam.Pointclouds): Pointclouds of globalmaps</span>
+<span class="sd">        rgbdimages (gradslam.RGBDImages): Live frames from the latest sequence</span>
+<span class="sd">        pc2im_bnhw (torch.Tensor): Similar map points lookup table. Each row contains batch index `b`, point index (in</span>
+<span class="sd">            pointclouds) `n`, and height and width index after projection to live frame `h` and `w` respectively. This</span>
+<span class="sd">            table can have different points (`b`s and `n`s) projecting to the same live frame pixel (same `h` and `w`)</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        pc2im_bnhw_unique (torch.Tensor): Lookup table of one-to-one correspondences between points from the global map</span>
+<span class="sd">            and live frames&#39; points (pixels).</span>
+
+<span class="sd">    Shape:</span>
+<span class="sd">        - pc2im_bnhw: :math:`(\text{num_similar_map_points}, 4)`</span>
+<span class="sd">        - pc2im_bnhw_unique: :math:`(\text{num_unique_correspondences}, 4)` where</span>
+<span class="sd">            :math:`\text{num_unique_correspondences}\leq\text{num_similar_map_points}`</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">pointclouds</span><span class="p">,</span> <span class="n">Pointclouds</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+            <span class="s2">&quot;Expected pointclouds to be of type gradslam.Pointclouds. Got </span><span class="si">{0}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="nb">type</span><span class="p">(</span><span class="n">pointclouds</span><span class="p">)</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">torch</span><span class="o">.</span><span class="n">is_tensor</span><span class="p">(</span><span class="n">pc2im_bnhw</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+            <span class="s2">&quot;Expected input pc2im_bnhw to be of type torch.Tensor. Got </span><span class="si">{0}</span><span class="s2"> instead.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="nb">type</span><span class="p">(</span><span class="n">pc2im_bnhw</span><span class="p">)</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="n">pc2im_bnhw</span><span class="o">.</span><span class="n">dtype</span> <span class="o">!=</span> <span class="n">torch</span><span class="o">.</span><span class="n">int64</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+            <span class="s2">&quot;Expected input pc2im_bnhw to have dtype of torch.int64 (torch.long), not </span><span class="si">{0}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">pc2im_bnhw</span><span class="o">.</span><span class="n">dtype</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="n">rgbdimages</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">&quot;Expected rgbdimages to have sequence length of 1. Got </span><span class="si">{0}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">rgbdimages</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="n">pc2im_bnhw</span><span class="o">.</span><span class="n">ndim</span> <span class="o">!=</span> <span class="mi">2</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">&quot;Expected pc2im_bnhw.ndim of 2. Got </span><span class="si">{0}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">pc2im_bnhw</span><span class="o">.</span><span class="n">ndim</span><span class="p">)</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="n">pc2im_bnhw</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">4</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">&quot;Expected pc2im_bnhw.shape[1] to be 4. Got </span><span class="si">{0}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">pc2im_bnhw</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="p">)</span>
+
+    <span class="n">device</span> <span class="o">=</span> <span class="n">pointclouds</span><span class="o">.</span><span class="n">device</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">pointclouds</span><span class="o">.</span><span class="n">has_points</span> <span class="ow">or</span> <span class="n">pc2im_bnhw</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">empty</span><span class="p">((</span><span class="mi">0</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">int64</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">rgbdimages</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">pointclouds</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">&quot;Expected equal batch sizes for pointclouds and rgbdimages. Got </span><span class="si">{0}</span><span class="s2"> and </span><span class="si">{1}</span><span class="s2"> respectively.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="nb">len</span><span class="p">(</span><span class="n">pointclouds</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">rgbdimages</span><span class="p">)</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">pointclouds</span><span class="o">.</span><span class="n">has_features</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">&quot;Pointclouds must have features for finding best unique correspondences, but did not.&quot;</span>
+        <span class="p">)</span>
+
+    <span class="c1"># argsort so that duplicate B, H, W indices end next to each other, such that first duplicate has higher ccount</span>
+    <span class="c1"># (&amp; if ccount equal -&gt; first duplicate has smaller ray dist)</span>
+    <span class="n">inv_ccounts</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="p">(</span>
+        <span class="n">pointclouds</span><span class="o">.</span><span class="n">features_padded</span><span class="p">[</span><span class="n">pc2im_bnhw</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">pc2im_bnhw</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]]</span> <span class="o">+</span> <span class="mf">1e-20</span>
+    <span class="p">)</span>  <span class="c1"># shape: [P 1]</span>
+    <span class="c1"># compute ray dist</span>
+    <span class="n">frame_points</span> <span class="o">=</span> <span class="n">rgbdimages</span><span class="o">.</span><span class="n">global_vertex_map</span><span class="p">[</span>
+        <span class="n">pc2im_bnhw</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="mi">0</span><span class="p">,</span> <span class="n">pc2im_bnhw</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">],</span> <span class="n">pc2im_bnhw</span><span class="p">[:,</span> <span class="mi">3</span><span class="p">]</span>
+    <span class="p">]</span>
+    <span class="n">ray_dists</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="p">(</span>
+            <span class="p">(</span>
+                <span class="n">pointclouds</span><span class="o">.</span><span class="n">points_padded</span><span class="p">[</span><span class="n">pc2im_bnhw</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">pc2im_bnhw</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]]</span>
+                <span class="o">-</span> <span class="n">frame_points</span>
+            <span class="p">)</span>
+            <span class="o">**</span> <span class="mi">2</span>
+        <span class="p">)</span>
+        <span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+        <span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+    <span class="p">)</span>
+    <span class="c1"># unique criteria: [B, H, W, 1/ccounts, ray_dists, N]</span>
+    <span class="n">unique_criteria_bhwcrn</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">pc2im_bnhw</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">:</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">float</span><span class="p">(),</span>
+        <span class="n">pc2im_bnhw</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">:</span><span class="mi">4</span><span class="p">]</span><span class="o">.</span><span class="n">float</span><span class="p">(),</span>
+        <span class="n">inv_ccounts</span><span class="p">,</span>
+        <span class="n">ray_dists</span><span class="p">,</span>
+        <span class="n">pc2im_bnhw</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">:</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">float</span><span class="p">(),</span>
+    <span class="p">]</span>
+    <span class="n">unique_criteria_bhwcrn</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">unique_criteria_bhwcrn</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+
+    <span class="c1"># used torch.unique to sort rows (rows are unique): works as if we stable sorted rows ascendingly based on every</span>
+    <span class="c1"># column going from right to left.</span>
+    <span class="c1"># TODO: Might be a faster way? argsort(1e10 * pc2im_bnhw[:, 0] + 1e8 * pc2im_bnhw[:, 2:] + 1e6*inv_ccounts + ...)</span>
+    <span class="n">sorted_criteria</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span>
+        <span class="n">unique_criteria_bhwcrn</span><span class="o">.</span><span class="n">detach</span><span class="p">(),</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span>
+    <span class="p">)</span>  <span class="c1"># pytorch issue #47851</span>
+    <span class="n">indices</span> <span class="o">=</span> <span class="n">sorted_criteria</span><span class="p">[:,</span> <span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">long</span><span class="p">()</span>
+
+    <span class="c1"># find indices of the first occurrences of (sorted) duplicate B, H, W indices</span>
+    <span class="n">sorted_nonunique_inds</span> <span class="o">=</span> <span class="n">sorted_criteria</span><span class="p">[:,</span> <span class="p">:</span><span class="mi">3</span><span class="p">]</span>  <span class="c1"># shape: (?, 3)</span>
+    <span class="n">first_unique_mask</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span>
+        <span class="n">sorted_nonunique_inds</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">bool</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span>
+    <span class="p">)</span>
+    <span class="n">first_unique_mask</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">sorted_nonunique_inds</span><span class="p">[</span><span class="mi">1</span><span class="p">:,</span> <span class="p">:</span><span class="mi">3</span><span class="p">]</span> <span class="o">-</span> <span class="n">sorted_nonunique_inds</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="p">:</span><span class="mi">3</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">0</span>
+    <span class="p">)</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+
+    <span class="n">first_unique</span> <span class="o">=</span> <span class="n">sorted_criteria</span><span class="p">[</span><span class="n">first_unique_mask</span><span class="p">]</span>
+    <span class="n">pc2im_bnhw_unique</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span>
+        <span class="p">[</span>
+            <span class="n">first_unique</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">:</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">long</span><span class="p">(),</span>
+            <span class="n">first_unique</span><span class="p">[:,</span> <span class="o">-</span><span class="mi">1</span><span class="p">:]</span><span class="o">.</span><span class="n">long</span><span class="p">(),</span>
+            <span class="n">first_unique</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">:</span><span class="mi">3</span><span class="p">]</span><span class="o">.</span><span class="n">long</span><span class="p">(),</span>
+        <span class="p">],</span>
+        <span class="o">-</span><span class="mi">1</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">pc2im_bnhw_unique</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">find_correspondences</span><span class="p">(</span>
+    <span class="n">pointclouds</span><span class="p">:</span> <span class="n">Pointclouds</span><span class="p">,</span>
+    <span class="n">rgbdimages</span><span class="p">:</span> <span class="n">RGBDImages</span><span class="p">,</span>
+    <span class="n">dist_th</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span>
+    <span class="n">dot_th</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Returns a lookup table for inferring unique correspondences between points from the live frame and the global</span>
+<span class="sd">    map (See section 4.1 of Point-based Fusion paper: http://reality.cs.ucl.ac.uk/projects/kinect/keller13realtime.pdf )</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        pointclouds (gradslam.Pointclouds): Pointclouds of global maps</span>
+<span class="sd">        rgbdimages (gradslam.RGBDImages): Live frames from the latest sequence</span>
+<span class="sd">        dist_th (float or int): Distance threshold.</span>
+<span class="sd">        dot_th (float or int): Dot product threshold.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        pc2im_bnhw (torch.Tensor): Unique correspondence lookup table. Each row contains batch index `b`, point index</span>
+<span class="sd">            (in pointclouds) `n`, and height and width index after projection to live frame `h` and `w` respectively.</span>
+
+<span class="sd">    Shape:</span>
+<span class="sd">        - pc2im_bnhw: :math:`(\text{num_unique_correspondences}, 4)`</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">pc2im_bnhw</span> <span class="o">=</span> <span class="n">find_active_map_points</span><span class="p">(</span><span class="n">pointclouds</span><span class="p">,</span> <span class="n">rgbdimages</span><span class="p">)</span>
+    <span class="n">pc2im_bnhw</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">find_similar_map_points</span><span class="p">(</span>
+        <span class="n">pointclouds</span><span class="p">,</span> <span class="n">rgbdimages</span><span class="p">,</span> <span class="n">pc2im_bnhw</span><span class="p">,</span> <span class="n">dist_th</span><span class="p">,</span> <span class="n">dot_th</span>
+    <span class="p">)</span>
+    <span class="n">pc2im_bnhw</span> <span class="o">=</span> <span class="n">find_best_unique_correspondences</span><span class="p">(</span><span class="n">pointclouds</span><span class="p">,</span> <span class="n">rgbdimages</span><span class="p">,</span> <span class="n">pc2im_bnhw</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">pc2im_bnhw</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">fuse_with_map</span><span class="p">(</span>
+    <span class="n">pointclouds</span><span class="p">:</span> <span class="n">Pointclouds</span><span class="p">,</span>
+    <span class="n">rgbdimages</span><span class="p">:</span> <span class="n">RGBDImages</span><span class="p">,</span>
+    <span class="n">pc2im_bnhw</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+    <span class="n">sigma</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span>
+    <span class="n">inplace</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Pointclouds</span><span class="p">:</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Fuses points from live frames with global maps by merging corresponding points and appending new points.</span>
+<span class="sd">    (See section 4.2 of Point-based Fusion paper: http://reality.cs.ucl.ac.uk/projects/kinect/keller13realtime.pdf )</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        pointclouds (gradslam.Pointclouds): Pointclouds of global maps. Must have points, colors, normals and features</span>
+<span class="sd">            (ccounts).</span>
+<span class="sd">        rgbdimages (gradslam.RGBDImages): Live frames from the latest sequence</span>
+<span class="sd">        pc2im_bnhw (torch.Tensor): Unique correspondence lookup table. Each row contains batch index `b`, point index</span>
+<span class="sd">            (in pointclouds) `n`, and height and width index after projection to live frame `h` and `w` respectively.</span>
+<span class="sd">        sigma (torch.Tensor or float or int): Standard deviation of the Gaussian. Original paper uses 0.6 emperically.</span>
+<span class="sd">        inplace (bool): Can optionally update the pointclouds in-place. Default: False</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        pointclouds (gradslam.Pointclouds): Updated Pointclouds object containing global maps.</span>
+
+<span class="sd">    Shape:</span>
+<span class="sd">        - pc2im_bnhw: :math:`(\text{num_unique_correspondences}, 4)`</span>
+<span class="sd">        - sigma: Scalar</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">pointclouds</span><span class="p">,</span> <span class="n">Pointclouds</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+            <span class="s2">&quot;Expected pointclouds to be of type gradslam.Pointclouds. Got </span><span class="si">{0}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="nb">type</span><span class="p">(</span><span class="n">pointclouds</span><span class="p">)</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">rgbdimages</span><span class="p">,</span> <span class="n">RGBDImages</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+            <span class="s2">&quot;Expected rgbdimages to be of type gradslam.RGBDImages. Got </span><span class="si">{0}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="nb">type</span><span class="p">(</span><span class="n">rgbdimages</span><span class="p">)</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">torch</span><span class="o">.</span><span class="n">is_tensor</span><span class="p">(</span><span class="n">pc2im_bnhw</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+            <span class="s2">&quot;Expected input pc2im_bnhw to be of type torch.Tensor. Got </span><span class="si">{0}</span><span class="s2"> instead.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="nb">type</span><span class="p">(</span><span class="n">pc2im_bnhw</span><span class="p">)</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="n">pc2im_bnhw</span><span class="o">.</span><span class="n">dtype</span> <span class="o">!=</span> <span class="n">torch</span><span class="o">.</span><span class="n">int64</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+            <span class="s2">&quot;Expected input pc2im_bnhw to have dtype of torch.int64 (torch.long), not </span><span class="si">{0}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">pc2im_bnhw</span><span class="o">.</span><span class="n">dtype</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="n">pc2im_bnhw</span><span class="o">.</span><span class="n">ndim</span> <span class="o">!=</span> <span class="mi">2</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">&quot;Expected pc2im_bnhw.ndim of 2. Got </span><span class="si">{0}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">pc2im_bnhw</span><span class="o">.</span><span class="n">ndim</span><span class="p">)</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="n">pc2im_bnhw</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">4</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">&quot;Expected pc2im_bnhw.shape[1] to be 4. Got </span><span class="si">{0}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">pc2im_bnhw</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="n">pointclouds</span><span class="o">.</span><span class="n">has_points</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">pointclouds</span><span class="o">.</span><span class="n">has_normals</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;Pointclouds must have normals for map fusion, but did not.&quot;</span>
+            <span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">pointclouds</span><span class="o">.</span><span class="n">has_colors</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;Pointclouds must have colors for map fusion, but did not.&quot;</span>
+            <span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">pointclouds</span><span class="o">.</span><span class="n">has_features</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;Pointclouds must have features (ccounts) for map fusion, but did not.&quot;</span>
+            <span class="p">)</span>
+
+    <span class="c1"># Fuse points (from live frame) with corresponding global map points</span>
+    <span class="n">vertex_maps</span> <span class="o">=</span> <span class="n">rgbdimages</span><span class="o">.</span><span class="n">global_vertex_map</span>
+    <span class="n">normal_maps</span> <span class="o">=</span> <span class="n">rgbdimages</span><span class="o">.</span><span class="n">global_normal_map</span>
+    <span class="n">rgb_image</span> <span class="o">=</span> <span class="n">rgbdimages</span><span class="o">.</span><span class="n">rgb_image</span>
+    <span class="n">alpha_image</span> <span class="o">=</span> <span class="n">get_alpha</span><span class="p">(</span><span class="n">rgbdimages</span><span class="o">.</span><span class="n">vertex_map</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">keepdim</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">sigma</span><span class="o">=</span><span class="n">sigma</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">pointclouds</span><span class="o">.</span><span class="n">has_points</span> <span class="ow">and</span> <span class="n">pc2im_bnhw</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">frame_points</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">pointclouds</span><span class="o">.</span><span class="n">points_padded</span><span class="p">)</span>
+        <span class="n">frame_normals</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">pointclouds</span><span class="o">.</span><span class="n">normals_padded</span><span class="p">)</span>
+        <span class="n">frame_colors</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">pointclouds</span><span class="o">.</span><span class="n">colors_padded</span><span class="p">)</span>
+        <span class="n">frame_alphas</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">pointclouds</span><span class="o">.</span><span class="n">features_padded</span><span class="p">)</span>
+
+        <span class="n">frame_points</span><span class="p">[</span><span class="n">pc2im_bnhw</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">pc2im_bnhw</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]]</span> <span class="o">=</span> <span class="n">vertex_maps</span><span class="p">[</span>
+            <span class="n">pc2im_bnhw</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="mi">0</span><span class="p">,</span> <span class="n">pc2im_bnhw</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">],</span> <span class="n">pc2im_bnhw</span><span class="p">[:,</span> <span class="mi">3</span><span class="p">]</span>
+        <span class="p">]</span>
+        <span class="n">frame_normals</span><span class="p">[</span><span class="n">pc2im_bnhw</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">pc2im_bnhw</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]]</span> <span class="o">=</span> <span class="n">normal_maps</span><span class="p">[</span>
+            <span class="n">pc2im_bnhw</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="mi">0</span><span class="p">,</span> <span class="n">pc2im_bnhw</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">],</span> <span class="n">pc2im_bnhw</span><span class="p">[:,</span> <span class="mi">3</span><span class="p">]</span>
+        <span class="p">]</span>
+        <span class="n">frame_colors</span><span class="p">[</span><span class="n">pc2im_bnhw</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">pc2im_bnhw</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]]</span> <span class="o">=</span> <span class="n">rgb_image</span><span class="p">[</span>
+            <span class="n">pc2im_bnhw</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="mi">0</span><span class="p">,</span> <span class="n">pc2im_bnhw</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">],</span> <span class="n">pc2im_bnhw</span><span class="p">[:,</span> <span class="mi">3</span><span class="p">]</span>
+        <span class="p">]</span>
+        <span class="n">frame_alphas</span><span class="p">[</span><span class="n">pc2im_bnhw</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">pc2im_bnhw</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]]</span> <span class="o">=</span> <span class="n">alpha_image</span><span class="p">[</span>
+            <span class="n">pc2im_bnhw</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="mi">0</span><span class="p">,</span> <span class="n">pc2im_bnhw</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">],</span> <span class="n">pc2im_bnhw</span><span class="p">[:,</span> <span class="mi">3</span><span class="p">]</span>
+        <span class="p">]</span>
+
+        <span class="n">map_ccounts</span> <span class="o">=</span> <span class="n">pointclouds</span><span class="o">.</span><span class="n">features_padded</span>
+        <span class="n">updated_ccounts</span> <span class="o">=</span> <span class="n">map_ccounts</span> <span class="o">+</span> <span class="n">frame_alphas</span>
+        <span class="c1"># TODO: Add the condition for radius of points before applying averaging</span>
+        <span class="c1"># TODO: Put the mapping + averaging into a function</span>
+        <span class="n">updated_points</span> <span class="o">=</span> <span class="p">(</span><span class="n">map_ccounts</span> <span class="o">*</span> <span class="n">pointclouds</span><span class="o">.</span><span class="n">points_padded</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span>
+            <span class="n">frame_alphas</span> <span class="o">*</span> <span class="n">frame_points</span>
+        <span class="p">)</span>
+        <span class="n">updated_normals</span> <span class="o">=</span> <span class="p">(</span><span class="n">map_ccounts</span> <span class="o">*</span> <span class="n">pointclouds</span><span class="o">.</span><span class="n">normals_padded</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span>
+            <span class="n">frame_alphas</span> <span class="o">*</span> <span class="n">frame_normals</span>
+        <span class="p">)</span>
+        <span class="n">updated_colors</span> <span class="o">=</span> <span class="p">(</span><span class="n">map_ccounts</span> <span class="o">*</span> <span class="n">pointclouds</span><span class="o">.</span><span class="n">colors_padded</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span>
+            <span class="n">frame_alphas</span> <span class="o">*</span> <span class="n">frame_colors</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Merge corresponding points</span>
+        <span class="n">inv_updated_ccounts</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span>
+            <span class="n">updated_ccounts</span> <span class="o">==</span> <span class="mi">0</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">ones_like</span><span class="p">(</span><span class="n">updated_ccounts</span><span class="p">),</span> <span class="n">updated_ccounts</span>
+        <span class="p">)</span>
+        <span class="n">pointclouds</span><span class="o">.</span><span class="n">points_padded</span> <span class="o">=</span> <span class="n">updated_points</span> <span class="o">*</span> <span class="n">inv_updated_ccounts</span>
+        <span class="n">pointclouds</span><span class="o">.</span><span class="n">normals_padded</span> <span class="o">=</span> <span class="n">updated_normals</span> <span class="o">*</span> <span class="n">inv_updated_ccounts</span>
+        <span class="n">pointclouds</span><span class="o">.</span><span class="n">colors_padded</span> <span class="o">=</span> <span class="n">updated_colors</span> <span class="o">*</span> <span class="n">inv_updated_ccounts</span>
+        <span class="n">pointclouds</span><span class="o">.</span><span class="n">features_padded</span> <span class="o">=</span> <span class="n">updated_ccounts</span>
+
+    <span class="c1"># Append points (from live frame) that did not have correspondences (from global map)</span>
+    <span class="n">new_mask</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">ones_like</span><span class="p">(</span><span class="n">vertex_maps</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">bool</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">pointclouds</span><span class="o">.</span><span class="n">has_points</span> <span class="ow">and</span> <span class="n">pc2im_bnhw</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">new_mask</span><span class="p">[</span><span class="n">pc2im_bnhw</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="mi">0</span><span class="p">,</span> <span class="n">pc2im_bnhw</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">],</span> <span class="n">pc2im_bnhw</span><span class="p">[:,</span> <span class="mi">3</span><span class="p">]]</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">new_mask</span> <span class="o">=</span> <span class="n">new_mask</span> <span class="o">*</span> <span class="n">rgbdimages</span><span class="o">.</span><span class="n">valid_depth_mask</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span>
+        <span class="o">-</span><span class="mi">1</span>
+    <span class="p">)</span>  <span class="c1"># don&#39;t add missing depths to map</span>
+    <span class="n">B</span> <span class="o">=</span> <span class="n">new_mask</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="n">new_points</span> <span class="o">=</span> <span class="p">[</span><span class="n">vertex_maps</span><span class="p">[</span><span class="n">b</span><span class="p">][</span><span class="n">new_mask</span><span class="p">[</span><span class="n">b</span><span class="p">]]</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">B</span><span class="p">)]</span>
+    <span class="n">new_normals</span> <span class="o">=</span> <span class="p">[</span><span class="n">normal_maps</span><span class="p">[</span><span class="n">b</span><span class="p">][</span><span class="n">new_mask</span><span class="p">[</span><span class="n">b</span><span class="p">]]</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">B</span><span class="p">)]</span>
+    <span class="n">new_colors</span> <span class="o">=</span> <span class="p">[</span><span class="n">rgb_image</span><span class="p">[</span><span class="n">b</span><span class="p">][</span><span class="n">new_mask</span><span class="p">[</span><span class="n">b</span><span class="p">]]</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">B</span><span class="p">)]</span>
+    <span class="n">new_features</span> <span class="o">=</span> <span class="p">[</span><span class="n">alpha_image</span><span class="p">[</span><span class="n">b</span><span class="p">][</span><span class="n">new_mask</span><span class="p">[</span><span class="n">b</span><span class="p">]]</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">B</span><span class="p">)]</span>
+
+    <span class="n">new_pointclouds</span> <span class="o">=</span> <span class="n">Pointclouds</span><span class="p">(</span>
+        <span class="n">points</span><span class="o">=</span><span class="n">new_points</span><span class="p">,</span> <span class="n">normals</span><span class="o">=</span><span class="n">new_normals</span><span class="p">,</span> <span class="n">colors</span><span class="o">=</span><span class="n">new_colors</span><span class="p">,</span> <span class="n">features</span><span class="o">=</span><span class="n">new_features</span>
+    <span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">inplace</span><span class="p">:</span>
+        <span class="n">pointclouds</span> <span class="o">=</span> <span class="n">pointclouds</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span>
+    <span class="n">pointclouds</span><span class="o">.</span><span class="n">append_points</span><span class="p">(</span><span class="n">new_pointclouds</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">pointclouds</span>
+
+
+<div class="viewcode-block" id="update_map_aggregate">
+<a class="viewcode-back" href="../../../modules/slam.html#gradslam.slam.update_map_aggregate">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">update_map_aggregate</span><span class="p">(</span>
+    <span class="n">pointclouds</span><span class="p">:</span> <span class="n">Pointclouds</span><span class="p">,</span>
+    <span class="n">rgbdimages</span><span class="p">:</span> <span class="n">RGBDImages</span><span class="p">,</span>
+    <span class="n">inplace</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Pointclouds</span><span class="p">:</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Aggregate points from live frames with global maps by appending the live frame points.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        pointclouds (gradslam.Pointclouds): Pointclouds of global maps. Must have points, colors, normals and features</span>
+<span class="sd">            (ccounts).</span>
+<span class="sd">        rgbdimages (gradslam.RGBDImages): Live frames from the latest sequence</span>
+<span class="sd">        inplace (bool): Can optionally update the pointclouds in-place. Default: False</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        gradslam.Pointclouds: Updated Pointclouds object containing global maps.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">pointclouds</span><span class="p">,</span> <span class="n">Pointclouds</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+            <span class="s2">&quot;Expected pointclouds to be of type gradslam.Pointclouds. Got </span><span class="si">{0}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="nb">type</span><span class="p">(</span><span class="n">pointclouds</span><span class="p">)</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">rgbdimages</span><span class="p">,</span> <span class="n">RGBDImages</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+            <span class="s2">&quot;Expected rgbdimages to be of type gradslam.RGBDImages. Got </span><span class="si">{0}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="nb">type</span><span class="p">(</span><span class="n">rgbdimages</span><span class="p">)</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+    <span class="n">new_pointclouds</span> <span class="o">=</span> <span class="n">pointclouds_from_rgbdimages</span><span class="p">(</span><span class="n">rgbdimages</span><span class="p">,</span> <span class="n">global_coordinates</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">inplace</span><span class="p">:</span>
+        <span class="n">pointclouds</span> <span class="o">=</span> <span class="n">pointclouds</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span>
+    <span class="n">pointclouds</span><span class="o">.</span><span class="n">append_points</span><span class="p">(</span><span class="n">new_pointclouds</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">pointclouds</span></div>
+
+
+
+<div class="viewcode-block" id="update_map_fusion">
+<a class="viewcode-back" href="../../../modules/slam.html#gradslam.slam.update_map_fusion">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">update_map_fusion</span><span class="p">(</span>
+    <span class="n">pointclouds</span><span class="p">:</span> <span class="n">Pointclouds</span><span class="p">,</span>
+    <span class="n">rgbdimages</span><span class="p">:</span> <span class="n">RGBDImages</span><span class="p">,</span>
+    <span class="n">dist_th</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span>
+    <span class="n">dot_th</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span>
+    <span class="n">sigma</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span>
+    <span class="n">inplace</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Pointclouds</span><span class="p">:</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Updates pointclouds in-place given the live frame RGB-D images using PointFusion.</span>
+<span class="sd">    (See Point-based Fusion `paper &lt;http://reality.cs.ucl.ac.uk/projects/kinect/keller13realtime.pdf&gt;`__).</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        pointclouds (gradslam.Pointclouds): Pointclouds of global maps. Must have points, colors, normals and features</span>
+<span class="sd">            (ccounts).</span>
+<span class="sd">        rgbdimages (gradslam.RGBDImages): Live frames from the latest sequence</span>
+<span class="sd">        dist_th (float or int): Distance threshold.</span>
+<span class="sd">        dot_th (float or int): Dot product threshold.</span>
+<span class="sd">        sigma (torch.Tensor or float or int): Standard deviation of the Gaussian. Original paper uses 0.6 emperically.</span>
+<span class="sd">        inplace (bool): Can optionally update the pointclouds in-place. Default: False</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        gradslam.Pointclouds: Updated Pointclouds object containing global maps.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">batch_size</span><span class="p">,</span> <span class="n">seq_len</span><span class="p">,</span> <span class="n">height</span><span class="p">,</span> <span class="n">width</span> <span class="o">=</span> <span class="n">rgbdimages</span><span class="o">.</span><span class="n">shape</span>
+    <span class="n">pc2im_bnhw</span> <span class="o">=</span> <span class="n">find_correspondences</span><span class="p">(</span><span class="n">pointclouds</span><span class="p">,</span> <span class="n">rgbdimages</span><span class="p">,</span> <span class="n">dist_th</span><span class="p">,</span> <span class="n">dot_th</span><span class="p">)</span>
+    <span class="n">pointclouds</span> <span class="o">=</span> <span class="n">fuse_with_map</span><span class="p">(</span><span class="n">pointclouds</span><span class="p">,</span> <span class="n">rgbdimages</span><span class="p">,</span> <span class="n">pc2im_bnhw</span><span class="p">,</span> <span class="n">sigma</span><span class="p">,</span> <span class="n">inplace</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">pointclouds</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020–2026, Montreal Robotics Lab.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

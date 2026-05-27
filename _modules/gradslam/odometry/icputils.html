@@ -1,0 +1,808 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>gradslam.odometry.icputils &mdash; gradslam 0.2.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
+
+  
+    <link rel="shortcut icon" href="../../../_static/gradslam-favicon-32x32.png"/>
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=938c9ccc"></script>
+      <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            gradslam
+              <img src="../../../_static/gradslam-logo.png" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials/tutorial_prerequisits.html">Prerequisits</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials.html">Getting started with RGBDImages</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials.html#getting-started-with-pointclouds">Getting started with Pointclouds</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials.html#pointfusion-slam">PointFusion SLAM</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/config.html">gradslam.config</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/backend.html">Backend</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/datasets.html">gradslam.datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/geometry.html">gradslam.geometry</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/icp.html">ICP Tracking</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/mapping.html">Mapping &amp; Fusion</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/metrics.html">gradslam.metrics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/odometry.html">gradslam.odometry</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/rendering.html">Rendering</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/slam.html">gradslam.slam</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/structures.html">gradslam.structures</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/utils.html">gradslam.utils</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">gradslam</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">gradslam.odometry.icputils</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for gradslam.odometry.icputils</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Union</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">..geometry.geometryutils</span><span class="w"> </span><span class="kn">import</span> <span class="n">transform_pointcloud</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">..geometry.knn</span><span class="w"> </span><span class="kn">import</span> <span class="n">knn_points</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">..geometry.se3utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">se3_exp</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">..structures.pointclouds</span><span class="w"> </span><span class="kn">import</span> <span class="n">Pointclouds</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">..structures.rgbdimages</span><span class="w"> </span><span class="kn">import</span> <span class="n">RGBDImages</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s2">&quot;solve_linear_system&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;gauss_newton_solve&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;point_to_plane_ICP&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;point_to_plane_gradICP&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;downsample_pointclouds&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;downsample_rgbdimages&quot;</span><span class="p">,</span>
+<span class="p">]</span>
+
+
+<div class="viewcode-block" id="solve_linear_system">
+<a class="viewcode-back" href="../../../modules/odometry.html#gradslam.odometry.icputils.solve_linear_system">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">solve_linear_system</span><span class="p">(</span>
+    <span class="n">A</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">b</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">damp</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1e-8</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Solves the normal equations of a linear system Ax = b, given the constraint matrix A and the coefficient vector</span>
+<span class="sd">    b. Note that this solves the normal equations, not the linear system. That is, solves :math:`A^T A x = A^T b`,</span>
+<span class="sd">    not :math:`Ax = b`.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        A (torch.Tensor): The constraint matrix of the linear system.</span>
+<span class="sd">        b (torch.Tensor): The coefficient vector of the linear system.</span>
+<span class="sd">        damp (float or torch.Tensor): Damping coefficient to optionally condition the linear system (in practice,</span>
+<span class="sd">            a damping coefficient of :math:`\rho` means that we are solving a modified linear system that adds a tiny</span>
+<span class="sd">            :math:`\rho` to each diagonal element of the constraint matrix :math:`A`, so that the linear system</span>
+<span class="sd">            becomes :math:`(A^TA + \rho I)x = b`, where :math:`I` is the identity matrix of shape</span>
+<span class="sd">            :math:`(\text{num_of_variables}, \text{num_of_variables})`. Default: 1e-8</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        torch.Tensor: Solution vector of the normal equations of the linear system</span>
+
+<span class="sd">    Shape:</span>
+<span class="sd">        - A: :math:`(\text{num_of_equations}, \text{num_of_variables})`</span>
+<span class="sd">        - b: :math:`(\text{num_of_equations}, 1)`</span>
+<span class="sd">        - Output: :math:`(\text{num_of_variables}, 1)`</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">torch</span><span class="o">.</span><span class="n">is_tensor</span><span class="p">(</span><span class="n">A</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+            <span class="s2">&quot;Expected A to be of type torch.Tensor. Got </span><span class="si">{0}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">A</span><span class="p">))</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">torch</span><span class="o">.</span><span class="n">is_tensor</span><span class="p">(</span><span class="n">b</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+            <span class="s2">&quot;Expected b to be of type torch.Tensor. Got </span><span class="si">{0}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">b</span><span class="p">))</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">damp</span><span class="p">,</span> <span class="nb">float</span><span class="p">)</span> <span class="ow">or</span> <span class="n">torch</span><span class="o">.</span><span class="n">is_tensor</span><span class="p">(</span><span class="n">damp</span><span class="p">)):</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+            <span class="s2">&quot;Expected damp to be of type float or torch.Tensor. Got </span><span class="si">{0}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="nb">type</span><span class="p">(</span><span class="n">damp</span><span class="p">)</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="n">torch</span><span class="o">.</span><span class="n">is_tensor</span><span class="p">(</span><span class="n">damp</span><span class="p">)</span> <span class="ow">and</span> <span class="n">damp</span><span class="o">.</span><span class="n">ndim</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">&quot;Expected torch.Tensor damp to have ndim=0 (scalar). Got </span><span class="si">{0}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">damp</span><span class="o">.</span><span class="n">ndim</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="n">A</span><span class="o">.</span><span class="n">ndim</span> <span class="o">!=</span> <span class="mi">2</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;A should have ndim=2, but had ndim=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">A</span><span class="o">.</span><span class="n">ndim</span><span class="p">))</span>
+    <span class="k">if</span> <span class="n">b</span><span class="o">.</span><span class="n">ndim</span> <span class="o">!=</span> <span class="mi">2</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;b should have ndim=2, but had ndim=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">b</span><span class="o">.</span><span class="n">ndim</span><span class="p">))</span>
+    <span class="k">if</span> <span class="n">b</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;b.shape[1] should 1, but was </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">b</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span>
+    <span class="k">if</span> <span class="n">A</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="n">b</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">&quot;A.shape[0] and b.shape[0] should be equal (</span><span class="si">{0}</span><span class="s2"> != </span><span class="si">{1}</span><span class="s2">)&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">A</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">b</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+    <span class="n">damp</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">damp</span>
+        <span class="k">if</span> <span class="n">torch</span><span class="o">.</span><span class="n">is_tensor</span><span class="p">(</span><span class="n">damp</span><span class="p">)</span>
+        <span class="k">else</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">damp</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">A</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">A</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+    <span class="p">)</span>
+
+    <span class="c1"># Construct the normal equations</span>
+    <span class="n">A_t</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="n">A</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="n">damp_matrix</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="n">A</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">A</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+    <span class="n">At_A</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">matmul</span><span class="p">(</span><span class="n">A_t</span><span class="p">,</span> <span class="n">A</span><span class="p">)</span> <span class="o">+</span> <span class="n">damp_matrix</span> <span class="o">*</span> <span class="n">damp</span>
+
+    <span class="c1"># Solve the normal equations (for now, by inversion!)</span>
+    <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">matmul</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">inverse</span><span class="p">(</span><span class="n">At_A</span><span class="p">),</span> <span class="n">torch</span><span class="o">.</span><span class="n">matmul</span><span class="p">(</span><span class="n">A_t</span><span class="p">,</span> <span class="n">b</span><span class="p">))</span></div>
+
+
+
+<div class="viewcode-block" id="gauss_newton_solve">
+<a class="viewcode-back" href="../../../modules/odometry.html#gradslam.odometry.icputils.gauss_newton_solve">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">gauss_newton_solve</span><span class="p">(</span>
+    <span class="n">src_pc</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+    <span class="n">tgt_pc</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+    <span class="n">tgt_normals</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+    <span class="n">dist_thresh</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Computes Gauss Newton step by forming linear equation. Points from `src_pc` which have a distance greater</span>
+<span class="sd">    than `dist_thresh` to the closest point in `tgt_pc` will be filtered.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        src_pc (torch.Tensor): Source pointcloud (the pointcloud that needs warping).</span>
+<span class="sd">        tgt_pc (torch.Tensor): Target pointcloud (the pointcloud to which the source pointcloud must be warped to).</span>
+<span class="sd">        tgt_normals (torch.Tensor): Per-point normal vectors for each point in the target pointcloud.</span>
+<span class="sd">        dist_thresh (float or int or None): Distance threshold for removing `src_pc` points distant from `tgt_pc`.</span>
+<span class="sd">            Default: None</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        tuple: tuple containing:</span>
+
+<span class="sd">        - A (torch.Tensor): linear system equation</span>
+<span class="sd">        - b (torch.Tensor): linear system residual</span>
+<span class="sd">        - chamfer_indices (torch.Tensor): Index of the closest point in `tgt_pc` for each point in `src_pc`</span>
+<span class="sd">            that was not filtered out.</span>
+
+<span class="sd">    Shape:</span>
+<span class="sd">        - src_pc: :math:`(1, N_s, 3)`</span>
+<span class="sd">        - tgt_pc: :math:`(1, N_t, 3)`</span>
+<span class="sd">        - tgt_normals: :math:`(1, N_t, 3)`</span>
+<span class="sd">        - A: :math:`(N_sf, 6)` where :math:`N_sf \leq N_s`</span>
+<span class="sd">        - b: :math:`(N_sf, 1)` where :math:`N_sf \leq N_s`</span>
+<span class="sd">        - chamfer_indices: :math:`(1, N_sf)` where :math:`N_sf \leq N_s`</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">torch</span><span class="o">.</span><span class="n">is_tensor</span><span class="p">(</span><span class="n">src_pc</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+            <span class="s2">&quot;Expected src_pc to be of type torch.Tensor. Got </span><span class="si">{0}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">src_pc</span><span class="p">))</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">torch</span><span class="o">.</span><span class="n">is_tensor</span><span class="p">(</span><span class="n">tgt_pc</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+            <span class="s2">&quot;Expected tgt_pc to be of type torch.Tensor. Got </span><span class="si">{0}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">tgt_pc</span><span class="p">))</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">torch</span><span class="o">.</span><span class="n">is_tensor</span><span class="p">(</span><span class="n">tgt_normals</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+            <span class="s2">&quot;Expected tgt_normals to be of type torch.Tensor. Got </span><span class="si">{0}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="nb">type</span><span class="p">(</span><span class="n">tgt_normals</span><span class="p">)</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span>
+        <span class="nb">isinstance</span><span class="p">(</span><span class="n">dist_thresh</span><span class="p">,</span> <span class="nb">float</span><span class="p">)</span>
+        <span class="ow">or</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">dist_thresh</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span>
+        <span class="ow">or</span> <span class="n">dist_thresh</span> <span class="ow">is</span> <span class="kc">None</span>
+    <span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+            <span class="s2">&quot;Expected dist_thresh to be of type float or int. Got </span><span class="si">{0}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="nb">type</span><span class="p">(</span><span class="n">dist_thresh</span><span class="p">)</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="n">src_pc</span><span class="o">.</span><span class="n">ndim</span> <span class="o">!=</span> <span class="mi">3</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">&quot;src_pc should have ndim=3, but had ndim=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">src_pc</span><span class="o">.</span><span class="n">ndim</span><span class="p">)</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="n">tgt_pc</span><span class="o">.</span><span class="n">ndim</span> <span class="o">!=</span> <span class="mi">3</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">&quot;tgt_pc should have ndim=3, but had ndim=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">tgt_pc</span><span class="o">.</span><span class="n">ndim</span><span class="p">)</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="n">tgt_normals</span><span class="o">.</span><span class="n">ndim</span> <span class="o">!=</span> <span class="mi">3</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">&quot;tgt_normals should have ndim=3, but had ndim=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">tgt_normals</span><span class="o">.</span><span class="n">ndim</span><span class="p">)</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="n">src_pc</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">&quot;src_pc.shape[0] should be 1, but was </span><span class="si">{}</span><span class="s2"> instead&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">src_pc</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="n">tgt_pc</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">&quot;tgt_pc.shape[0] should be 1, but was </span><span class="si">{}</span><span class="s2"> instead&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">tgt_pc</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="n">tgt_normals</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">&quot;tgt_normals.shape[0] should be 1, but was </span><span class="si">{}</span><span class="s2"> instead&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">tgt_normals</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="n">tgt_pc</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="n">tgt_normals</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">&quot;tgt_pc.shape[1] and tgt_normals.shape[1] must be equal. Got </span><span class="si">{0}</span><span class="s2">!=</span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">tgt_pc</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">tgt_normals</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="n">src_pc</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">3</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">&quot;src_pc.shape[2] should be 3, but was </span><span class="si">{}</span><span class="s2"> instead&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">src_pc</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="n">tgt_pc</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">3</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">&quot;tgt_pc.shape[2] should be 3, but was </span><span class="si">{}</span><span class="s2"> instead&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">tgt_pc</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="n">tgt_normals</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">3</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">&quot;tgt_normals.shape[2] should be 3, but was </span><span class="si">{}</span><span class="s2"> instead&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">tgt_normals</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+
+    <span class="n">src_pc</span> <span class="o">=</span> <span class="n">src_pc</span><span class="o">.</span><span class="n">contiguous</span><span class="p">()</span>
+    <span class="n">tgt_pc</span> <span class="o">=</span> <span class="n">tgt_pc</span><span class="o">.</span><span class="n">contiguous</span><span class="p">()</span>
+    <span class="n">tgt_normals</span> <span class="o">=</span> <span class="n">tgt_normals</span><span class="o">.</span><span class="n">contiguous</span><span class="p">()</span>
+
+    <span class="n">_KNN</span> <span class="o">=</span> <span class="n">knn_points</span><span class="p">(</span><span class="n">src_pc</span><span class="p">,</span> <span class="n">tgt_pc</span><span class="p">)</span>
+    <span class="n">dist1</span><span class="p">,</span> <span class="n">idx1</span> <span class="o">=</span> <span class="n">_KNN</span><span class="o">.</span><span class="n">dists</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">),</span> <span class="n">_KNN</span><span class="o">.</span><span class="n">idx</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+
+    <span class="n">dist_filter</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">torch</span><span class="o">.</span><span class="n">ones_like</span><span class="p">(</span><span class="n">dist1</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">bool</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">dist_thresh</span> <span class="ow">is</span> <span class="kc">None</span>
+        <span class="k">else</span> <span class="n">dist1</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">dist_thresh</span>
+    <span class="p">)</span>
+    <span class="n">chamfer_indices</span> <span class="o">=</span> <span class="n">idx1</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="n">dist_filter</span><span class="p">]</span><span class="o">.</span><span class="n">long</span><span class="p">()</span>
+
+    <span class="n">sx</span> <span class="o">=</span> <span class="n">src_pc</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="n">dist_filter</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="n">sy</span> <span class="o">=</span> <span class="n">src_pc</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="n">dist_filter</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="n">sz</span> <span class="o">=</span> <span class="n">src_pc</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="n">dist_filter</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+
+    <span class="c1"># Closest point/normal to each source point</span>
+    <span class="n">assoc_pts</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">index_select</span><span class="p">(</span><span class="n">tgt_pc</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">chamfer_indices</span><span class="p">)</span>
+    <span class="n">assoc_normals</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">index_select</span><span class="p">(</span><span class="n">tgt_normals</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">chamfer_indices</span><span class="p">)</span>
+
+    <span class="c1"># Closest destination point to each source point</span>
+    <span class="n">dx</span> <span class="o">=</span> <span class="n">assoc_pts</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="p">:,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="n">dy</span> <span class="o">=</span> <span class="n">assoc_pts</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="p">:,</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="n">dz</span> <span class="o">=</span> <span class="n">assoc_pts</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="p">:,</span> <span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+
+    <span class="n">nx</span> <span class="o">=</span> <span class="n">assoc_normals</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="p">:,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="n">ny</span> <span class="o">=</span> <span class="n">assoc_normals</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="p">:,</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="n">nz</span> <span class="o">=</span> <span class="n">assoc_normals</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="p">:,</span> <span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+
+    <span class="n">A</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span>
+        <span class="p">[</span><span class="n">nx</span><span class="p">,</span> <span class="n">ny</span><span class="p">,</span> <span class="n">nz</span><span class="p">,</span> <span class="n">nz</span> <span class="o">*</span> <span class="n">sy</span> <span class="o">-</span> <span class="n">ny</span> <span class="o">*</span> <span class="n">sz</span><span class="p">,</span> <span class="n">nx</span> <span class="o">*</span> <span class="n">sz</span> <span class="o">-</span> <span class="n">nz</span> <span class="o">*</span> <span class="n">sx</span><span class="p">,</span> <span class="n">ny</span> <span class="o">*</span> <span class="n">sx</span> <span class="o">-</span> <span class="n">nx</span> <span class="o">*</span> <span class="n">sy</span><span class="p">],</span> <span class="mi">1</span>
+    <span class="p">)</span>
+    <span class="n">b</span> <span class="o">=</span> <span class="n">nx</span> <span class="o">*</span> <span class="p">(</span><span class="n">dx</span> <span class="o">-</span> <span class="n">sx</span><span class="p">)</span> <span class="o">+</span> <span class="n">ny</span> <span class="o">*</span> <span class="p">(</span><span class="n">dy</span> <span class="o">-</span> <span class="n">sy</span><span class="p">)</span> <span class="o">+</span> <span class="n">nz</span> <span class="o">*</span> <span class="p">(</span><span class="n">dz</span> <span class="o">-</span> <span class="n">sz</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">A</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">chamfer_indices</span></div>
+
+
+
+<div class="viewcode-block" id="point_to_plane_ICP">
+<a class="viewcode-back" href="../../../modules/odometry.html#gradslam.odometry.icputils.point_to_plane_ICP">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">point_to_plane_ICP</span><span class="p">(</span>
+    <span class="n">src_pc</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+    <span class="n">tgt_pc</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+    <span class="n">tgt_normals</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+    <span class="n">initial_transform</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">numiters</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">20</span><span class="p">,</span>
+    <span class="n">damp</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-8</span><span class="p">,</span>
+    <span class="n">dist_thresh</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Computes a rigid transformation between `tgt_pc` (target pointcloud) and `src_pc` (source pointcloud) using a</span>
+<span class="sd">    point-to-plane error metric and the LM (Levenberg–Marquardt) solver.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        src_pc (torch.Tensor): Source pointcloud (the pointcloud that needs warping).</span>
+<span class="sd">        tgt_pc (torch.Tensor): Target pointcloud (the pointcloud to which the source pointcloud must be warped to).</span>
+<span class="sd">        tgt_normals (torch.Tensor): Per-point normal vectors for each point in the target pointcloud.</span>
+<span class="sd">        initial_transform (torch.Tensor or None): The initial estimate of the transformation between &#39;src_pc&#39;</span>
+<span class="sd">            and &#39;tgt_pc&#39;. If None, will use the identity matrix as the initial transform. Default: None</span>
+<span class="sd">        numiters (int): Number of iterations to run the optimization for. Default: 20</span>
+<span class="sd">        damp (float): Damping coefficient for nonlinear least-squares. Default: 1e-8</span>
+<span class="sd">        dist_thresh (float or int or None): Distance threshold for removing `src_pc` points distant from `tgt_pc`.</span>
+<span class="sd">            Default: None</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        tuple: tuple containing:</span>
+
+<span class="sd">        - transform (torch.Tensor): linear system residual</span>
+<span class="sd">        - chamfer_indices (torch.Tensor): Index of the closest point in `tgt_pc` for each point in `src_pc` that was not</span>
+<span class="sd">          filtered out.</span>
+
+<span class="sd">    Shape:</span>
+<span class="sd">        - src_pc: :math:`(1, N_s, 3)`</span>
+<span class="sd">        - tgt_pc: :math:`(1, N_t, 3)`</span>
+<span class="sd">        - tgt_normals: :math:`(1, N_t, 3)`</span>
+<span class="sd">        - initial_transform: :math:`(4, 4)`</span>
+<span class="sd">        - transform: :math:`(4, 4)`</span>
+<span class="sd">        - chamfer_indices: :math:`(1, N_sf)` where :math:`N_sf \leq N_s`</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">torch</span><span class="o">.</span><span class="n">is_tensor</span><span class="p">(</span><span class="n">src_pc</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+            <span class="s2">&quot;Expected src_pc to be of type torch.Tensor. Got </span><span class="si">{0}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">src_pc</span><span class="p">))</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">torch</span><span class="o">.</span><span class="n">is_tensor</span><span class="p">(</span><span class="n">tgt_pc</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+            <span class="s2">&quot;Expected tgt_pc to be of type torch.Tensor. Got </span><span class="si">{0}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">tgt_pc</span><span class="p">))</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">torch</span><span class="o">.</span><span class="n">is_tensor</span><span class="p">(</span><span class="n">tgt_normals</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+            <span class="s2">&quot;Expected tgt_normals to be of type torch.Tensor. Got </span><span class="si">{0}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="nb">type</span><span class="p">(</span><span class="n">tgt_normals</span><span class="p">)</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">is_tensor</span><span class="p">(</span><span class="n">initial_transform</span><span class="p">)</span> <span class="ow">or</span> <span class="n">initial_transform</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+            <span class="s2">&quot;Expected initial_transform to be of type torch.Tensor. Got </span><span class="si">{0}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="nb">type</span><span class="p">(</span><span class="n">initial_transform</span><span class="p">)</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">numiters</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+            <span class="s2">&quot;Expected numiters to be of type int. Got </span><span class="si">{0}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">numiters</span><span class="p">))</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="n">initial_transform</span><span class="o">.</span><span class="n">ndim</span> <span class="o">!=</span> <span class="mi">2</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">&quot;Expected initial_transform.ndim to be 2. Got </span><span class="si">{0}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">initial_transform</span><span class="o">.</span><span class="n">ndim</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">initial_transform</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="mi">4</span> <span class="ow">and</span> <span class="n">initial_transform</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="mi">4</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">&quot;Expected initial_transform.shape to be (4, 4). Got </span><span class="si">{0}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">initial_transform</span><span class="o">.</span><span class="n">shape</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+    <span class="n">src_pc</span> <span class="o">=</span> <span class="n">src_pc</span><span class="o">.</span><span class="n">contiguous</span><span class="p">()</span>
+    <span class="n">tgt_pc</span> <span class="o">=</span> <span class="n">tgt_pc</span><span class="o">.</span><span class="n">contiguous</span><span class="p">()</span>
+    <span class="n">tgt_normals</span> <span class="o">=</span> <span class="n">tgt_normals</span><span class="o">.</span><span class="n">contiguous</span><span class="p">()</span>
+    <span class="n">dtype</span> <span class="o">=</span> <span class="n">src_pc</span><span class="o">.</span><span class="n">dtype</span>
+    <span class="n">device</span> <span class="o">=</span> <span class="n">src_pc</span><span class="o">.</span><span class="n">device</span>
+    <span class="n">damp</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">damp</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">)</span>
+
+    <span class="c1"># include initial transform</span>
+    <span class="n">initial_transform</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">torch</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">initial_transform</span> <span class="ow">is</span> <span class="kc">None</span>
+        <span class="k">else</span> <span class="n">initial_transform</span>
+    <span class="p">)</span>
+    <span class="n">src_pc</span> <span class="o">=</span> <span class="n">transform_pointcloud</span><span class="p">(</span><span class="n">src_pc</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">initial_transform</span><span class="p">)</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">transform</span> <span class="o">=</span> <span class="n">initial_transform</span>
+
+    <span class="k">for</span> <span class="n">it</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">numiters</span><span class="p">):</span>
+        <span class="c1"># Form the linear system and compute the residual</span>
+        <span class="n">A</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">chamfer_indices</span> <span class="o">=</span> <span class="n">gauss_newton_solve</span><span class="p">(</span>
+            <span class="n">src_pc</span><span class="p">,</span> <span class="n">tgt_pc</span><span class="p">,</span> <span class="n">tgt_normals</span><span class="p">,</span> <span class="n">dist_thresh</span>
+        <span class="p">)</span>
+        <span class="n">residual</span> <span class="o">=</span> <span class="n">b</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span>
+
+        <span class="c1"># Solve the linear system</span>
+        <span class="n">xi</span> <span class="o">=</span> <span class="n">solve_linear_system</span><span class="p">(</span><span class="n">A</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">damp</span><span class="p">)</span>
+
+        <span class="c1"># Apply exponential to find the transform</span>
+        <span class="n">residual_transform</span> <span class="o">=</span> <span class="n">se3_exp</span><span class="p">(</span><span class="n">xi</span><span class="p">)</span>
+
+        <span class="c1"># Find error</span>
+        <span class="n">err</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">residual</span><span class="o">.</span><span class="n">t</span><span class="p">(),</span> <span class="n">residual</span><span class="p">)</span>
+        <span class="n">pc_error</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">sum</span><span class="p">((</span><span class="n">torch</span><span class="o">.</span><span class="n">mm</span><span class="p">(</span><span class="n">A</span><span class="p">,</span> <span class="n">xi</span><span class="p">)</span> <span class="o">-</span> <span class="n">b</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span><span class="p">))</span>
+
+        <span class="c1"># Lookahead error (for LM)</span>
+        <span class="c1"># calculate transformed cloud</span>
+        <span class="n">one_step_pc</span> <span class="o">=</span> <span class="n">transform_pointcloud</span><span class="p">(</span><span class="n">src_pc</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">residual_transform</span><span class="p">)</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+
+        <span class="c1"># Form new linear system and compute one-step residual</span>
+        <span class="n">_</span><span class="p">,</span> <span class="n">one_step_b</span><span class="p">,</span> <span class="n">chamfer_indices_onestep</span> <span class="o">=</span> <span class="n">gauss_newton_solve</span><span class="p">(</span>
+            <span class="n">one_step_pc</span><span class="p">,</span> <span class="n">tgt_pc</span><span class="p">,</span> <span class="n">tgt_normals</span><span class="p">,</span> <span class="n">dist_thresh</span>
+        <span class="p">)</span>
+        <span class="n">one_step_residual</span> <span class="o">=</span> <span class="n">one_step_b</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span>
+
+        <span class="c1"># Find new error</span>
+        <span class="n">new_err</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">one_step_residual</span><span class="o">.</span><span class="n">t</span><span class="p">(),</span> <span class="n">one_step_residual</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">new_err</span> <span class="o">&lt;</span> <span class="n">err</span><span class="p">:</span>
+            <span class="c1"># We are in a trust region</span>
+            <span class="n">src_pc</span> <span class="o">=</span> <span class="n">one_step_pc</span>
+            <span class="n">damp</span> <span class="o">=</span> <span class="n">damp</span> <span class="o">/</span> <span class="mi">2</span>
+
+            <span class="c1"># update transform</span>
+            <span class="n">transform</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">mm</span><span class="p">(</span><span class="n">residual_transform</span><span class="p">,</span> <span class="n">transform</span><span class="p">)</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">damp</span> <span class="o">=</span> <span class="n">damp</span> <span class="o">*</span> <span class="mi">2</span>
+
+    <span class="k">return</span> <span class="n">transform</span><span class="p">,</span> <span class="n">chamfer_indices</span></div>
+
+
+
+<div class="viewcode-block" id="point_to_plane_gradICP">
+<a class="viewcode-back" href="../../../modules/odometry.html#gradslam.odometry.icputils.point_to_plane_gradICP">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">point_to_plane_gradICP</span><span class="p">(</span>
+    <span class="n">src_pc</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+    <span class="n">tgt_pc</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+    <span class="n">tgt_normals</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+    <span class="n">initial_transform</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">numiters</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">20</span><span class="p">,</span>
+    <span class="n">damp</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-8</span><span class="p">,</span>
+    <span class="n">dist_thresh</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">lambda_max</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="mf">2.0</span><span class="p">,</span>
+    <span class="n">B</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
+    <span class="n">B2</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
+    <span class="n">nu</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="mf">200.0</span><span class="p">,</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Computes a rigid transformation between `tgt_pc` (target pointcloud) and `src_pc` (source pointcloud) using a</span>
+<span class="sd">    point-to-plane error metric and gradLM (:math:`\nabla LM`) solver (See gradLM section of </span>
+<span class="sd">    `the gradSLAM paper &lt;https://arxiv.org/abs/1910.10672&gt;`__).  The iterate and damping coefficient are updated by:</span>
+
+<span class="sd">    .. math::</span>
+
+<span class="sd">        lambda_1 = Q_\lambda(r_0, r_1) &amp; = \lambda_{min} + \frac{\lambda_{max} -</span>
+<span class="sd">        \lambda_{min}}{1 + e^{-B (r_1 - r_0)}} \\</span>
+<span class="sd">        Q_x(r_0, r_1) &amp; = x_0 + \frac{\delta x_0}{\sqrt[nu]{1 + e^{-B2*(r_1 - r_0)}}}`</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        src_pc (torch.Tensor): Source pointcloud (the pointcloud that needs warping).</span>
+<span class="sd">        tgt_pc (torch.Tensor): Target pointcloud (the pointcloud to which the source pointcloud must be warped to).</span>
+<span class="sd">        tgt_normals (torch.Tensor): Per-point normal vectors for each point in the target pointcloud.</span>
+<span class="sd">        initial_transform (torch.Tensor or None): The initial estimate of the transformation between &#39;src_pc&#39; </span>
+<span class="sd">            and &#39;tgt_pc&#39;. If None, will use the identity matrix as the initial transform. Default: None</span>
+<span class="sd">        numiters (int): Number of iterations to run the optimization for. Default: 20</span>
+<span class="sd">        damp (float): Damping coefficient for nonlinear least-squares. Default: 1e-8</span>
+<span class="sd">        dist_thresh (float or int or None): Distance threshold for removing `src_pc` points distant from `tgt_pc`.</span>
+<span class="sd">            Default: None</span>
+<span class="sd">        lambda_max (float or int): Maximum value the damping function can assume (`lambda_min` will be </span>
+<span class="sd">            :math:`\frac{1}{\text{lambda_max}}`)</span>
+<span class="sd">        B (float or int): gradLM falloff control parameter</span>
+<span class="sd">        B2 (float or int): gradLM control parameter</span>
+<span class="sd">        nu (float or int): gradLM control parameter</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        tuple: tuple containing:</span>
+
+<span class="sd">        - transform (torch.Tensor): linear system residual</span>
+<span class="sd">        - chamfer_indices (torch.Tensor): Index of the closest point in `tgt_pc` for each point in `src_pc` that was not</span>
+<span class="sd">          filtered out.</span>
+
+<span class="sd">    Shape:</span>
+<span class="sd">        - src_pc: :math:`(1, N_s, 3)`</span>
+<span class="sd">        - tgt_pc: :math:`(1, N_t, 3)`</span>
+<span class="sd">        - tgt_normals: :math:`(1, N_t, 3)`</span>
+<span class="sd">        - initial_transform: :math:`(4, 4)`</span>
+<span class="sd">        - transform: :math:`(4, 4)`</span>
+<span class="sd">        - chamfer_indices: :math:`(1, N_sf)` where :math:`N_sf \leq N_s`</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">torch</span><span class="o">.</span><span class="n">is_tensor</span><span class="p">(</span><span class="n">src_pc</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+            <span class="s2">&quot;Expected src_pc to be of type torch.Tensor. Got </span><span class="si">{0}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">src_pc</span><span class="p">))</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">torch</span><span class="o">.</span><span class="n">is_tensor</span><span class="p">(</span><span class="n">tgt_pc</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+            <span class="s2">&quot;Expected tgt_pc to be of type torch.Tensor. Got </span><span class="si">{0}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">tgt_pc</span><span class="p">))</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">torch</span><span class="o">.</span><span class="n">is_tensor</span><span class="p">(</span><span class="n">tgt_normals</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+            <span class="s2">&quot;Expected tgt_normals to be of type torch.Tensor. Got </span><span class="si">{0}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="nb">type</span><span class="p">(</span><span class="n">tgt_normals</span><span class="p">)</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">is_tensor</span><span class="p">(</span><span class="n">initial_transform</span><span class="p">)</span> <span class="ow">or</span> <span class="n">initial_transform</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+            <span class="s2">&quot;Expected initial_transform to be of type torch.Tensor. Got </span><span class="si">{0}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="nb">type</span><span class="p">(</span><span class="n">initial_transform</span><span class="p">)</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">numiters</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+            <span class="s2">&quot;Expected numiters to be of type int. Got </span><span class="si">{0}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">numiters</span><span class="p">))</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">lambda_max</span><span class="p">,</span> <span class="nb">float</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">lambda_max</span><span class="p">,</span> <span class="nb">int</span><span class="p">)):</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+            <span class="s2">&quot;Expected lambda_max to be of type float or int; got </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="nb">type</span><span class="p">(</span><span class="n">lambda_max</span><span class="p">)</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">B</span><span class="p">,</span> <span class="nb">float</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">B</span><span class="p">,</span> <span class="nb">int</span><span class="p">)):</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+            <span class="s2">&quot;Expected B to be of type float or int; got </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">B</span><span class="p">))</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">B2</span><span class="p">,</span> <span class="nb">float</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">B2</span><span class="p">,</span> <span class="nb">int</span><span class="p">)):</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+            <span class="s2">&quot;Expected B2 to be of type float or int; got </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">B2</span><span class="p">))</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">nu</span><span class="p">,</span> <span class="nb">float</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">nu</span><span class="p">,</span> <span class="nb">int</span><span class="p">)):</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+            <span class="s2">&quot;Expected nu to be of type float or int; got </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">nu</span><span class="p">))</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="n">initial_transform</span><span class="o">.</span><span class="n">ndim</span> <span class="o">!=</span> <span class="mi">2</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">&quot;Expected initial_transform.ndim to be 2. Got </span><span class="si">{0}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">initial_transform</span><span class="o">.</span><span class="n">ndim</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">initial_transform</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="mi">4</span> <span class="ow">and</span> <span class="n">initial_transform</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="mi">4</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">&quot;Expected initial_transform.shape to be (4, 4). Got </span><span class="si">{0}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">initial_transform</span><span class="o">.</span><span class="n">shape</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+    <span class="n">src_pc</span> <span class="o">=</span> <span class="n">src_pc</span><span class="o">.</span><span class="n">contiguous</span><span class="p">()</span>
+    <span class="n">tgt_pc</span> <span class="o">=</span> <span class="n">tgt_pc</span><span class="o">.</span><span class="n">contiguous</span><span class="p">()</span>
+    <span class="n">tgt_normals</span> <span class="o">=</span> <span class="n">tgt_normals</span><span class="o">.</span><span class="n">contiguous</span><span class="p">()</span>
+    <span class="n">dtype</span> <span class="o">=</span> <span class="n">src_pc</span><span class="o">.</span><span class="n">dtype</span>
+    <span class="n">device</span> <span class="o">=</span> <span class="n">src_pc</span><span class="o">.</span><span class="n">device</span>
+    <span class="n">damp</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">damp</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">)</span>
+    <span class="n">lambda_min</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">lambda_max</span>
+
+    <span class="c1"># include initial transform</span>
+    <span class="n">initial_transform</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">torch</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">initial_transform</span> <span class="ow">is</span> <span class="kc">None</span>
+        <span class="k">else</span> <span class="n">initial_transform</span>
+    <span class="p">)</span>
+    <span class="n">src_pc</span> <span class="o">=</span> <span class="n">transform_pointcloud</span><span class="p">(</span><span class="n">src_pc</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">initial_transform</span><span class="p">)</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">transform</span> <span class="o">=</span> <span class="n">initial_transform</span>
+
+    <span class="k">for</span> <span class="n">it</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">numiters</span><span class="p">):</span>
+        <span class="c1"># Form the linear system and compute the residual</span>
+        <span class="n">A</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">chamfer_indices</span> <span class="o">=</span> <span class="n">gauss_newton_solve</span><span class="p">(</span>
+            <span class="n">src_pc</span><span class="p">,</span> <span class="n">tgt_pc</span><span class="p">,</span> <span class="n">tgt_normals</span><span class="p">,</span> <span class="n">dist_thresh</span>
+        <span class="p">)</span>
+        <span class="n">residual</span> <span class="o">=</span> <span class="n">b</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span>
+
+        <span class="c1"># Solve the linear system</span>
+        <span class="n">xi</span> <span class="o">=</span> <span class="n">solve_linear_system</span><span class="p">(</span><span class="n">A</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">damp</span><span class="p">)</span>
+
+        <span class="c1"># Apply exponential to find the transform</span>
+        <span class="n">residual_transform</span> <span class="o">=</span> <span class="n">se3_exp</span><span class="p">(</span><span class="n">xi</span><span class="p">)</span>
+
+        <span class="c1"># Find error</span>
+        <span class="n">err</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">residual</span><span class="o">.</span><span class="n">t</span><span class="p">(),</span> <span class="n">residual</span><span class="p">)</span>
+        <span class="n">pc_error</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">sum</span><span class="p">((</span><span class="n">torch</span><span class="o">.</span><span class="n">mm</span><span class="p">(</span><span class="n">A</span><span class="p">,</span> <span class="n">xi</span><span class="p">)</span> <span class="o">-</span> <span class="n">b</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span><span class="p">))</span>
+
+        <span class="c1"># Lookahead error (for LM)</span>
+        <span class="c1"># calculate transformed cloud</span>
+        <span class="n">one_step_pc</span> <span class="o">=</span> <span class="n">transform_pointcloud</span><span class="p">(</span><span class="n">src_pc</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">residual_transform</span><span class="p">)</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+
+        <span class="c1"># Form new linear system and compute one-step residual</span>
+        <span class="n">_</span><span class="p">,</span> <span class="n">one_step_b</span><span class="p">,</span> <span class="n">chamfer_indices_onestep</span> <span class="o">=</span> <span class="n">gauss_newton_solve</span><span class="p">(</span>
+            <span class="n">one_step_pc</span><span class="p">,</span> <span class="n">tgt_pc</span><span class="p">,</span> <span class="n">tgt_normals</span><span class="p">,</span> <span class="n">dist_thresh</span>
+        <span class="p">)</span>
+        <span class="n">one_step_residual</span> <span class="o">=</span> <span class="n">one_step_b</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span>
+
+        <span class="c1"># Find new error</span>
+        <span class="n">new_err</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">one_step_residual</span><span class="o">.</span><span class="n">t</span><span class="p">(),</span> <span class="n">one_step_residual</span><span class="p">)</span>
+
+        <span class="c1"># smooth LM routine</span>
+        <span class="n">errdiff</span> <span class="o">=</span> <span class="n">new_err</span> <span class="o">-</span> <span class="n">err</span>
+
+        <span class="c1"># NEW ADDITION: clamping to ensure gradient flow</span>
+        <span class="n">errdiff</span> <span class="o">=</span> <span class="n">errdiff</span><span class="o">.</span><span class="n">clamp</span><span class="p">(</span><span class="o">-</span><span class="mf">70.0</span><span class="p">,</span> <span class="mf">70.0</span><span class="p">)</span>
+
+        <span class="n">damp_new</span> <span class="o">=</span> <span class="n">lambda_min</span> <span class="o">+</span> <span class="p">(</span><span class="n">lambda_max</span> <span class="o">-</span> <span class="n">lambda_min</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span>
+            <span class="mi">1</span> <span class="o">+</span> <span class="n">torch</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">B</span> <span class="o">*</span> <span class="n">errdiff</span><span class="p">)</span>
+        <span class="p">)</span>
+        <span class="n">damp</span> <span class="o">=</span> <span class="n">damp</span> <span class="o">*</span> <span class="n">damp_new</span>
+
+        <span class="c1"># residual transform should be perturbed by sigmoid</span>
+        <span class="n">sigmoid</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="p">((</span><span class="mi">1</span> <span class="o">+</span> <span class="n">torch</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">B2</span> <span class="o">*</span> <span class="n">errdiff</span><span class="p">))</span> <span class="o">**</span> <span class="p">(</span><span class="mi">1</span> <span class="o">/</span> <span class="n">nu</span><span class="p">))</span>
+
+        <span class="c1"># calculate perturbation</span>
+        <span class="n">residual_transform</span> <span class="o">=</span> <span class="n">se3_exp</span><span class="p">(</span><span class="n">sigmoid</span> <span class="o">*</span> <span class="n">xi</span><span class="p">)</span>
+        <span class="n">src_pc</span> <span class="o">=</span> <span class="n">transform_pointcloud</span><span class="p">(</span><span class="n">src_pc</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">residual_transform</span><span class="p">)</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">transform</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">mm</span><span class="p">(</span><span class="n">residual_transform</span><span class="p">,</span> <span class="n">transform</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">transform</span><span class="p">,</span> <span class="n">chamfer_indices</span></div>
+
+
+
+<div class="viewcode-block" id="downsample_pointclouds">
+<a class="viewcode-back" href="../../../modules/odometry.html#gradslam.odometry.icputils.downsample_pointclouds">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">downsample_pointclouds</span><span class="p">(</span>
+    <span class="n">pointclouds</span><span class="p">:</span> <span class="n">Pointclouds</span><span class="p">,</span> <span class="n">pc2im_bnhw</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">ds_ratio</span><span class="p">:</span> <span class="nb">int</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Pointclouds</span><span class="p">:</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Downsamples active points of pointclouds (points that project inside the live frame) and removes non-active</span>
+<span class="sd">    points.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        pointclouds (gradslam.Pointclouds): Pointclouds to downsample</span>
+<span class="sd">        pc2im_bnhw (torch.Tensor): Active map points lookup table. Each row contains batch index `b`, point</span>
+<span class="sd">            index (in pointclouds) `n`, and height and width index after projection to live frame `h` and `w`</span>
+<span class="sd">            respectively.</span>
+<span class="sd">        ds_ratio (int): Downsampling ratio</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        gradslam.Pointclouds: Downsampled pointclouds</span>
+
+<span class="sd">    Shape:</span>
+<span class="sd">        - pc2im_bnhw: :math:`(\text{num_active_map_points}, 4)`</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">pointclouds</span><span class="p">,</span> <span class="n">Pointclouds</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+            <span class="s2">&quot;Expected pointclouds to be of type gradslam.Pointclouds. Got </span><span class="si">{0}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="nb">type</span><span class="p">(</span><span class="n">pointclouds</span><span class="p">)</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">torch</span><span class="o">.</span><span class="n">is_tensor</span><span class="p">(</span><span class="n">pc2im_bnhw</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+            <span class="s2">&quot;Expected pc2im_bnhw to be of type torch.Tensor. Got </span><span class="si">{0}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="nb">type</span><span class="p">(</span><span class="n">pc2im_bnhw</span><span class="p">)</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">ds_ratio</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+            <span class="s2">&quot;Expected ds_ratio to be of type int. Got </span><span class="si">{0}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">ds_ratio</span><span class="p">))</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="n">pc2im_bnhw</span><span class="o">.</span><span class="n">ndim</span> <span class="o">!=</span> <span class="mi">2</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">&quot;Expected pc2im_bnhw to have ndim=2. Got </span><span class="si">{0}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">pc2im_bnhw</span><span class="o">.</span><span class="n">ndim</span><span class="p">)</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="n">pc2im_bnhw</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">4</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">&quot;pc2im_bnhw.shape[1] must be 4, but was </span><span class="si">{0}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">pc2im_bnhw</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="p">)</span>
+
+    <span class="n">B</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">pointclouds</span><span class="p">)</span>
+
+    <span class="c1"># Find indices of points to keep after downsampling</span>
+    <span class="n">pc2im_bnhw</span> <span class="o">=</span> <span class="n">pc2im_bnhw</span><span class="p">[</span><span class="n">pc2im_bnhw</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span> <span class="o">%</span> <span class="n">ds_ratio</span> <span class="o">==</span> <span class="mi">0</span><span class="p">]</span>
+    <span class="n">pc2im_bnhw</span> <span class="o">=</span> <span class="n">pc2im_bnhw</span><span class="p">[</span><span class="n">pc2im_bnhw</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">3</span><span class="p">]</span> <span class="o">%</span> <span class="n">ds_ratio</span> <span class="o">==</span> <span class="mi">0</span><span class="p">]</span>
+
+    <span class="c1"># Downsample points and normals</span>
+    <span class="n">maps_points</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">pointclouds</span><span class="o">.</span><span class="n">points_list</span><span class="p">[</span><span class="n">b</span><span class="p">][</span><span class="n">pc2im_bnhw</span><span class="p">[</span><span class="n">pc2im_bnhw</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="n">b</span><span class="p">][</span><span class="o">...</span><span class="p">,</span> <span class="mi">1</span><span class="p">]]</span>
+        <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">B</span><span class="p">)</span>
+    <span class="p">]</span>
+    <span class="n">maps_normals</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">pointclouds</span><span class="o">.</span><span class="n">normals_list</span> <span class="ow">is</span> <span class="kc">None</span>
+        <span class="k">else</span> <span class="p">[</span>
+            <span class="n">pointclouds</span><span class="o">.</span><span class="n">normals_list</span><span class="p">[</span><span class="n">b</span><span class="p">][</span><span class="n">pc2im_bnhw</span><span class="p">[</span><span class="n">pc2im_bnhw</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="n">b</span><span class="p">][</span><span class="o">...</span><span class="p">,</span> <span class="mi">1</span><span class="p">]]</span>
+            <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">B</span><span class="p">)</span>
+        <span class="p">]</span>
+    <span class="p">)</span>
+    <span class="n">maps_colors</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">pointclouds</span><span class="o">.</span><span class="n">colors_list</span> <span class="ow">is</span> <span class="kc">None</span>
+        <span class="k">else</span> <span class="p">[</span>
+            <span class="n">pointclouds</span><span class="o">.</span><span class="n">colors_list</span><span class="p">[</span><span class="n">b</span><span class="p">][</span><span class="n">pc2im_bnhw</span><span class="p">[</span><span class="n">pc2im_bnhw</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="n">b</span><span class="p">][</span><span class="o">...</span><span class="p">,</span> <span class="mi">1</span><span class="p">]]</span>
+            <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">B</span><span class="p">)</span>
+        <span class="p">]</span>
+    <span class="p">)</span>
+    <span class="k">return</span> <span class="n">Pointclouds</span><span class="p">(</span><span class="n">points</span><span class="o">=</span><span class="n">maps_points</span><span class="p">,</span> <span class="n">normals</span><span class="o">=</span><span class="n">maps_normals</span><span class="p">,</span> <span class="n">colors</span><span class="o">=</span><span class="n">maps_colors</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="downsample_rgbdimages">
+<a class="viewcode-back" href="../../../modules/odometry.html#gradslam.odometry.icputils.downsample_rgbdimages">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">downsample_rgbdimages</span><span class="p">(</span><span class="n">rgbdimages</span><span class="p">:</span> <span class="n">RGBDImages</span><span class="p">,</span> <span class="n">ds_ratio</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Pointclouds</span><span class="p">:</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Downsamples points and normals of RGBDImages and returns a gradslam.Pointclouds object</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        rgbdimages (gradslam.RGBDImages): RGBDImages to downsample</span>
+<span class="sd">        ds_ratio (int): Downsampling ratio</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        gradslam.Pointclouds: Downsampled points and normals</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">rgbdimages</span><span class="p">,</span> <span class="n">RGBDImages</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+            <span class="s2">&quot;Expected rgbdimages to be of type gradslam.RGBDImages. Got </span><span class="si">{0}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="nb">type</span><span class="p">(</span><span class="n">rgbdimages</span><span class="p">)</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">ds_ratio</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+            <span class="s2">&quot;Expected ds_ratio to be of type int. Got </span><span class="si">{0}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">ds_ratio</span><span class="p">))</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="n">rgbdimages</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">&quot;Sequence length of rgbdimages must be 1, but was </span><span class="si">{0}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">rgbdimages</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+
+    <span class="n">B</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">rgbdimages</span><span class="p">)</span>
+
+    <span class="c1"># Valid depths mask</span>
+    <span class="n">mask</span> <span class="o">=</span> <span class="n">rgbdimages</span><span class="o">.</span><span class="n">valid_depth_mask</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)[</span><span class="o">...</span><span class="p">,</span> <span class="p">::</span><span class="n">ds_ratio</span><span class="p">,</span> <span class="p">::</span><span class="n">ds_ratio</span><span class="p">]</span>
+
+    <span class="c1"># Downsample points and normals</span>
+    <span class="n">points</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">rgbdimages</span><span class="o">.</span><span class="n">global_vertex_map</span><span class="p">[</span><span class="n">b</span><span class="p">][</span><span class="o">...</span><span class="p">,</span> <span class="p">::</span><span class="n">ds_ratio</span><span class="p">,</span> <span class="p">::</span><span class="n">ds_ratio</span><span class="p">,</span> <span class="p">:][</span><span class="n">mask</span><span class="p">[</span><span class="n">b</span><span class="p">]]</span>
+        <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">B</span><span class="p">)</span>
+    <span class="p">]</span>
+    <span class="n">normals</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">rgbdimages</span><span class="o">.</span><span class="n">global_normal_map</span><span class="p">[</span><span class="n">b</span><span class="p">][</span><span class="o">...</span><span class="p">,</span> <span class="p">::</span><span class="n">ds_ratio</span><span class="p">,</span> <span class="p">::</span><span class="n">ds_ratio</span><span class="p">,</span> <span class="p">:][</span><span class="n">mask</span><span class="p">[</span><span class="n">b</span><span class="p">]]</span>
+        <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">B</span><span class="p">)</span>
+    <span class="p">]</span>
+    <span class="n">colors</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">rgbdimages</span><span class="o">.</span><span class="n">rgb_image</span><span class="p">[</span><span class="n">b</span><span class="p">][</span><span class="o">...</span><span class="p">,</span> <span class="p">::</span><span class="n">ds_ratio</span><span class="p">,</span> <span class="p">::</span><span class="n">ds_ratio</span><span class="p">,</span> <span class="p">:][</span><span class="n">mask</span><span class="p">[</span><span class="n">b</span><span class="p">]]</span>
+        <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">B</span><span class="p">)</span>
+    <span class="p">]</span>
+    <span class="k">return</span> <span class="n">Pointclouds</span><span class="p">(</span><span class="n">points</span><span class="o">=</span><span class="n">points</span><span class="p">,</span> <span class="n">normals</span><span class="o">=</span><span class="n">normals</span><span class="p">,</span> <span class="n">colors</span><span class="o">=</span><span class="n">colors</span><span class="p">)</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020–2026, Montreal Robotics Lab.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

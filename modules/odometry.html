@@ -1,0 +1,565 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>gradslam.odometry &mdash; gradslam 0.2.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
+
+  
+    <link rel="shortcut icon" href="../_static/gradslam-favicon-32x32.png"/>
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=938c9ccc"></script>
+      <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true}, "options": {"ignoreHtmlClass": "tex2jax_ignore|mathjax_ignore|document", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+      <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Rendering" href="rendering.html" />
+    <link rel="prev" title="gradslam.metrics" href="metrics.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            gradslam
+              <img src="../_static/gradslam-logo.png" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/tutorial_prerequisits.html">Prerequisits</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials.html">Getting started with RGBDImages</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials.html#getting-started-with-pointclouds">Getting started with Pointclouds</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials.html#pointfusion-slam">PointFusion SLAM</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="config.html">gradslam.config</a></li>
+<li class="toctree-l1"><a class="reference internal" href="backend.html">Backend</a></li>
+<li class="toctree-l1"><a class="reference internal" href="datasets.html">gradslam.datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="geometry.html">gradslam.geometry</a></li>
+<li class="toctree-l1"><a class="reference internal" href="icp.html">ICP Tracking</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mapping.html">Mapping &amp; Fusion</a></li>
+<li class="toctree-l1"><a class="reference internal" href="metrics.html">gradslam.metrics</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">gradslam.odometry</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#gradslam-odometry-base">gradslam.odometry.base</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#gradslam.odometry.base.OdometryProvider"><code class="docutils literal notranslate"><span class="pre">OdometryProvider</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.odometry.base.OdometryProvider.provide"><code class="docutils literal notranslate"><span class="pre">OdometryProvider.provide()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#gradslam-odometry-gradicp">gradslam.odometry.gradicp</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#gradslam.odometry.GradICPOdometryProvider"><code class="docutils literal notranslate"><span class="pre">GradICPOdometryProvider</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.odometry.GradICPOdometryProvider.provide"><code class="docutils literal notranslate"><span class="pre">GradICPOdometryProvider.provide()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#gradslam-odometry-groundtruth">gradslam.odometry.groundtruth</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#gradslam.odometry.GroundTruthOdometryProvider"><code class="docutils literal notranslate"><span class="pre">GroundTruthOdometryProvider</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.odometry.GroundTruthOdometryProvider.provide"><code class="docutils literal notranslate"><span class="pre">GroundTruthOdometryProvider.provide()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#gradslam-odometry-icp">gradslam.odometry.icp</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#gradslam.odometry.ICPOdometryProvider"><code class="docutils literal notranslate"><span class="pre">ICPOdometryProvider</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.odometry.ICPOdometryProvider.provide"><code class="docutils literal notranslate"><span class="pre">ICPOdometryProvider.provide()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#gradslam-odometry-icputils">gradslam.odometry.icputils</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#gradslam.odometry.icputils.solve_linear_system"><code class="docutils literal notranslate"><span class="pre">solve_linear_system()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#gradslam.odometry.icputils.gauss_newton_solve"><code class="docutils literal notranslate"><span class="pre">gauss_newton_solve()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#gradslam.odometry.icputils.point_to_plane_ICP"><code class="docutils literal notranslate"><span class="pre">point_to_plane_ICP()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#gradslam.odometry.icputils.point_to_plane_gradICP"><code class="docutils literal notranslate"><span class="pre">point_to_plane_gradICP()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#gradslam.odometry.icputils.downsample_pointclouds"><code class="docutils literal notranslate"><span class="pre">downsample_pointclouds()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#gradslam.odometry.icputils.downsample_rgbdimages"><code class="docutils literal notranslate"><span class="pre">downsample_rgbdimages()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="rendering.html">Rendering</a></li>
+<li class="toctree-l1"><a class="reference internal" href="slam.html">gradslam.slam</a></li>
+<li class="toctree-l1"><a class="reference internal" href="structures.html">gradslam.structures</a></li>
+<li class="toctree-l1"><a class="reference internal" href="utils.html">gradslam.utils</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">gradslam</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">gradslam.odometry</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/modules/odometry.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="gradslam-odometry">
+<h1>gradslam.odometry<a class="headerlink" href="#gradslam-odometry" title="Link to this heading"></a></h1>
+<section id="gradslam-odometry-base">
+<h2>gradslam.odometry.base<a class="headerlink" href="#gradslam-odometry-base" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="gradslam.odometry.base.OdometryProvider">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">OdometryProvider</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/odometry/base.html#OdometryProvider"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.odometry.base.OdometryProvider" title="Link to this definition"></a></dt>
+<dd><p>Base class for all odometry providers.</p>
+<p>Your providers should also subclass this class. You should override the <cite>provide()</cite> method.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="gradslam.odometry.base.OdometryProvider.provide">
+<span class="property"><span class="k"><span class="pre">abstractmethod</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">provide</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/odometry/base.html#OdometryProvider.provide"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.odometry.base.OdometryProvider.provide" title="Link to this definition"></a></dt>
+<dd><p>Defines the odometry computation performed at every <cite>.provide()</cite> call.</p>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="gradslam-odometry-gradicp">
+<h2>gradslam.odometry.gradicp<a class="headerlink" href="#gradslam-odometry-gradicp" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="gradslam.odometry.GradICPOdometryProvider">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">GradICPOdometryProvider</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">numiters</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">damp</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1e-08</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dist_thresh</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lambda_max</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">B</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">B2</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nu</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">200.0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/odometry/gradicp.html#GradICPOdometryProvider"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.odometry.GradICPOdometryProvider" title="Link to this definition"></a></dt>
+<dd><p>An odometry provider that uses the (differentiable) gradICP technique presented in the gradSLAM paper.
+Computes the relative transformation between a pair of <cite>gradslam.Pointclouds</cite> objects using GradICP which
+uses gradLM (<span class="math notranslate nohighlight">\(\nabla LM\)</span>) solver (See gradLM section of
+<a class="reference external" href="https://arxiv.org/abs/1910.10672">the gradSLAM paper</a>). The iterate and damping coefficient are updated by:</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}lambda_1 = Q_\lambda(r_0, r_1) &amp; = \lambda_{min} + \frac{\lambda_{max} -
+\lambda_{min}}{1 + e^{-B (r_1 - r_0)}} \\
+Q_x(r_0, r_1) &amp; = x_0 + \frac{\delta x_0}{\sqrt[nu]{1 + e^{-B2*(r_1 - r_0)}}}`\end{split}\]</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>numiters</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>)</p></li>
+<li><p><strong>damp</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>)</p></li>
+<li><p><strong>dist_thresh</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em> | </em><em>None</em>)</p></li>
+<li><p><strong>lambda_max</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>)</p></li>
+<li><p><strong>B</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>)</p></li>
+<li><p><strong>B2</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>)</p></li>
+<li><p><strong>nu</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>)</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="gradslam.odometry.GradICPOdometryProvider.provide">
+<span class="sig-name descname"><span class="pre">provide</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">maps_pointclouds</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">frames_pointclouds</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/odometry/gradicp.html#GradICPOdometryProvider.provide"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.odometry.GradICPOdometryProvider.provide" title="Link to this definition"></a></dt>
+<dd><p>Uses gradICP to compute the relative homogenous transformation that, when applied to <cite>frames_pointclouds</cite>,
+would cause the points to align with points of <cite>maps_pointclouds</cite>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>maps_pointclouds</strong> (<em>gradslam.Pointclouds</em>) – Object containing batch of map pointclouds of batch size
+<span class="math notranslate nohighlight">\((B)\)</span></p></li>
+<li><p><strong>frames_pointclouds</strong> (<em>gradslam.Pointclouds</em>) – Object containing batch of live frame pointclouds of batch size
+<span class="math notranslate nohighlight">\((B)\)</span></p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The relative transformation that would align <cite>maps_pointclouds</cite> with <cite>frames_pointclouds</cite></p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)">torch.Tensor</a></p>
+</dd>
+</dl>
+<dl class="simple">
+<dt>Shape:</dt><dd><ul class="simple">
+<li><p>Output: <span class="math notranslate nohighlight">\((B, 1, 4, 4)\)</span></p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="gradslam-odometry-groundtruth">
+<h2>gradslam.odometry.groundtruth<a class="headerlink" href="#gradslam-odometry-groundtruth" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="gradslam.odometry.GroundTruthOdometryProvider">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">GroundTruthOdometryProvider</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/odometry/groundtruth.html#GroundTruthOdometryProvider"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.odometry.GroundTruthOdometryProvider" title="Link to this definition"></a></dt>
+<dd><p>Ground truth odometry provider. Computes the relative transformation between a pair of <cite>gradslam.RGBDImages</cite>
+objects. Both objects must contain <cite>poses</cite> attributes.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="gradslam.odometry.GroundTruthOdometryProvider.provide">
+<span class="sig-name descname"><span class="pre">provide</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">rgbdimages1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rgbdimages2</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/odometry/groundtruth.html#GroundTruthOdometryProvider.provide"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.odometry.GroundTruthOdometryProvider.provide" title="Link to this definition"></a></dt>
+<dd><p>Computes the relative homogenous transformation between poses of <cite>rgbdimages2</cite> and <cite>rgbdimages1</cite>.
+The relative transformation is computed as <span class="math notranslate nohighlight">\(T = (T_1)^{-1} \cdot T_2\)</span>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>rgbdimages1</strong> (<em>gradslam.RGBDImages</em>) – Object containing batch of reference poses of shape <span class="math notranslate nohighlight">\((B, 1, 4, 4)\)</span></p></li>
+<li><p><strong>rgbdimages2</strong> (<em>gradslam.RGBDImages</em>) – Object containing batch of destination poses of shape
+<span class="math notranslate nohighlight">\((B, 1, 4, 4)\)</span></p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The relative transformation between the poses of <cite>rgbdimages1</cite> and <cite>rgbdimages2</cite>
+(<span class="math notranslate nohighlight">\(T = (T_1)^{-1} \cdot T_2\)</span>).</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)">torch.Tensor</a></p>
+</dd>
+</dl>
+<dl class="simple">
+<dt>Shape:</dt><dd><ul class="simple">
+<li><p>Output: <span class="math notranslate nohighlight">\((B, 1, 4, 4)\)</span></p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="gradslam-odometry-icp">
+<h2>gradslam.odometry.icp<a class="headerlink" href="#gradslam-odometry-icp" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="gradslam.odometry.ICPOdometryProvider">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">ICPOdometryProvider</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">numiters</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">damp</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1e-08</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dist_thresh</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/odometry/icp.html#ICPOdometryProvider"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.odometry.ICPOdometryProvider" title="Link to this definition"></a></dt>
+<dd><p>ICP odometry provider using a point-to-plane error metric. Computes the relative transformation between
+a pair of <cite>gradslam.Pointclouds</cite> objects using ICP (Iterative Closest Point). Uses LM (Levenberg-Marquardt) solver.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>numiters</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>)</p></li>
+<li><p><strong>damp</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>)</p></li>
+<li><p><strong>dist_thresh</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em> | </em><em>None</em>)</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="gradslam.odometry.ICPOdometryProvider.provide">
+<span class="sig-name descname"><span class="pre">provide</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">maps_pointclouds</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">frames_pointclouds</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/odometry/icp.html#ICPOdometryProvider.provide"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.odometry.ICPOdometryProvider.provide" title="Link to this definition"></a></dt>
+<dd><p>Uses ICP to compute the relative homogenous transformation that, when applied to <cite>frames_pointclouds</cite>,
+would cause the points to align with points of <cite>maps_pointclouds</cite>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>maps_pointclouds</strong> (<em>gradslam.Pointclouds</em>) – Object containing batch of map pointclouds of batch size
+<span class="math notranslate nohighlight">\((B)\)</span></p></li>
+<li><p><strong>frames_pointclouds</strong> (<em>gradslam.Pointclouds</em>) – Object containing batch of live frame pointclouds of batch size
+<span class="math notranslate nohighlight">\((B)\)</span></p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The relative transformation that would align <cite>maps_pointclouds</cite> with <cite>frames_pointclouds</cite></p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)">torch.Tensor</a></p>
+</dd>
+</dl>
+<dl class="simple">
+<dt>Shape:</dt><dd><ul class="simple">
+<li><p>Output: <span class="math notranslate nohighlight">\((B, 1, 4, 4)\)</span></p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="gradslam-odometry-icputils">
+<h2>gradslam.odometry.icputils<a class="headerlink" href="#gradslam-odometry-icputils" title="Link to this heading"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="gradslam.odometry.icputils.solve_linear_system">
+<span class="sig-name descname"><span class="pre">solve_linear_system</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">A</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">b</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">damp</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1e-08</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/odometry/icputils.html#solve_linear_system"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.odometry.icputils.solve_linear_system" title="Link to this definition"></a></dt>
+<dd><p>Solves the normal equations of a linear system Ax = b, given the constraint matrix A and the coefficient vector
+b. Note that this solves the normal equations, not the linear system. That is, solves <span class="math notranslate nohighlight">\(A^T A x = A^T b\)</span>,
+not <span class="math notranslate nohighlight">\(Ax = b\)</span>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>A</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>torch.Tensor</em></a>) – The constraint matrix of the linear system.</p></li>
+<li><p><strong>b</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>torch.Tensor</em></a>) – The coefficient vector of the linear system.</p></li>
+<li><p><strong>damp</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em> or </em><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>torch.Tensor</em></a>) – Damping coefficient to optionally condition the linear system (in practice,
+a damping coefficient of <span class="math notranslate nohighlight">\(\rho\)</span> means that we are solving a modified linear system that adds a tiny
+<span class="math notranslate nohighlight">\(\rho\)</span> to each diagonal element of the constraint matrix <span class="math notranslate nohighlight">\(A\)</span>, so that the linear system
+becomes <span class="math notranslate nohighlight">\((A^TA + \rho I)x = b\)</span>, where <span class="math notranslate nohighlight">\(I\)</span> is the identity matrix of shape
+<span class="math notranslate nohighlight">\((\text{num_of_variables}, \text{num_of_variables})\)</span>. Default: 1e-8</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Solution vector of the normal equations of the linear system</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)">torch.Tensor</a></p>
+</dd>
+</dl>
+<dl class="simple">
+<dt>Shape:</dt><dd><ul class="simple">
+<li><p>A: <span class="math notranslate nohighlight">\((\text{num_of_equations}, \text{num_of_variables})\)</span></p></li>
+<li><p>b: <span class="math notranslate nohighlight">\((\text{num_of_equations}, 1)\)</span></p></li>
+<li><p>Output: <span class="math notranslate nohighlight">\((\text{num_of_variables}, 1)\)</span></p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="gradslam.odometry.icputils.gauss_newton_solve">
+<span class="sig-name descname"><span class="pre">gauss_newton_solve</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">src_pc</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tgt_pc</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tgt_normals</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dist_thresh</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/odometry/icputils.html#gauss_newton_solve"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.odometry.icputils.gauss_newton_solve" title="Link to this definition"></a></dt>
+<dd><p>Computes Gauss Newton step by forming linear equation. Points from <cite>src_pc</cite> which have a distance greater
+than <cite>dist_thresh</cite> to the closest point in <cite>tgt_pc</cite> will be filtered.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>src_pc</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>torch.Tensor</em></a>) – Source pointcloud (the pointcloud that needs warping).</p></li>
+<li><p><strong>tgt_pc</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>torch.Tensor</em></a>) – Target pointcloud (the pointcloud to which the source pointcloud must be warped to).</p></li>
+<li><p><strong>tgt_normals</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>torch.Tensor</em></a>) – Per-point normal vectors for each point in the target pointcloud.</p></li>
+<li><p><strong>dist_thresh</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em> or </em><em>None</em>) – Distance threshold for removing <cite>src_pc</cite> points distant from <cite>tgt_pc</cite>.
+Default: None</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><p>tuple containing:</p>
+<ul class="simple">
+<li><p>A (torch.Tensor): linear system equation</p></li>
+<li><p>b (torch.Tensor): linear system residual</p></li>
+<li><dl class="simple">
+<dt>chamfer_indices (torch.Tensor): Index of the closest point in <cite>tgt_pc</cite> for each point in <cite>src_pc</cite></dt><dd><p>that was not filtered out.</p>
+</dd>
+</dl>
+</li>
+</ul>
+</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)">tuple</a></p>
+</dd>
+</dl>
+<dl class="simple">
+<dt>Shape:</dt><dd><ul class="simple">
+<li><p>src_pc: <span class="math notranslate nohighlight">\((1, N_s, 3)\)</span></p></li>
+<li><p>tgt_pc: <span class="math notranslate nohighlight">\((1, N_t, 3)\)</span></p></li>
+<li><p>tgt_normals: <span class="math notranslate nohighlight">\((1, N_t, 3)\)</span></p></li>
+<li><p>A: <span class="math notranslate nohighlight">\((N_sf, 6)\)</span> where <span class="math notranslate nohighlight">\(N_sf \leq N_s\)</span></p></li>
+<li><p>b: <span class="math notranslate nohighlight">\((N_sf, 1)\)</span> where <span class="math notranslate nohighlight">\(N_sf \leq N_s\)</span></p></li>
+<li><p>chamfer_indices: <span class="math notranslate nohighlight">\((1, N_sf)\)</span> where <span class="math notranslate nohighlight">\(N_sf \leq N_s\)</span></p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="gradslam.odometry.icputils.point_to_plane_ICP">
+<span class="sig-name descname"><span class="pre">point_to_plane_ICP</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">src_pc</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tgt_pc</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tgt_normals</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">initial_transform</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">numiters</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">damp</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1e-08</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dist_thresh</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/odometry/icputils.html#point_to_plane_ICP"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.odometry.icputils.point_to_plane_ICP" title="Link to this definition"></a></dt>
+<dd><p>Computes a rigid transformation between <cite>tgt_pc</cite> (target pointcloud) and <cite>src_pc</cite> (source pointcloud) using a
+point-to-plane error metric and the LM (Levenberg–Marquardt) solver.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>src_pc</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>torch.Tensor</em></a>) – Source pointcloud (the pointcloud that needs warping).</p></li>
+<li><p><strong>tgt_pc</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>torch.Tensor</em></a>) – Target pointcloud (the pointcloud to which the source pointcloud must be warped to).</p></li>
+<li><p><strong>tgt_normals</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>torch.Tensor</em></a>) – Per-point normal vectors for each point in the target pointcloud.</p></li>
+<li><p><strong>initial_transform</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>torch.Tensor</em></a><em> or </em><em>None</em>) – The initial estimate of the transformation between ‘src_pc’
+and ‘tgt_pc’. If None, will use the identity matrix as the initial transform. Default: None</p></li>
+<li><p><strong>numiters</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Number of iterations to run the optimization for. Default: 20</p></li>
+<li><p><strong>damp</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Damping coefficient for nonlinear least-squares. Default: 1e-8</p></li>
+<li><p><strong>dist_thresh</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em> or </em><em>None</em>) – Distance threshold for removing <cite>src_pc</cite> points distant from <cite>tgt_pc</cite>.
+Default: None</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><p>tuple containing:</p>
+<ul class="simple">
+<li><p>transform (torch.Tensor): linear system residual</p></li>
+<li><p>chamfer_indices (torch.Tensor): Index of the closest point in <cite>tgt_pc</cite> for each point in <cite>src_pc</cite> that was not
+filtered out.</p></li>
+</ul>
+</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)">tuple</a></p>
+</dd>
+</dl>
+<dl class="simple">
+<dt>Shape:</dt><dd><ul class="simple">
+<li><p>src_pc: <span class="math notranslate nohighlight">\((1, N_s, 3)\)</span></p></li>
+<li><p>tgt_pc: <span class="math notranslate nohighlight">\((1, N_t, 3)\)</span></p></li>
+<li><p>tgt_normals: <span class="math notranslate nohighlight">\((1, N_t, 3)\)</span></p></li>
+<li><p>initial_transform: <span class="math notranslate nohighlight">\((4, 4)\)</span></p></li>
+<li><p>transform: <span class="math notranslate nohighlight">\((4, 4)\)</span></p></li>
+<li><p>chamfer_indices: <span class="math notranslate nohighlight">\((1, N_sf)\)</span> where <span class="math notranslate nohighlight">\(N_sf \leq N_s\)</span></p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="gradslam.odometry.icputils.point_to_plane_gradICP">
+<span class="sig-name descname"><span class="pre">point_to_plane_gradICP</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">src_pc</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tgt_pc</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tgt_normals</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">initial_transform</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">numiters</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">damp</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1e-08</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dist_thresh</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lambda_max</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">B</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">B2</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nu</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">200.0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/odometry/icputils.html#point_to_plane_gradICP"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.odometry.icputils.point_to_plane_gradICP" title="Link to this definition"></a></dt>
+<dd><p>Computes a rigid transformation between <cite>tgt_pc</cite> (target pointcloud) and <cite>src_pc</cite> (source pointcloud) using a
+point-to-plane error metric and gradLM (<span class="math notranslate nohighlight">\(\nabla LM\)</span>) solver (See gradLM section of
+<a class="reference external" href="https://arxiv.org/abs/1910.10672">the gradSLAM paper</a>).  The iterate and damping coefficient are updated by:</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}lambda_1 = Q_\lambda(r_0, r_1) &amp; = \lambda_{min} + \frac{\lambda_{max} -
+\lambda_{min}}{1 + e^{-B (r_1 - r_0)}} \\
+Q_x(r_0, r_1) &amp; = x_0 + \frac{\delta x_0}{\sqrt[nu]{1 + e^{-B2*(r_1 - r_0)}}}`\end{split}\]</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>src_pc</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>torch.Tensor</em></a>) – Source pointcloud (the pointcloud that needs warping).</p></li>
+<li><p><strong>tgt_pc</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>torch.Tensor</em></a>) – Target pointcloud (the pointcloud to which the source pointcloud must be warped to).</p></li>
+<li><p><strong>tgt_normals</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>torch.Tensor</em></a>) – Per-point normal vectors for each point in the target pointcloud.</p></li>
+<li><p><strong>initial_transform</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>torch.Tensor</em></a><em> or </em><em>None</em>) – The initial estimate of the transformation between ‘src_pc’
+and ‘tgt_pc’. If None, will use the identity matrix as the initial transform. Default: None</p></li>
+<li><p><strong>numiters</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Number of iterations to run the optimization for. Default: 20</p></li>
+<li><p><strong>damp</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Damping coefficient for nonlinear least-squares. Default: 1e-8</p></li>
+<li><p><strong>dist_thresh</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em> or </em><em>None</em>) – Distance threshold for removing <cite>src_pc</cite> points distant from <cite>tgt_pc</cite>.
+Default: None</p></li>
+<li><p><strong>lambda_max</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Maximum value the damping function can assume (<cite>lambda_min</cite> will be
+<span class="math notranslate nohighlight">\(\frac{1}{\text{lambda_max}}\)</span>)</p></li>
+<li><p><strong>B</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – gradLM falloff control parameter</p></li>
+<li><p><strong>B2</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – gradLM control parameter</p></li>
+<li><p><strong>nu</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – gradLM control parameter</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><p>tuple containing:</p>
+<ul class="simple">
+<li><p>transform (torch.Tensor): linear system residual</p></li>
+<li><p>chamfer_indices (torch.Tensor): Index of the closest point in <cite>tgt_pc</cite> for each point in <cite>src_pc</cite> that was not
+filtered out.</p></li>
+</ul>
+</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)">tuple</a></p>
+</dd>
+</dl>
+<dl class="simple">
+<dt>Shape:</dt><dd><ul class="simple">
+<li><p>src_pc: <span class="math notranslate nohighlight">\((1, N_s, 3)\)</span></p></li>
+<li><p>tgt_pc: <span class="math notranslate nohighlight">\((1, N_t, 3)\)</span></p></li>
+<li><p>tgt_normals: <span class="math notranslate nohighlight">\((1, N_t, 3)\)</span></p></li>
+<li><p>initial_transform: <span class="math notranslate nohighlight">\((4, 4)\)</span></p></li>
+<li><p>transform: <span class="math notranslate nohighlight">\((4, 4)\)</span></p></li>
+<li><p>chamfer_indices: <span class="math notranslate nohighlight">\((1, N_sf)\)</span> where <span class="math notranslate nohighlight">\(N_sf \leq N_s\)</span></p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="gradslam.odometry.icputils.downsample_pointclouds">
+<span class="sig-name descname"><span class="pre">downsample_pointclouds</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pointclouds</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pc2im_bnhw</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ds_ratio</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/odometry/icputils.html#downsample_pointclouds"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.odometry.icputils.downsample_pointclouds" title="Link to this definition"></a></dt>
+<dd><p>Downsamples active points of pointclouds (points that project inside the live frame) and removes non-active
+points.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>pointclouds</strong> (<em>gradslam.Pointclouds</em>) – Pointclouds to downsample</p></li>
+<li><p><strong>pc2im_bnhw</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>torch.Tensor</em></a>) – Active map points lookup table. Each row contains batch index <cite>b</cite>, point
+index (in pointclouds) <cite>n</cite>, and height and width index after projection to live frame <cite>h</cite> and <cite>w</cite>
+respectively.</p></li>
+<li><p><strong>ds_ratio</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Downsampling ratio</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Downsampled pointclouds</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>gradslam.Pointclouds</p>
+</dd>
+</dl>
+<dl class="simple">
+<dt>Shape:</dt><dd><ul class="simple">
+<li><p>pc2im_bnhw: <span class="math notranslate nohighlight">\((\text{num_active_map_points}, 4)\)</span></p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="gradslam.odometry.icputils.downsample_rgbdimages">
+<span class="sig-name descname"><span class="pre">downsample_rgbdimages</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">rgbdimages</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ds_ratio</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/odometry/icputils.html#downsample_rgbdimages"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.odometry.icputils.downsample_rgbdimages" title="Link to this definition"></a></dt>
+<dd><p>Downsamples points and normals of RGBDImages and returns a gradslam.Pointclouds object</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>rgbdimages</strong> (<em>gradslam.RGBDImages</em>) – RGBDImages to downsample</p></li>
+<li><p><strong>ds_ratio</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Downsampling ratio</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Downsampled points and normals</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>gradslam.Pointclouds</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="metrics.html" class="btn btn-neutral float-left" title="gradslam.metrics" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="rendering.html" class="btn btn-neutral float-right" title="Rendering" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020–2026, Montreal Robotics Lab.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

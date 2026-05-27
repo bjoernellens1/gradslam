@@ -1,0 +1,399 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>gradslam.geometry &mdash; gradslam 0.2.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
+
+  
+    <link rel="shortcut icon" href="../_static/gradslam-favicon-32x32.png"/>
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=938c9ccc"></script>
+      <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true}, "options": {"ignoreHtmlClass": "tex2jax_ignore|mathjax_ignore|document", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+      <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="ICP Tracking" href="icp.html" />
+    <link rel="prev" title="gradslam.datasets" href="datasets.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            gradslam
+              <img src="../_static/gradslam-logo.png" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/tutorial_prerequisits.html">Prerequisits</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials.html">Getting started with RGBDImages</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials.html#getting-started-with-pointclouds">Getting started with Pointclouds</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials.html#pointfusion-slam">PointFusion SLAM</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="config.html">gradslam.config</a></li>
+<li class="toctree-l1"><a class="reference internal" href="backend.html">Backend</a></li>
+<li class="toctree-l1"><a class="reference internal" href="datasets.html">gradslam.datasets</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">gradslam.geometry</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#gradslam-geometry-projutils">gradslam.geometry.projutils</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#gradslam.geometry.homogenize_points"><code class="docutils literal notranslate"><span class="pre">homogenize_points()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#gradslam.geometry.unhomogenize_points"><code class="docutils literal notranslate"><span class="pre">unhomogenize_points()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#gradslam.geometry.project_points"><code class="docutils literal notranslate"><span class="pre">project_points()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#gradslam.geometry.unproject_points"><code class="docutils literal notranslate"><span class="pre">unproject_points()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#gradslam.geometry.inverse_intrinsics"><code class="docutils literal notranslate"><span class="pre">inverse_intrinsics()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="icp.html">ICP Tracking</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mapping.html">Mapping &amp; Fusion</a></li>
+<li class="toctree-l1"><a class="reference internal" href="metrics.html">gradslam.metrics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="odometry.html">gradslam.odometry</a></li>
+<li class="toctree-l1"><a class="reference internal" href="rendering.html">Rendering</a></li>
+<li class="toctree-l1"><a class="reference internal" href="slam.html">gradslam.slam</a></li>
+<li class="toctree-l1"><a class="reference internal" href="structures.html">gradslam.structures</a></li>
+<li class="toctree-l1"><a class="reference internal" href="utils.html">gradslam.utils</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">gradslam</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">gradslam.geometry</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/modules/geometry.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="gradslam-geometry">
+<h1>gradslam.geometry<a class="headerlink" href="#gradslam-geometry" title="Link to this heading"></a></h1>
+<section id="gradslam-geometry-projutils">
+<h2>gradslam.geometry.projutils<a class="headerlink" href="#gradslam-geometry-projutils" title="Link to this heading"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="gradslam.geometry.homogenize_points">
+<span class="sig-name descname"><span class="pre">homogenize_points</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pts</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/geometry/projutils.html#homogenize_points"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.geometry.homogenize_points" title="Link to this definition"></a></dt>
+<dd><p>Convert a set of points to homogeneous coordinates.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>pts</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>torch.Tensor</em></a>) – Tensor containing points to be homogenized.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Homogeneous coordinates of pts.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)">torch.Tensor</a></p>
+</dd>
+</dl>
+<dl class="simple">
+<dt>Shape:</dt><dd><ul class="simple">
+<li><p>pts: <span class="math notranslate nohighlight">\((N, *, K)\)</span> where <span class="math notranslate nohighlight">\(N\)</span> indicates the number of points in a cloud if
+the shape is <span class="math notranslate nohighlight">\((N, K)\)</span> and indicates batchsize if the number of dimensions is greater than 2.
+Also, <span class="math notranslate nohighlight">\(*\)</span> means any number of additional dimensions, and <cite>K</cite> is the dimensionality of each point.</p></li>
+<li><p>Output: <span class="math notranslate nohighlight">\((N, *, K + 1)\)</span> where all but the last dimension are the same shape as <cite>pts</cite>.</p></li>
+</ul>
+</dd>
+</dl>
+<p>Examples:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">pts</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">pts_homo</span> <span class="o">=</span> <span class="n">homogenize_points</span><span class="p">(</span><span class="n">pts</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">pts_homo</span><span class="o">.</span><span class="n">shape</span>
+<span class="go">torch.Size([10, 4])</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="gradslam.geometry.unhomogenize_points">
+<span class="sig-name descname"><span class="pre">unhomogenize_points</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pts</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">eps</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1e-06</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/geometry/projutils.html#unhomogenize_points"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.geometry.unhomogenize_points" title="Link to this definition"></a></dt>
+<dd><p>Convert a set of points from homogeneous coordinates to Euclidean
+coordinates. This is usually done by taking each point <span class="math notranslate nohighlight">\((X, Y, Z, W)\)</span> and dividing it by
+the last coordinate <span class="math notranslate nohighlight">\((w)\)</span>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>pts</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>torch.Tensor</em></a>) – Tensor containing points to be unhomogenized.</p></li>
+<li><p><strong>eps</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>‘Unhomogenized’ points</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)">torch.Tensor</a></p>
+</dd>
+</dl>
+<dl class="simple">
+<dt>Shape:</dt><dd><ul class="simple">
+<li><p>pts: <span class="math notranslate nohighlight">\((N, *, K)\)</span> where <span class="math notranslate nohighlight">\(N\)</span> indicates the number of points in a cloud if
+the shape is <span class="math notranslate nohighlight">\((N, K)\)</span> and indicates batchsize if the number of dimensions is greater than 2.
+Also, <span class="math notranslate nohighlight">\(*\)</span> means any number of additional dimensions, and <cite>K</cite> is the dimensionality of each point.</p></li>
+<li><p>output: <span class="math notranslate nohighlight">\((N, *, K-1)\)</span> where all but the last dimension are the same shape as <cite>pts</cite>.</p></li>
+</ul>
+</dd>
+</dl>
+<p>Examples:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">pts</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">pts_unhomo</span> <span class="o">=</span> <span class="n">unhomogenize_points</span><span class="p">(</span><span class="n">pts</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">pts_unhomo</span><span class="o">.</span><span class="n">shape</span>
+<span class="go">torch.Size([10, 2])</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="gradslam.geometry.project_points">
+<span class="sig-name descname"><span class="pre">project_points</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cam_coords</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">proj_mat</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">eps</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1e-06</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/geometry/projutils.html#project_points"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.geometry.project_points" title="Link to this definition"></a></dt>
+<dd><p>Projects points from the camera coordinate frame to the image (pixel) frame.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>cam_coords</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>torch.Tensor</em></a>) – pixel coordinates (defined in the
+frame of the first camera).</p></li>
+<li><p><strong>proj_mat</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>torch.Tensor</em></a>) – projection matrix between the reference
+and the non-reference camera frame.</p></li>
+<li><p><strong>eps</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em> | </em><em>None</em>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Image (pixel) coordinates corresponding to the input 3D points.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)">torch.Tensor</a></p>
+</dd>
+</dl>
+<dl class="simple">
+<dt>Shapes:</dt><dd><ul class="simple">
+<li><p>cam_coords: <span class="math notranslate nohighlight">\((N, *, 3)\)</span> or <span class="math notranslate nohighlight">\((*, 4)\)</span> where <span class="math notranslate nohighlight">\(*\)</span> indicates an arbitrary number of dimensions.
+Here <span class="math notranslate nohighlight">\(N\)</span> indicates the number of points in a cloud if the shape is <span class="math notranslate nohighlight">\((N, 3)\)</span> and indicates
+batchsize if the number of dimensions is greater than 2.</p></li>
+<li><p>proj_mat: <span class="math notranslate nohighlight">\((*, 4, 4)\)</span> where <span class="math notranslate nohighlight">\(*\)</span> indicates an arbitrary number of dimensions.
+dimension contains a <span class="math notranslate nohighlight">\((4, 4)\)</span> camera projection matrix.</p></li>
+<li><p>Output: <span class="math notranslate nohighlight">\((N, *, 2)\)</span>, where <span class="math notranslate nohighlight">\(*\)</span> indicates the same dimensions as in <cite>cam_coords</cite>.
+Here <span class="math notranslate nohighlight">\(N\)</span> indicates the number of points in a cloud if the shape is <span class="math notranslate nohighlight">\((N, 3)\)</span> and indicates
+batchsize if the number of dimensions is greater than 2.</p></li>
+</ul>
+</dd>
+</dl>
+<p>Examples:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="c1"># Case 1: Input cam_coords are homogeneous, no batchsize dimension.</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cam_coords</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">4</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">proj_mat</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="mi">4</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">pixel_coords</span> <span class="o">=</span> <span class="n">project_points</span><span class="p">(</span><span class="n">cam_coords</span><span class="p">,</span> <span class="n">proj_mat</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">pixel_coords</span><span class="o">.</span><span class="n">shape</span>
+<span class="go">torch.Size([10, 2])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># Case 2: Input cam_coords are homogeneous and batched. Broadcast proj_mat across batch.</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cam_coords</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">4</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">proj_mat</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="mi">4</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">pixel_coords</span> <span class="o">=</span> <span class="n">project_points</span><span class="p">(</span><span class="n">cam_coords</span><span class="p">,</span> <span class="n">proj_mat</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">pixel_coords</span><span class="o">.</span><span class="n">shape</span>
+<span class="go">torch.Size([2, 10, 2])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># Case 3: Input cam_coords are homogeneous and batched. A different proj_mat applied to each element.</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cam_coords</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">4</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">proj_mat</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">4</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">pixel_coords</span> <span class="o">=</span> <span class="n">project_points</span><span class="p">(</span><span class="n">cam_coords</span><span class="p">,</span> <span class="n">proj_mat</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">pixel_coords</span><span class="o">.</span><span class="n">shape</span>
+<span class="go">torch.Size([2, 10, 2])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># Case 4: Similar to case 1, but cam_coords are unhomogeneous.</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cam_coords</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">proj_mat</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="mi">4</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">pixel_coords</span> <span class="o">=</span> <span class="n">project_points</span><span class="p">(</span><span class="n">cam_coords</span><span class="p">,</span> <span class="n">proj_mat</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">pixel_coords</span><span class="o">.</span><span class="n">shape</span>
+<span class="go">torch.Size([10, 2])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># Case 5: Similar to case 2, but cam_coords are unhomogeneous.</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cam_coords</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">proj_mat</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="mi">4</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">pixel_coords</span> <span class="o">=</span> <span class="n">project_points</span><span class="p">(</span><span class="n">cam_coords</span><span class="p">,</span> <span class="n">proj_mat</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">pixel_coords</span><span class="o">.</span><span class="n">shape</span>
+<span class="go">torch.Size([2, 10, 2])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># Case 6: Similar to case 3, but cam_coords are unhomogeneous.</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cam_coords</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">proj_mat</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">4</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">pixel_coords</span> <span class="o">=</span> <span class="n">project_points</span><span class="p">(</span><span class="n">cam_coords</span><span class="p">,</span> <span class="n">proj_mat</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">pixel_coords</span><span class="o">.</span><span class="n">shape</span>
+<span class="go">torch.Size([2, 10, 2])</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="gradslam.geometry.unproject_points">
+<span class="sig-name descname"><span class="pre">unproject_points</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pixel_coords</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">intrinsics_inv</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">depths</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/geometry/projutils.html#unproject_points"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.geometry.unproject_points" title="Link to this definition"></a></dt>
+<dd><p>Unprojects points from the image (pixel) frame to the camera coordinate frame.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>pixel_coords</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>torch.Tensor</em></a>) – pixel coordinates.</p></li>
+<li><p><strong>intrinsics_inv</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>torch.Tensor</em></a>) – inverse of the camera intrinsics matrix.</p></li>
+<li><p><strong>depths</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>torch.Tensor</em></a>) – per-pixel depth estimates.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>camera coordinates</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)">torch.Tensor</a></p>
+</dd>
+</dl>
+<dl class="simple">
+<dt>Shapes:</dt><dd><ul class="simple">
+<li><p>pixel_coords: <span class="math notranslate nohighlight">\((N, *, 2)\)</span> or <span class="math notranslate nohighlight">\((*, 3)\)</span>, where * indicates an arbitrary number of dimensions.
+Here <span class="math notranslate nohighlight">\(N\)</span> indicates the number of points in a cloud if the shape is <span class="math notranslate nohighlight">\((N, 3)\)</span> and indicates
+batchsize if the number of dimensions is greater than 2.</p></li>
+<li><p>intrinsics_inv: <span class="math notranslate nohighlight">\((*, 3, 3)\)</span>, where * indicates an arbitrary number of dimensions.</p></li>
+<li><p>depths: <span class="math notranslate nohighlight">\((N, *)\)</span> where * indicates the same number of dimensions as in <cite>pixel_coords</cite>.
+Here <span class="math notranslate nohighlight">\(N\)</span> indicates the number of points in a cloud if the shape is <span class="math notranslate nohighlight">\((N, 3)\)</span> and indicates
+batchsize if the number of dimensions is greater than 2.</p></li>
+<li><p>output: <span class="math notranslate nohighlight">\((N, *, 3)\)</span> where * indicates the same number of dimensions as in <cite>pixel_coords</cite>.
+Here <span class="math notranslate nohighlight">\(N\)</span> indicates the number of points in a cloud if the shape is <span class="math notranslate nohighlight">\((N, 3)\)</span> and indicates
+batchsize if the number of dimensions is greater than 2.</p></li>
+</ul>
+</dd>
+</dl>
+<p>Examples:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="c1"># Case 1: Input pixel_coords are homogeneous, no batchsize dimension.</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">pixel_coords</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">intrinsics_inv</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">depths</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cam_coords</span> <span class="o">=</span> <span class="n">unproject_points</span><span class="p">(</span><span class="n">pixel_coords</span><span class="p">,</span> <span class="n">intrinsics_inv</span><span class="p">,</span> <span class="n">depths</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cam_coords</span><span class="o">.</span><span class="n">shape</span>
+<span class="go">torch.Size([10, 3])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># Case 2: Input pixel_coords are homogeneous, with a batchsize dimension. But, intrinsics_inv is not.</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">pixel_coords</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">intrinsics_inv</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">depths</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">10</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cam_coords</span> <span class="o">=</span> <span class="n">unproject_points</span><span class="p">(</span><span class="n">pixel_coords</span><span class="p">,</span> <span class="n">intrinsics_inv</span><span class="p">,</span> <span class="n">depths</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cam_coords</span><span class="o">.</span><span class="n">shape</span>
+<span class="go">torch.Size([2, 10, 3])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># Case 3: Input pixel_coords are homogeneous, with a batchsize dimension. intrinsics_inv is batched.</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">pixel_coords</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">intrinsics_inv</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">depths</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">10</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cam_coords</span> <span class="o">=</span> <span class="n">unproject_points</span><span class="p">(</span><span class="n">pixel_coords</span><span class="p">,</span> <span class="n">intrinsics_inv</span><span class="p">,</span> <span class="n">depths</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cam_coords</span><span class="o">.</span><span class="n">shape</span>
+<span class="go">torch.Size([2, 10, 3])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># Case 4: Similar to case 1, but input pixel_coords are unhomogeneous.</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">pixel_coords</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">intrinsics_inv</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">depths</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cam_coords</span> <span class="o">=</span> <span class="n">unproject_points</span><span class="p">(</span><span class="n">pixel_coords</span><span class="p">,</span> <span class="n">intrinsics_inv</span><span class="p">,</span> <span class="n">depths</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cam_coords</span><span class="o">.</span><span class="n">shape</span>
+<span class="go">torch.Size([10, 3])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># Case 5: Similar to case 2, but input pixel_coords are unhomogeneous.</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">pixel_coords</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">intrinsics_inv</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">depths</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">10</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cam_coords</span> <span class="o">=</span> <span class="n">unproject_points</span><span class="p">(</span><span class="n">pixel_coords</span><span class="p">,</span> <span class="n">intrinsics_inv</span><span class="p">,</span> <span class="n">depths</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cam_coords</span><span class="o">.</span><span class="n">shape</span>
+<span class="go">torch.Size([2, 10, 3])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># Case 6: Similar to case 3, but input pixel_coords are unhomogeneous.</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">pixel_coords</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">intrinsics_inv</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">depths</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">10</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cam_coords</span> <span class="o">=</span> <span class="n">unproject_points</span><span class="p">(</span><span class="n">pixel_coords</span><span class="p">,</span> <span class="n">intrinsics_inv</span><span class="p">,</span> <span class="n">depths</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cam_coords</span><span class="o">.</span><span class="n">shape</span>
+<span class="go">torch.Size([2, 10, 3])</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="gradslam.geometry.inverse_intrinsics">
+<span class="sig-name descname"><span class="pre">inverse_intrinsics</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">K</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">eps</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1e-06</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/geometry/projutils.html#inverse_intrinsics"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.geometry.inverse_intrinsics" title="Link to this definition"></a></dt>
+<dd><p>Efficient inversion of intrinsics matrix</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>K</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>torch.Tensor</em></a>) – Intrinsics matrix</p></li>
+<li><p><strong>eps</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Epsilon for numerical stability</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Inverse of intrinsics matrices</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)">torch.Tensor</a></p>
+</dd>
+</dl>
+<dl class="simple">
+<dt>Shape:</dt><dd><ul class="simple">
+<li><p>K: <span class="math notranslate nohighlight">\((*, 4, 4)\)</span> or <span class="math notranslate nohighlight">\((*, 3, 3)\)</span></p></li>
+<li><p>Kinv: Matches shape of <cite>K</cite> (<span class="math notranslate nohighlight">\((*, 4, 4)\)</span> or <span class="math notranslate nohighlight">\((*, 3, 3)\)</span>)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="datasets.html" class="btn btn-neutral float-left" title="gradslam.datasets" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="icp.html" class="btn btn-neutral float-right" title="ICP Tracking" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020–2026, Montreal Robotics Lab.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

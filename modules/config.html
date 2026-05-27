@@ -1,0 +1,292 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>gradslam.config &mdash; gradslam 0.2.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
+
+  
+    <link rel="shortcut icon" href="../_static/gradslam-favicon-32x32.png"/>
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=938c9ccc"></script>
+      <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Backend" href="backend.html" />
+    <link rel="prev" title="Try This Tutorial Yourself!" href="../tutorials/pointfusion_tutorial.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            gradslam
+              <img src="../_static/gradslam-logo.png" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/tutorial_prerequisits.html">Prerequisits</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials.html">Getting started with RGBDImages</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials.html#getting-started-with-pointclouds">Getting started with Pointclouds</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials.html#pointfusion-slam">PointFusion SLAM</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">gradslam.config</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#gradslam.config.CfgNode"><code class="docutils literal notranslate"><span class="pre">CfgNode</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#gradslam.config.CfgNode.dump"><code class="docutils literal notranslate"><span class="pre">CfgNode.dump()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#gradslam.config.CfgNode.merge_from_file"><code class="docutils literal notranslate"><span class="pre">CfgNode.merge_from_file()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#gradslam.config.CfgNode.merge_from_other_cfg"><code class="docutils literal notranslate"><span class="pre">CfgNode.merge_from_other_cfg()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#gradslam.config.CfgNode.merge_from_list"><code class="docutils literal notranslate"><span class="pre">CfgNode.merge_from_list()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#gradslam.config.CfgNode.freeze"><code class="docutils literal notranslate"><span class="pre">CfgNode.freeze()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#gradslam.config.CfgNode.defrost"><code class="docutils literal notranslate"><span class="pre">CfgNode.defrost()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#gradslam.config.CfgNode.is_frozen"><code class="docutils literal notranslate"><span class="pre">CfgNode.is_frozen()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#gradslam.config.CfgNode.clone"><code class="docutils literal notranslate"><span class="pre">CfgNode.clone()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#gradslam.config.CfgNode.register_deprecated_key"><code class="docutils literal notranslate"><span class="pre">CfgNode.register_deprecated_key()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#gradslam.config.CfgNode.register_renamed_key"><code class="docutils literal notranslate"><span class="pre">CfgNode.register_renamed_key()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#gradslam.config.CfgNode.key_is_deprecated"><code class="docutils literal notranslate"><span class="pre">CfgNode.key_is_deprecated()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#gradslam.config.CfgNode.key_is_renamed"><code class="docutils literal notranslate"><span class="pre">CfgNode.key_is_renamed()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#gradslam.config.CfgNode.load_cfg"><code class="docutils literal notranslate"><span class="pre">CfgNode.load_cfg()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="backend.html">Backend</a></li>
+<li class="toctree-l1"><a class="reference internal" href="datasets.html">gradslam.datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="geometry.html">gradslam.geometry</a></li>
+<li class="toctree-l1"><a class="reference internal" href="icp.html">ICP Tracking</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mapping.html">Mapping &amp; Fusion</a></li>
+<li class="toctree-l1"><a class="reference internal" href="metrics.html">gradslam.metrics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="odometry.html">gradslam.odometry</a></li>
+<li class="toctree-l1"><a class="reference internal" href="rendering.html">Rendering</a></li>
+<li class="toctree-l1"><a class="reference internal" href="slam.html">gradslam.slam</a></li>
+<li class="toctree-l1"><a class="reference internal" href="structures.html">gradslam.structures</a></li>
+<li class="toctree-l1"><a class="reference internal" href="utils.html">gradslam.utils</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">gradslam</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">gradslam.config</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/modules/config.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="gradslam-config">
+<h1>gradslam.config<a class="headerlink" href="#gradslam-config" title="Link to this heading"></a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="gradslam.config.CfgNode">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">CfgNode</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">init_dict</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key_list</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">new_allowed</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/config/cfgnode.html#CfgNode"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.config.CfgNode" title="Link to this definition"></a></dt>
+<dd><p>CfgNode is a <cite>node</cite> in the configuration <cite>tree</cite>. It’s a simple wrapper around a <cite>dict</cite> and supports access to
+<cite>attributes</cite> via <cite>keys</cite>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>init_dict</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><em>dict</em></a><em> | </em><em>None</em>)</p></li>
+<li><p><strong>key_list</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em> | </em><em>None</em>)</p></li>
+<li><p><strong>new_allowed</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em> | </em><em>None</em>)</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="gradslam.config.CfgNode.dump">
+<span class="sig-name descname"><span class="pre">dump</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/config/cfgnode.html#CfgNode.dump"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.config.CfgNode.dump" title="Link to this definition"></a></dt>
+<dd><p>Dump CfgNode to a string.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gradslam.config.CfgNode.merge_from_file">
+<span class="sig-name descname"><span class="pre">merge_from_file</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cfg_filename</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/config/cfgnode.html#CfgNode.merge_from_file"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.config.CfgNode.merge_from_file" title="Link to this definition"></a></dt>
+<dd><p>Load a yaml config file and merge it with this CfgNode.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>cfg_filename</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Config file path.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gradslam.config.CfgNode.merge_from_other_cfg">
+<span class="sig-name descname"><span class="pre">merge_from_other_cfg</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cfg_other</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/config/cfgnode.html#CfgNode.merge_from_other_cfg"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.config.CfgNode.merge_from_other_cfg" title="Link to this definition"></a></dt>
+<dd><p>Merge <cite>cfg_other</cite> into the current <cite>CfgNode</cite>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>cfg_other</strong></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gradslam.config.CfgNode.merge_from_list">
+<span class="sig-name descname"><span class="pre">merge_from_list</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cfg_list</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/config/cfgnode.html#CfgNode.merge_from_list"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.config.CfgNode.merge_from_list" title="Link to this definition"></a></dt>
+<dd><p>Merge config (keys, values) in a list (eg. from commandline) into this <cite>CfgNode</cite>.</p>
+<p>Eg. <cite>cfg_list = [‘FOO.BAR’, 0.5]</cite>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>cfg_list</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a>)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gradslam.config.CfgNode.freeze">
+<span class="sig-name descname"><span class="pre">freeze</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/config/cfgnode.html#CfgNode.freeze"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.config.CfgNode.freeze" title="Link to this definition"></a></dt>
+<dd><p>Make this <cite>CfgNode</cite> and all of its children immutable.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gradslam.config.CfgNode.defrost">
+<span class="sig-name descname"><span class="pre">defrost</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/config/cfgnode.html#CfgNode.defrost"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.config.CfgNode.defrost" title="Link to this definition"></a></dt>
+<dd><p>Make this <cite>CfgNode</cite> and all of its children mutable.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gradslam.config.CfgNode.is_frozen">
+<span class="sig-name descname"><span class="pre">is_frozen</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/config/cfgnode.html#CfgNode.is_frozen"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.config.CfgNode.is_frozen" title="Link to this definition"></a></dt>
+<dd><p>Return mutability.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gradslam.config.CfgNode.clone">
+<span class="sig-name descname"><span class="pre">clone</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/config/cfgnode.html#CfgNode.clone"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.config.CfgNode.clone" title="Link to this definition"></a></dt>
+<dd><p>Recursively copy this <cite>CfgNode</cite>.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gradslam.config.CfgNode.register_deprecated_key">
+<span class="sig-name descname"><span class="pre">register_deprecated_key</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/config/cfgnode.html#CfgNode.register_deprecated_key"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.config.CfgNode.register_deprecated_key" title="Link to this definition"></a></dt>
+<dd><p>Register key (eg. <cite>FOO.BAR</cite>) a deprecated option. When merging deprecated keys, a warning is generated and
+the key is ignored.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>key</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gradslam.config.CfgNode.register_renamed_key">
+<span class="sig-name descname"><span class="pre">register_renamed_key</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">old_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">new_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">message</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/config/cfgnode.html#CfgNode.register_renamed_key"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.config.CfgNode.register_renamed_key" title="Link to this definition"></a></dt>
+<dd><p>Register a key as having been renamed from <cite>old_name</cite> to <cite>new_name</cite>. When merging a renamed key, an
+exception is thrown alerting the user to the fact that the key has been renamed.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>old_name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>new_name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>message</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><em>None</em>)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gradslam.config.CfgNode.key_is_deprecated">
+<span class="sig-name descname"><span class="pre">key_is_deprecated</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">full_key</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/config/cfgnode.html#CfgNode.key_is_deprecated"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.config.CfgNode.key_is_deprecated" title="Link to this definition"></a></dt>
+<dd><p>Test if a key is deprecated.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>full_key</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gradslam.config.CfgNode.key_is_renamed">
+<span class="sig-name descname"><span class="pre">key_is_renamed</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">full_key</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/config/cfgnode.html#CfgNode.key_is_renamed"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.config.CfgNode.key_is_renamed" title="Link to this definition"></a></dt>
+<dd><p>Test if a key is renamed.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>full_key</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gradslam.config.CfgNode.load_cfg">
+<span class="property"><span class="k"><span class="pre">classmethod</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">load_cfg</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cfg_file_obj_or_str</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/config/cfgnode.html#CfgNode.load_cfg"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.config.CfgNode.load_cfg" title="Link to this definition"></a></dt>
+<dd><p>Load a configuration into the <cite>CfgNode</cite>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>cfg_file_obj_or_str</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> or </em><em>cfg compatible object</em>) – Supports loading from:
+- A file object backed by a YAML file.
+- A file object backed by a Python source file that exports an sttribute “cfg” (dict or <cite>CfgNode</cite>).
+- A string that can be parsed as valid YAML.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="../tutorials/pointfusion_tutorial.html" class="btn btn-neutral float-left" title="Try This Tutorial Yourself!" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="backend.html" class="btn btn-neutral float-right" title="Backend" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020–2026, Montreal Robotics Lab.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

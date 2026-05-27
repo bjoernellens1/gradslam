@@ -1,0 +1,556 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ICP Tracking &mdash; gradslam 0.2.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
+
+  
+    <link rel="shortcut icon" href="../_static/gradslam-favicon-32x32.png"/>
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=938c9ccc"></script>
+      <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Mapping &amp; Fusion" href="mapping.html" />
+    <link rel="prev" title="gradslam.geometry" href="geometry.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            gradslam
+              <img src="../_static/gradslam-logo.png" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/tutorial_prerequisits.html">Prerequisits</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials.html">Getting started with RGBDImages</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials.html#getting-started-with-pointclouds">Getting started with Pointclouds</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials.html#pointfusion-slam">PointFusion SLAM</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="config.html">gradslam.config</a></li>
+<li class="toctree-l1"><a class="reference internal" href="backend.html">Backend</a></li>
+<li class="toctree-l1"><a class="reference internal" href="datasets.html">gradslam.datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="geometry.html">gradslam.geometry</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">ICP Tracking</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#gradslam.icp.solve_lm_6x6"><code class="docutils literal notranslate"><span class="pre">solve_lm_6x6()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#gradslam.icp.point_to_plane_projective"><code class="docutils literal notranslate"><span class="pre">point_to_plane_projective()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#gradslam.icp.ProjectiveICPTracker"><code class="docutils literal notranslate"><span class="pre">ProjectiveICPTracker</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#gradslam.icp.ProjectiveICPTracker.forward"><code class="docutils literal notranslate"><span class="pre">ProjectiveICPTracker.forward()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#gradslam.icp.ProjectiveICPConfig"><code class="docutils literal notranslate"><span class="pre">ProjectiveICPConfig</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#gradslam.icp.ProjectiveICPConfig.n_pyramid_levels"><code class="docutils literal notranslate"><span class="pre">ProjectiveICPConfig.n_pyramid_levels</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#gradslam.icp.ProjectiveICPConfig.iterations"><code class="docutils literal notranslate"><span class="pre">ProjectiveICPConfig.iterations</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#gradslam.icp.ProjectiveICPConfig.damping"><code class="docutils literal notranslate"><span class="pre">ProjectiveICPConfig.damping</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#gradslam.icp.ProjectiveICPConfig.max_depth_diff"><code class="docutils literal notranslate"><span class="pre">ProjectiveICPConfig.max_depth_diff</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#gradslam.icp.ProjectiveICPConfig.max_normal_angle_deg"><code class="docutils literal notranslate"><span class="pre">ProjectiveICPConfig.max_normal_angle_deg</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#gradslam.icp.ProjectiveICPConfig.robust_loss"><code class="docutils literal notranslate"><span class="pre">ProjectiveICPConfig.robust_loss</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#gradslam.icp.ProjectiveICPConfig.huber_delta"><code class="docutils literal notranslate"><span class="pre">ProjectiveICPConfig.huber_delta</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#module-gradslam.icp.projective">Projective ICP</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#gradslam.icp.projective.ProjectiveICPConfig"><code class="docutils literal notranslate"><span class="pre">ProjectiveICPConfig</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.icp.projective.ProjectiveICPConfig.n_pyramid_levels"><code class="docutils literal notranslate"><span class="pre">ProjectiveICPConfig.n_pyramid_levels</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.icp.projective.ProjectiveICPConfig.iterations"><code class="docutils literal notranslate"><span class="pre">ProjectiveICPConfig.iterations</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.icp.projective.ProjectiveICPConfig.damping"><code class="docutils literal notranslate"><span class="pre">ProjectiveICPConfig.damping</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.icp.projective.ProjectiveICPConfig.max_depth_diff"><code class="docutils literal notranslate"><span class="pre">ProjectiveICPConfig.max_depth_diff</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.icp.projective.ProjectiveICPConfig.max_normal_angle_deg"><code class="docutils literal notranslate"><span class="pre">ProjectiveICPConfig.max_normal_angle_deg</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.icp.projective.ProjectiveICPConfig.robust_loss"><code class="docutils literal notranslate"><span class="pre">ProjectiveICPConfig.robust_loss</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.icp.projective.ProjectiveICPConfig.huber_delta"><code class="docutils literal notranslate"><span class="pre">ProjectiveICPConfig.huber_delta</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#gradslam.icp.projective.ProjectiveICPTracker"><code class="docutils literal notranslate"><span class="pre">ProjectiveICPTracker</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.icp.projective.ProjectiveICPTracker.forward"><code class="docutils literal notranslate"><span class="pre">ProjectiveICPTracker.forward()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#module-gradslam.icp.residuals">Residuals</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#gradslam.icp.residuals.point_to_plane_projective"><code class="docutils literal notranslate"><span class="pre">point_to_plane_projective()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#module-gradslam.icp.solvers">Solvers</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#gradslam.icp.solvers.solve_lm_6x6"><code class="docutils literal notranslate"><span class="pre">solve_lm_6x6()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="mapping.html">Mapping &amp; Fusion</a></li>
+<li class="toctree-l1"><a class="reference internal" href="metrics.html">gradslam.metrics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="odometry.html">gradslam.odometry</a></li>
+<li class="toctree-l1"><a class="reference internal" href="rendering.html">Rendering</a></li>
+<li class="toctree-l1"><a class="reference internal" href="slam.html">gradslam.slam</a></li>
+<li class="toctree-l1"><a class="reference internal" href="structures.html">gradslam.structures</a></li>
+<li class="toctree-l1"><a class="reference internal" href="utils.html">gradslam.utils</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">gradslam</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">ICP Tracking</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/modules/icp.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-gradslam.icp">
+<span id="icp-tracking"></span><span id="api-icp"></span><h1>ICP Tracking<a class="headerlink" href="#module-gradslam.icp" title="Link to this heading"></a></h1>
+<p>Iterative Closest Point tracking backends.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="gradslam.icp.solve_lm_6x6">
+<span class="sig-name descname"><span class="pre">solve_lm_6x6</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">A</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">b</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">damp</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0001</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/icp/solvers.html#solve_lm_6x6"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.icp.solve_lm_6x6" title="Link to this definition"></a></dt>
+<dd><p>Solve damped normal equations for 6-DOF SE(3) optimization.</p>
+<p>Solves: (A^T A + damp * I) x = A^T b for the 6-vector x (Lie algebra twist).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>A</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>Tensor</em></a>) – Constraint matrix of shape [N, 6] (rows = correspondences, cols = DOF).</p></li>
+<li><p><strong>b</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>Tensor</em></a>) – Residual vector of shape [N, 1].</p></li>
+<li><p><strong>damp</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Damping coefficient (Levenberg-Marquardt lambda). Default: 1e-4.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Solution vector x of shape [6, 1].</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>Tensor</em></a></p>
+</dd>
+</dl>
+<dl class="simple">
+<dt>Shapes:</dt><dd><ul class="simple">
+<li><p>A: [N, 6]</p></li>
+<li><p>b: [N, 1]</p></li>
+<li><p>Output: [6, 1]</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="gradslam.icp.point_to_plane_projective">
+<span class="sig-name descname"><span class="pre">point_to_plane_projective</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">vertex_live</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">normal_model</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">vertex_model</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/icp/residuals.html#point_to_plane_projective"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.icp.point_to_plane_projective" title="Link to this definition"></a></dt>
+<dd><p>Compute point-to-plane residuals and Jacobian for projective ICP.</p>
+<p>Given live vertices and model vertices/normals, compute the residual and
+Jacobian matrix for point-to-plane (point-to-surface) alignment.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>vertex_live</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>Tensor</em></a>) – Live vertices in model frame, shape [N, 3].</p></li>
+<li><p><strong>normal_model</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>Tensor</em></a>) – Surface normals of model vertices, shape [N, 3].</p></li>
+<li><p><strong>vertex_model</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>Tensor</em></a>) – Model vertices (associations), shape [N, 3].</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p>A: Jacobian matrix, shape [N, 6].</p></li>
+<li><p>b: Residual vector, shape [N, 1].</p></li>
+</ul>
+</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Tuple of</p>
+</dd>
+</dl>
+<dl class="simple">
+<dt>Shapes:</dt><dd><ul class="simple">
+<li><p>vertex_live: [N, 3]</p></li>
+<li><p>normal_model: [N, 3]</p></li>
+<li><p>vertex_model: [N, 3]</p></li>
+<li><p>A: [N, 6]</p></li>
+<li><p>b: [N, 1]</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="gradslam.icp.ProjectiveICPTracker">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">ProjectiveICPTracker</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/icp/projective.html#ProjectiveICPTracker"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.icp.ProjectiveICPTracker" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module" title="(in PyTorch v2.12)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code></a></p>
+<p>Projective ICP tracker for frame-to-model alignment in RGB-D SLAM.</p>
+<p>Uses a coarse-to-fine pyramid approach, computing point-to-plane ICP at each
+level to align live depth with rendered model depth.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>config</strong> (<a class="reference internal" href="#gradslam.icp.ProjectiveICPConfig" title="gradslam.icp.ProjectiveICPConfig"><em>ProjectiveICPConfig</em></a>)</p>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="gradslam.icp.ProjectiveICPTracker.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">live_depth</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">live_normal</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model_depth</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model_normal</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">intrinsics</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">init_T_model_live</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/icp/projective.html#ProjectiveICPTracker.forward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.icp.ProjectiveICPTracker.forward" title="Link to this definition"></a></dt>
+<dd><p>Compute rigid transform from live frame to model.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>live_depth</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>Tensor</em></a>) – Live frame depth, shape [H, W].</p></li>
+<li><p><strong>live_normal</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>Tensor</em></a>) – Live frame normals, shape [H, W, 3].</p></li>
+<li><p><strong>model_depth</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>Tensor</em></a>) – Model rendered depth, shape [H, W].</p></li>
+<li><p><strong>model_normal</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>Tensor</em></a>) – Model rendered normals, shape [H, W, 3].</p></li>
+<li><p><strong>intrinsics</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>Tensor</em></a>) – Camera intrinsics [3, 3] (K matrix).</p></li>
+<li><p><strong>init_T_model_live</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>Tensor</em></a><em> | </em><em>None</em>) – Initial guess (4x4 SE(3)). If None, uses identity.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p>T_model_live: Estimated transform (4x4 SE(3)).</p></li>
+<li><p>quality_dict: Tracking quality metrics.</p></li>
+</ul>
+</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Tuple of</p>
+</dd>
+</dl>
+<dl class="simple">
+<dt>Shapes:</dt><dd><ul class="simple">
+<li><p>live_depth, model_depth: [H, W]</p></li>
+<li><p>live_normal, model_normal: [H, W, 3]</p></li>
+<li><p>intrinsics: [3, 3]</p></li>
+<li><p>init_T_model_live: [4, 4] or None</p></li>
+<li><p>T_model_live: [4, 4]</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="gradslam.icp.ProjectiveICPConfig">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">ProjectiveICPConfig</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">n_pyramid_levels</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">iterations</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(10,</span> <span class="pre">5,</span> <span class="pre">4)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">damping</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(0.01,</span> <span class="pre">0.001,</span> <span class="pre">0.0001)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_depth_diff</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_normal_angle_deg</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">60.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">robust_loss</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'none'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">huber_delta</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.03</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/icp/projective.html#ProjectiveICPConfig"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.icp.ProjectiveICPConfig" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<p>Configuration for projective ICP tracker.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Variables<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>n_pyramid_levels</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Number of pyramid levels (coarse to fine).</p></li>
+<li><p><strong>iterations</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)"><em>tuple</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><em>...</em><em>]</em>) – Iterations per level, e.g., (10, 5, 4).</p></li>
+<li><p><strong>damping</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)"><em>tuple</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em>, </em><em>...</em><em>]</em>) – Damping per level, e.g., (1e-2, 1e-3, 1e-4).</p></li>
+<li><p><strong>max_depth_diff</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Max depth difference for correspondence.</p></li>
+<li><p><strong>max_normal_angle_deg</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Max angle between normals (degrees).</p></li>
+<li><p><strong>robust_loss</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Robust loss function (“huber” or “none”).</p></li>
+<li><p><strong>huber_delta</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Huber loss threshold (for robust_loss=”huber”).</p></li>
+</ul>
+</dd>
+<dt class="field-even">Parameters<span class="colon">:</span></dt>
+<dd class="field-even"><ul class="simple">
+<li><p><strong>n_pyramid_levels</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>)</p></li>
+<li><p><strong>iterations</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)"><em>tuple</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><em>...</em><em>]</em>)</p></li>
+<li><p><strong>damping</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)"><em>tuple</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em>, </em><em>...</em><em>]</em>)</p></li>
+<li><p><strong>max_depth_diff</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>)</p></li>
+<li><p><strong>max_normal_angle_deg</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>)</p></li>
+<li><p><strong>robust_loss</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>huber_delta</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>)</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gradslam.icp.ProjectiveICPConfig.n_pyramid_levels">
+<span class="sig-name descname"><span class="pre">n_pyramid_levels</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">3</span></span><a class="headerlink" href="#gradslam.icp.ProjectiveICPConfig.n_pyramid_levels" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gradslam.icp.ProjectiveICPConfig.iterations">
+<span class="sig-name descname"><span class="pre">iterations</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)"><span class="pre">tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">(10,</span> <span class="pre">5,</span> <span class="pre">4)</span></span><a class="headerlink" href="#gradslam.icp.ProjectiveICPConfig.iterations" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gradslam.icp.ProjectiveICPConfig.damping">
+<span class="sig-name descname"><span class="pre">damping</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)"><span class="pre">tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">(0.01,</span> <span class="pre">0.001,</span> <span class="pre">0.0001)</span></span><a class="headerlink" href="#gradslam.icp.ProjectiveICPConfig.damping" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gradslam.icp.ProjectiveICPConfig.max_depth_diff">
+<span class="sig-name descname"><span class="pre">max_depth_diff</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0.1</span></span><a class="headerlink" href="#gradslam.icp.ProjectiveICPConfig.max_depth_diff" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gradslam.icp.ProjectiveICPConfig.max_normal_angle_deg">
+<span class="sig-name descname"><span class="pre">max_normal_angle_deg</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">60.0</span></span><a class="headerlink" href="#gradslam.icp.ProjectiveICPConfig.max_normal_angle_deg" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gradslam.icp.ProjectiveICPConfig.robust_loss">
+<span class="sig-name descname"><span class="pre">robust_loss</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'none'</span></span><a class="headerlink" href="#gradslam.icp.ProjectiveICPConfig.robust_loss" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gradslam.icp.ProjectiveICPConfig.huber_delta">
+<span class="sig-name descname"><span class="pre">huber_delta</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0.03</span></span><a class="headerlink" href="#gradslam.icp.ProjectiveICPConfig.huber_delta" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<section id="module-gradslam.icp.projective">
+<span id="projective-icp"></span><h2>Projective ICP<a class="headerlink" href="#module-gradslam.icp.projective" title="Link to this heading"></a></h2>
+<p>Projective ICP tracker for RGB-D SLAM (KinectFusion-style).</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="gradslam.icp.projective.ProjectiveICPConfig">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">ProjectiveICPConfig</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">n_pyramid_levels</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">iterations</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(10,</span> <span class="pre">5,</span> <span class="pre">4)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">damping</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(0.01,</span> <span class="pre">0.001,</span> <span class="pre">0.0001)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_depth_diff</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_normal_angle_deg</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">60.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">robust_loss</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'none'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">huber_delta</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.03</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/icp/projective.html#ProjectiveICPConfig"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.icp.projective.ProjectiveICPConfig" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<p>Configuration for projective ICP tracker.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Variables<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>n_pyramid_levels</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Number of pyramid levels (coarse to fine).</p></li>
+<li><p><strong>iterations</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)"><em>tuple</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><em>...</em><em>]</em>) – Iterations per level, e.g., (10, 5, 4).</p></li>
+<li><p><strong>damping</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)"><em>tuple</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em>, </em><em>...</em><em>]</em>) – Damping per level, e.g., (1e-2, 1e-3, 1e-4).</p></li>
+<li><p><strong>max_depth_diff</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Max depth difference for correspondence.</p></li>
+<li><p><strong>max_normal_angle_deg</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Max angle between normals (degrees).</p></li>
+<li><p><strong>robust_loss</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Robust loss function (“huber” or “none”).</p></li>
+<li><p><strong>huber_delta</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Huber loss threshold (for robust_loss=”huber”).</p></li>
+</ul>
+</dd>
+<dt class="field-even">Parameters<span class="colon">:</span></dt>
+<dd class="field-even"><ul class="simple">
+<li><p><strong>n_pyramid_levels</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>)</p></li>
+<li><p><strong>iterations</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)"><em>tuple</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><em>...</em><em>]</em>)</p></li>
+<li><p><strong>damping</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)"><em>tuple</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em>, </em><em>...</em><em>]</em>)</p></li>
+<li><p><strong>max_depth_diff</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>)</p></li>
+<li><p><strong>max_normal_angle_deg</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>)</p></li>
+<li><p><strong>robust_loss</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>huber_delta</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>)</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gradslam.icp.projective.ProjectiveICPConfig.n_pyramid_levels">
+<span class="sig-name descname"><span class="pre">n_pyramid_levels</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">3</span></span><a class="headerlink" href="#gradslam.icp.projective.ProjectiveICPConfig.n_pyramid_levels" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gradslam.icp.projective.ProjectiveICPConfig.iterations">
+<span class="sig-name descname"><span class="pre">iterations</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)"><span class="pre">tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">(10,</span> <span class="pre">5,</span> <span class="pre">4)</span></span><a class="headerlink" href="#gradslam.icp.projective.ProjectiveICPConfig.iterations" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gradslam.icp.projective.ProjectiveICPConfig.damping">
+<span class="sig-name descname"><span class="pre">damping</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)"><span class="pre">tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">(0.01,</span> <span class="pre">0.001,</span> <span class="pre">0.0001)</span></span><a class="headerlink" href="#gradslam.icp.projective.ProjectiveICPConfig.damping" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gradslam.icp.projective.ProjectiveICPConfig.max_depth_diff">
+<span class="sig-name descname"><span class="pre">max_depth_diff</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0.1</span></span><a class="headerlink" href="#gradslam.icp.projective.ProjectiveICPConfig.max_depth_diff" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gradslam.icp.projective.ProjectiveICPConfig.max_normal_angle_deg">
+<span class="sig-name descname"><span class="pre">max_normal_angle_deg</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">60.0</span></span><a class="headerlink" href="#gradslam.icp.projective.ProjectiveICPConfig.max_normal_angle_deg" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gradslam.icp.projective.ProjectiveICPConfig.robust_loss">
+<span class="sig-name descname"><span class="pre">robust_loss</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'none'</span></span><a class="headerlink" href="#gradslam.icp.projective.ProjectiveICPConfig.robust_loss" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gradslam.icp.projective.ProjectiveICPConfig.huber_delta">
+<span class="sig-name descname"><span class="pre">huber_delta</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0.03</span></span><a class="headerlink" href="#gradslam.icp.projective.ProjectiveICPConfig.huber_delta" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="gradslam.icp.projective.ProjectiveICPTracker">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">ProjectiveICPTracker</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/icp/projective.html#ProjectiveICPTracker"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.icp.projective.ProjectiveICPTracker" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module" title="(in PyTorch v2.12)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code></a></p>
+<p>Projective ICP tracker for frame-to-model alignment in RGB-D SLAM.</p>
+<p>Uses a coarse-to-fine pyramid approach, computing point-to-plane ICP at each
+level to align live depth with rendered model depth.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>config</strong> (<a class="reference internal" href="#gradslam.icp.projective.ProjectiveICPConfig" title="gradslam.icp.projective.ProjectiveICPConfig"><em>ProjectiveICPConfig</em></a>)</p>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="gradslam.icp.projective.ProjectiveICPTracker.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">live_depth</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">live_normal</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model_depth</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model_normal</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">intrinsics</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">init_T_model_live</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/icp/projective.html#ProjectiveICPTracker.forward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.icp.projective.ProjectiveICPTracker.forward" title="Link to this definition"></a></dt>
+<dd><p>Compute rigid transform from live frame to model.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>live_depth</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>Tensor</em></a>) – Live frame depth, shape [H, W].</p></li>
+<li><p><strong>live_normal</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>Tensor</em></a>) – Live frame normals, shape [H, W, 3].</p></li>
+<li><p><strong>model_depth</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>Tensor</em></a>) – Model rendered depth, shape [H, W].</p></li>
+<li><p><strong>model_normal</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>Tensor</em></a>) – Model rendered normals, shape [H, W, 3].</p></li>
+<li><p><strong>intrinsics</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>Tensor</em></a>) – Camera intrinsics [3, 3] (K matrix).</p></li>
+<li><p><strong>init_T_model_live</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>Tensor</em></a><em> | </em><em>None</em>) – Initial guess (4x4 SE(3)). If None, uses identity.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p>T_model_live: Estimated transform (4x4 SE(3)).</p></li>
+<li><p>quality_dict: Tracking quality metrics.</p></li>
+</ul>
+</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Tuple of</p>
+</dd>
+</dl>
+<dl class="simple">
+<dt>Shapes:</dt><dd><ul class="simple">
+<li><p>live_depth, model_depth: [H, W]</p></li>
+<li><p>live_normal, model_normal: [H, W, 3]</p></li>
+<li><p>intrinsics: [3, 3]</p></li>
+<li><p>init_T_model_live: [4, 4] or None</p></li>
+<li><p>T_model_live: [4, 4]</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-gradslam.icp.residuals">
+<span id="residuals"></span><h2>Residuals<a class="headerlink" href="#module-gradslam.icp.residuals" title="Link to this heading"></a></h2>
+<p>Residual computation for point-to-plane ICP.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="gradslam.icp.residuals.point_to_plane_projective">
+<span class="sig-name descname"><span class="pre">point_to_plane_projective</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">vertex_live</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">normal_model</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">vertex_model</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/icp/residuals.html#point_to_plane_projective"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.icp.residuals.point_to_plane_projective" title="Link to this definition"></a></dt>
+<dd><p>Compute point-to-plane residuals and Jacobian for projective ICP.</p>
+<p>Given live vertices and model vertices/normals, compute the residual and
+Jacobian matrix for point-to-plane (point-to-surface) alignment.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>vertex_live</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>Tensor</em></a>) – Live vertices in model frame, shape [N, 3].</p></li>
+<li><p><strong>normal_model</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>Tensor</em></a>) – Surface normals of model vertices, shape [N, 3].</p></li>
+<li><p><strong>vertex_model</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>Tensor</em></a>) – Model vertices (associations), shape [N, 3].</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p>A: Jacobian matrix, shape [N, 6].</p></li>
+<li><p>b: Residual vector, shape [N, 1].</p></li>
+</ul>
+</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Tuple of</p>
+</dd>
+</dl>
+<dl class="simple">
+<dt>Shapes:</dt><dd><ul class="simple">
+<li><p>vertex_live: [N, 3]</p></li>
+<li><p>normal_model: [N, 3]</p></li>
+<li><p>vertex_model: [N, 3]</p></li>
+<li><p>A: [N, 6]</p></li>
+<li><p>b: [N, 1]</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="module-gradslam.icp.solvers">
+<span id="solvers"></span><h2>Solvers<a class="headerlink" href="#module-gradslam.icp.solvers" title="Link to this heading"></a></h2>
+<p>Linear solvers for ICP optimization (LM, damped normal equations).</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="gradslam.icp.solvers.solve_lm_6x6">
+<span class="sig-name descname"><span class="pre">solve_lm_6x6</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">A</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">b</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">damp</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0001</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/icp/solvers.html#solve_lm_6x6"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.icp.solvers.solve_lm_6x6" title="Link to this definition"></a></dt>
+<dd><p>Solve damped normal equations for 6-DOF SE(3) optimization.</p>
+<p>Solves: (A^T A + damp * I) x = A^T b for the 6-vector x (Lie algebra twist).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>A</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>Tensor</em></a>) – Constraint matrix of shape [N, 6] (rows = correspondences, cols = DOF).</p></li>
+<li><p><strong>b</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>Tensor</em></a>) – Residual vector of shape [N, 1].</p></li>
+<li><p><strong>damp</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Damping coefficient (Levenberg-Marquardt lambda). Default: 1e-4.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Solution vector x of shape [6, 1].</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>Tensor</em></a></p>
+</dd>
+</dl>
+<dl class="simple">
+<dt>Shapes:</dt><dd><ul class="simple">
+<li><p>A: [N, 6]</p></li>
+<li><p>b: [N, 1]</p></li>
+<li><p>Output: [6, 1]</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="geometry.html" class="btn btn-neutral float-left" title="gradslam.geometry" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="mapping.html" class="btn btn-neutral float-right" title="Mapping &amp; Fusion" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020–2026, Montreal Robotics Lab.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

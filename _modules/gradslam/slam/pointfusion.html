@@ -1,0 +1,236 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>gradslam.slam.pointfusion &mdash; gradslam 0.2.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
+
+  
+    <link rel="shortcut icon" href="../../../_static/gradslam-favicon-32x32.png"/>
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=938c9ccc"></script>
+      <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            gradslam
+              <img src="../../../_static/gradslam-logo.png" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials/tutorial_prerequisits.html">Prerequisits</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials.html">Getting started with RGBDImages</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials.html#getting-started-with-pointclouds">Getting started with Pointclouds</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials.html#pointfusion-slam">PointFusion SLAM</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/config.html">gradslam.config</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/backend.html">Backend</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/datasets.html">gradslam.datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/geometry.html">gradslam.geometry</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/icp.html">ICP Tracking</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/mapping.html">Mapping &amp; Fusion</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/metrics.html">gradslam.metrics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/odometry.html">gradslam.odometry</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/rendering.html">Rendering</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/slam.html">gradslam.slam</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/structures.html">gradslam.structures</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/utils.html">gradslam.utils</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">gradslam</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">gradslam.slam.pointfusion</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for gradslam.slam.pointfusion</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span><span class="w"> </span><span class="nn">math</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Union</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">..structures.pointclouds</span><span class="w"> </span><span class="kn">import</span> <span class="n">Pointclouds</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">..structures.rgbdimages</span><span class="w"> </span><span class="kn">import</span> <span class="n">RGBDImages</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.fusionutils</span><span class="w"> </span><span class="kn">import</span> <span class="n">update_map_fusion</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.icpslam</span><span class="w"> </span><span class="kn">import</span> <span class="n">ICPSLAM</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;PointFusion&quot;</span><span class="p">]</span>
+
+
+<div class="viewcode-block" id="PointFusion">
+<a class="viewcode-back" href="../../../modules/slam.html#gradslam.slam.PointFusion">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">PointFusion</span><span class="p">(</span><span class="n">ICPSLAM</span><span class="p">):</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Point-based Fusion (PointFusion for short) SLAM for batched sequences of RGB-D images</span>
+<span class="sd">    (See Point-based Fusion `paper &lt;http://reality.cs.ucl.ac.uk/projects/kinect/keller13realtime.pdf&gt;`__).</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        odom (str): Odometry method to be used from {&#39;gt&#39;, &#39;icp&#39;, &#39;gradicp&#39;}. Default: &#39;gradicp&#39;</span>
+<span class="sd">        dist_th (float or int): Distance threshold.</span>
+<span class="sd">        dot_th (float or int): Dot product threshold.</span>
+<span class="sd">        sigma (torch.Tensor or float or int): Width of the gaussian bell. Original paper uses 0.6 emperically.</span>
+<span class="sd">        dsratio (int): Downsampling ratio to apply to input frames before ICP. Only used if `odom` is</span>
+<span class="sd">            &#39;icp&#39; or &#39;gradicp&#39;. Default: 4</span>
+<span class="sd">        numiters (int): Number of iterations to run the optimization for. Only used if `odom` is</span>
+<span class="sd">            &#39;icp&#39; or &#39;gradicp&#39;. Default: 20</span>
+<span class="sd">        damp (float or torch.Tensor): Damping coefficient for nonlinear least-squares. Only used if `odom` is</span>
+<span class="sd">            &#39;icp&#39; or &#39;gradicp&#39;. Default: 1e-8</span>
+<span class="sd">        dist_thresh (float or int or None): Distance threshold for removing `src_pc` points distant from `tgt_pc`.</span>
+<span class="sd">                Only used if `odom` is &#39;icp&#39; or &#39;gradicp&#39;. Default: None</span>
+<span class="sd">        lambda_max (float or int): Maximum value the damping function can assume (`lambda_min` will be</span>
+<span class="sd">            :math:`\frac{1}{\text{lambda_max}}`). Only used if `odom` is &#39;gradicp&#39;.</span>
+<span class="sd">        B (float or int): gradLM falloff control parameter (see GradICPOdometryProvider description).</span>
+<span class="sd">            Only used if `odom` is &#39;gradicp&#39;.</span>
+<span class="sd">        B2 (float or int): gradLM control parameter (see GradICPOdometryProvider description).</span>
+<span class="sd">            Only used if `odom` is &#39;gradicp&#39;.</span>
+<span class="sd">        nu (float or int): gradLM control parameter (see GradICPOdometryProvider description).</span>
+<span class="sd">            Only used if `odom` is &#39;gradicp&#39;.</span>
+<span class="sd">        device (torch.device or str or None): The desired device of internal tensors. If None, sets device to be</span>
+<span class="sd">            the CPU. Default: None</span>
+
+
+<span class="sd">    Examples::</span>
+
+<span class="sd">    &gt;&gt;&gt; rgbdimages = RGBDImages(colors, depths, intrinsics, poses)</span>
+<span class="sd">    &gt;&gt;&gt; slam = PointFusion(odom=&#39;gt&#39;)</span>
+<span class="sd">    &gt;&gt;&gt; pointclouds, poses = slam(rgbdimages)</span>
+<span class="sd">    &gt;&gt;&gt; o3d.visualization.draw_geometries([pointclouds.o3d(0)])</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">odom</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;gradicp&quot;</span><span class="p">,</span>
+        <span class="n">dist_th</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.05</span><span class="p">,</span>
+        <span class="n">angle_th</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="mi">20</span><span class="p">,</span>
+        <span class="n">sigma</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.6</span><span class="p">,</span>
+        <span class="n">dsratio</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">4</span><span class="p">,</span>
+        <span class="n">numiters</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">20</span><span class="p">,</span>
+        <span class="n">damp</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-8</span><span class="p">,</span>
+        <span class="n">dist_thresh</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">lambda_max</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="mf">2.0</span><span class="p">,</span>
+        <span class="n">B</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
+        <span class="n">B2</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
+        <span class="n">nu</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="mf">200.0</span><span class="p">,</span>
+        <span class="n">device</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">device</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">odom</span><span class="o">=</span><span class="n">odom</span><span class="p">,</span>
+            <span class="n">dsratio</span><span class="o">=</span><span class="n">dsratio</span><span class="p">,</span>
+            <span class="n">numiters</span><span class="o">=</span><span class="n">numiters</span><span class="p">,</span>
+            <span class="n">damp</span><span class="o">=</span><span class="n">damp</span><span class="p">,</span>
+            <span class="n">dist_thresh</span><span class="o">=</span><span class="n">dist_thresh</span><span class="p">,</span>
+            <span class="n">lambda_max</span><span class="o">=</span><span class="n">lambda_max</span><span class="p">,</span>
+            <span class="n">B</span><span class="o">=</span><span class="n">B</span><span class="p">,</span>
+            <span class="n">B2</span><span class="o">=</span><span class="n">B2</span><span class="p">,</span>
+            <span class="n">nu</span><span class="o">=</span><span class="n">nu</span><span class="p">,</span>
+            <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">dist_th</span><span class="p">,</span> <span class="nb">float</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">dist_th</span><span class="p">,</span> <span class="nb">int</span><span class="p">)):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+                <span class="s2">&quot;Distance threshold must be of type float or int; but was of type </span><span class="si">{}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="nb">type</span><span class="p">(</span><span class="n">dist_th</span><span class="p">)</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">angle_th</span><span class="p">,</span> <span class="nb">float</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">angle_th</span><span class="p">,</span> <span class="nb">int</span><span class="p">)):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+                <span class="s2">&quot;Angle threshold must be of type float or int; but was of type </span><span class="si">{}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="nb">type</span><span class="p">(</span><span class="n">angle_th</span><span class="p">)</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+        <span class="k">if</span> <span class="n">dist_th</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+                <span class="s2">&quot;Distance threshold (</span><span class="si">{}</span><span class="s2">) should be non-negative.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">dist_th</span><span class="p">)</span>
+            <span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="p">((</span><span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">angle_th</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="n">angle_th</span> <span class="o">&lt;=</span> <span class="mi">90</span><span class="p">)):</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+                <span class="s2">&quot;Angle threshold (</span><span class="si">{}</span><span class="s2">) should be non-negative and &lt;=90.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">angle_th</span><span class="p">)</span>
+            <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dist_th</span> <span class="o">=</span> <span class="n">dist_th</span>
+        <span class="n">rad_th</span> <span class="o">=</span> <span class="p">(</span><span class="n">angle_th</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">pi</span><span class="p">)</span> <span class="o">/</span> <span class="mi">180</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dot_th</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">rad_th</span><span class="p">)</span> <span class="k">if</span> <span class="n">torch</span><span class="o">.</span><span class="n">is_tensor</span><span class="p">(</span><span class="n">rad_th</span><span class="p">)</span> <span class="k">else</span> <span class="n">math</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">rad_th</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sigma</span> <span class="o">=</span> <span class="n">sigma</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_map</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">pointclouds</span><span class="p">:</span> <span class="n">Pointclouds</span><span class="p">,</span> <span class="n">live_frame</span><span class="p">:</span> <span class="n">RGBDImages</span><span class="p">,</span> <span class="n">inplace</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="p">):</span>
+        <span class="k">return</span> <span class="n">update_map_fusion</span><span class="p">(</span>
+            <span class="n">pointclouds</span><span class="p">,</span> <span class="n">live_frame</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">dist_th</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">dot_th</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">sigma</span><span class="p">,</span> <span class="n">inplace</span>
+        <span class="p">)</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020–2026, Montreal Robotics Lab.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

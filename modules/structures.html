@@ -1,0 +1,1373 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>gradslam.structures &mdash; gradslam 0.2.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
+
+  
+    <link rel="shortcut icon" href="../_static/gradslam-favicon-32x32.png"/>
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=938c9ccc"></script>
+      <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true}, "options": {"ignoreHtmlClass": "tex2jax_ignore|mathjax_ignore|document", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+      <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="gradslam.utils" href="utils.html" />
+    <link rel="prev" title="gradslam.slam" href="slam.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            gradslam
+              <img src="../_static/gradslam-logo.png" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/tutorial_prerequisits.html">Prerequisits</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials.html">Getting started with RGBDImages</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials.html#getting-started-with-pointclouds">Getting started with Pointclouds</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials.html#pointfusion-slam">PointFusion SLAM</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="config.html">gradslam.config</a></li>
+<li class="toctree-l1"><a class="reference internal" href="backend.html">Backend</a></li>
+<li class="toctree-l1"><a class="reference internal" href="datasets.html">gradslam.datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="geometry.html">gradslam.geometry</a></li>
+<li class="toctree-l1"><a class="reference internal" href="icp.html">ICP Tracking</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mapping.html">Mapping &amp; Fusion</a></li>
+<li class="toctree-l1"><a class="reference internal" href="metrics.html">gradslam.metrics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="odometry.html">gradslam.odometry</a></li>
+<li class="toctree-l1"><a class="reference internal" href="rendering.html">Rendering</a></li>
+<li class="toctree-l1"><a class="reference internal" href="slam.html">gradslam.slam</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">gradslam.structures</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#gradslam-structures-pointclouds">gradslam.structures.pointclouds</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#gradslam.structures.Pointclouds"><code class="docutils literal notranslate"><span class="pre">Pointclouds</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.structures.Pointclouds.__getitem__"><code class="docutils literal notranslate"><span class="pre">Pointclouds.__getitem__()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.structures.Pointclouds.__add__"><code class="docutils literal notranslate"><span class="pre">Pointclouds.__add__()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.structures.Pointclouds.__sub__"><code class="docutils literal notranslate"><span class="pre">Pointclouds.__sub__()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.structures.Pointclouds.__mul__"><code class="docutils literal notranslate"><span class="pre">Pointclouds.__mul__()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.structures.Pointclouds.__truediv__"><code class="docutils literal notranslate"><span class="pre">Pointclouds.__truediv__()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.structures.Pointclouds.__matmul__"><code class="docutils literal notranslate"><span class="pre">Pointclouds.__matmul__()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.structures.Pointclouds.rotate"><code class="docutils literal notranslate"><span class="pre">Pointclouds.rotate()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.structures.Pointclouds.transform"><code class="docutils literal notranslate"><span class="pre">Pointclouds.transform()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.structures.Pointclouds.pinhole_projection"><code class="docutils literal notranslate"><span class="pre">Pointclouds.pinhole_projection()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.structures.Pointclouds.offset_"><code class="docutils literal notranslate"><span class="pre">Pointclouds.offset_()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.structures.Pointclouds.scale_"><code class="docutils literal notranslate"><span class="pre">Pointclouds.scale_()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.structures.Pointclouds.rotate_"><code class="docutils literal notranslate"><span class="pre">Pointclouds.rotate_()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.structures.Pointclouds.transform_"><code class="docutils literal notranslate"><span class="pre">Pointclouds.transform_()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.structures.Pointclouds.pinhole_projection_"><code class="docutils literal notranslate"><span class="pre">Pointclouds.pinhole_projection_()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.structures.Pointclouds.has_points"><code class="docutils literal notranslate"><span class="pre">Pointclouds.has_points</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.structures.Pointclouds.has_normals"><code class="docutils literal notranslate"><span class="pre">Pointclouds.has_normals</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.structures.Pointclouds.has_colors"><code class="docutils literal notranslate"><span class="pre">Pointclouds.has_colors</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.structures.Pointclouds.has_features"><code class="docutils literal notranslate"><span class="pre">Pointclouds.has_features</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.structures.Pointclouds.num_features"><code class="docutils literal notranslate"><span class="pre">Pointclouds.num_features</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.structures.Pointclouds.nonpad_mask"><code class="docutils literal notranslate"><span class="pre">Pointclouds.nonpad_mask</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.structures.Pointclouds.num_points_per_pointcloud"><code class="docutils literal notranslate"><span class="pre">Pointclouds.num_points_per_pointcloud</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.structures.Pointclouds.points_list"><code class="docutils literal notranslate"><span class="pre">Pointclouds.points_list</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.structures.Pointclouds.normals_list"><code class="docutils literal notranslate"><span class="pre">Pointclouds.normals_list</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.structures.Pointclouds.colors_list"><code class="docutils literal notranslate"><span class="pre">Pointclouds.colors_list</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.structures.Pointclouds.features_list"><code class="docutils literal notranslate"><span class="pre">Pointclouds.features_list</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.structures.Pointclouds.points_padded"><code class="docutils literal notranslate"><span class="pre">Pointclouds.points_padded</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.structures.Pointclouds.normals_padded"><code class="docutils literal notranslate"><span class="pre">Pointclouds.normals_padded</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.structures.Pointclouds.colors_padded"><code class="docutils literal notranslate"><span class="pre">Pointclouds.colors_padded</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.structures.Pointclouds.features_padded"><code class="docutils literal notranslate"><span class="pre">Pointclouds.features_padded</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.structures.Pointclouds.clone"><code class="docutils literal notranslate"><span class="pre">Pointclouds.clone()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.structures.Pointclouds.detach"><code class="docutils literal notranslate"><span class="pre">Pointclouds.detach()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.structures.Pointclouds.to"><code class="docutils literal notranslate"><span class="pre">Pointclouds.to()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.structures.Pointclouds.cpu"><code class="docutils literal notranslate"><span class="pre">Pointclouds.cpu()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.structures.Pointclouds.cuda"><code class="docutils literal notranslate"><span class="pre">Pointclouds.cuda()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.structures.Pointclouds.append_points"><code class="docutils literal notranslate"><span class="pre">Pointclouds.append_points()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.structures.Pointclouds.open3d"><code class="docutils literal notranslate"><span class="pre">Pointclouds.open3d()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.structures.Pointclouds.plotly"><code class="docutils literal notranslate"><span class="pre">Pointclouds.plotly()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#gradslam-structures-rgbdimages">gradslam.structures.rgbdimages</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#gradslam.structures.RGBDImages"><code class="docutils literal notranslate"><span class="pre">RGBDImages</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.structures.RGBDImages.__getitem__"><code class="docutils literal notranslate"><span class="pre">RGBDImages.__getitem__()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.structures.RGBDImages.channels_first"><code class="docutils literal notranslate"><span class="pre">RGBDImages.channels_first</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.structures.RGBDImages.cdim"><code class="docutils literal notranslate"><span class="pre">RGBDImages.cdim</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.structures.RGBDImages.pixel_pos"><code class="docutils literal notranslate"><span class="pre">RGBDImages.pixel_pos</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.structures.RGBDImages.valid_depth_mask"><code class="docutils literal notranslate"><span class="pre">RGBDImages.valid_depth_mask</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.structures.RGBDImages.has_poses"><code class="docutils literal notranslate"><span class="pre">RGBDImages.has_poses</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.structures.RGBDImages.vertex_map"><code class="docutils literal notranslate"><span class="pre">RGBDImages.vertex_map</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.structures.RGBDImages.normal_map"><code class="docutils literal notranslate"><span class="pre">RGBDImages.normal_map</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.structures.RGBDImages.global_vertex_map"><code class="docutils literal notranslate"><span class="pre">RGBDImages.global_vertex_map</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.structures.RGBDImages.global_normal_map"><code class="docutils literal notranslate"><span class="pre">RGBDImages.global_normal_map</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.structures.RGBDImages.rgb_image"><code class="docutils literal notranslate"><span class="pre">RGBDImages.rgb_image</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.structures.RGBDImages.depth_image"><code class="docutils literal notranslate"><span class="pre">RGBDImages.depth_image</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.structures.RGBDImages.intrinsics"><code class="docutils literal notranslate"><span class="pre">RGBDImages.intrinsics</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.structures.RGBDImages.poses"><code class="docutils literal notranslate"><span class="pre">RGBDImages.poses</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.structures.RGBDImages.detach"><code class="docutils literal notranslate"><span class="pre">RGBDImages.detach()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.structures.RGBDImages.clone"><code class="docutils literal notranslate"><span class="pre">RGBDImages.clone()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.structures.RGBDImages.to"><code class="docutils literal notranslate"><span class="pre">RGBDImages.to()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.structures.RGBDImages.cpu"><code class="docutils literal notranslate"><span class="pre">RGBDImages.cpu()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.structures.RGBDImages.cuda"><code class="docutils literal notranslate"><span class="pre">RGBDImages.cuda()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.structures.RGBDImages.to_channels_last"><code class="docutils literal notranslate"><span class="pre">RGBDImages.to_channels_last()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.structures.RGBDImages.to_channels_first"><code class="docutils literal notranslate"><span class="pre">RGBDImages.to_channels_first()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.structures.RGBDImages.to_channels_last_"><code class="docutils literal notranslate"><span class="pre">RGBDImages.to_channels_last_()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.structures.RGBDImages.to_channels_first_"><code class="docutils literal notranslate"><span class="pre">RGBDImages.to_channels_first_()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.structures.RGBDImages.plotly"><code class="docutils literal notranslate"><span class="pre">RGBDImages.plotly()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#gradslam-structures-utils">gradslam.structures.utils</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#gradslam.structures.utils.pointclouds_from_rgbdimages"><code class="docutils literal notranslate"><span class="pre">pointclouds_from_rgbdimages()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="utils.html">gradslam.utils</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">gradslam</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">gradslam.structures</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/modules/structures.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="gradslam-structures">
+<h1>gradslam.structures<a class="headerlink" href="#gradslam-structures" title="Link to this heading"></a></h1>
+<section id="gradslam-structures-pointclouds">
+<h2>gradslam.structures.pointclouds<a class="headerlink" href="#gradslam-structures-pointclouds" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="gradslam.structures.Pointclouds">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">Pointclouds</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">points</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">normals</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">colors</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">features</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">device</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/structures/pointclouds.html#Pointclouds"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.structures.Pointclouds" title="Link to this definition"></a></dt>
+<dd><p>Batch of pointclouds (with varying numbers of points), enabling conversion between 2 representations:</p>
+<ul class="simple">
+<li><p>List: Store points of each pointcloud of shape <span class="math notranslate nohighlight">\((N_b, 3)\)</span> in a list of length <span class="math notranslate nohighlight">\(B\)</span>.</p></li>
+<li><p>Padded: Store all points in a <span class="math notranslate nohighlight">\((B, max(N_b), 3)\)</span> tensor with zero padding as required.</p></li>
+</ul>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>points</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>torch.Tensor</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em> of </em><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>torch.Tensor</em></a><em> or </em><em>None</em>) – <span class="math notranslate nohighlight">\((X, Y, Z)\)</span> coordinates of each point.
+Default: None</p></li>
+<li><p><strong>normals</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>torch.Tensor</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em> of </em><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>torch.Tensor</em></a><em> or </em><em>None</em>) – Normals <span class="math notranslate nohighlight">\((N_x, N_y, N_z)\)</span> of each point.
+Default: None</p></li>
+<li><p><strong>colors</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>torch.Tensor</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em> of </em><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>torch.Tensor</em></a><em> or </em><em>None</em>) – <span class="math notranslate nohighlight">\((R, G, B)\)</span> color of each point.
+Default: None</p></li>
+<li><p><strong>features</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>torch.Tensor</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em> of </em><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>torch.Tensor</em></a><em> or </em><em>None</em>) – <span class="math notranslate nohighlight">\(C\)</span> features of each point.
+Default: None</p></li>
+<li><p><strong>device</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensor_attributes.html#torch.device" title="(in PyTorch v2.12)"><em>torch.device</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> or </em><em>None</em>) – The desired device of internal tensors. If None, sets device to be
+same as <cite>points</cite> device. Default: None</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="simple">
+<dt>Shape:</dt><dd><ul class="simple">
+<li><p>points: Can either be a list of tensors of shape <span class="math notranslate nohighlight">\((N_b, 3)\)</span> or a padded tensor of shape
+<span class="math notranslate nohighlight">\((B, N, 3)\)</span>.</p></li>
+<li><p>normals: Can either be a list of tensors of shape <span class="math notranslate nohighlight">\((N_b, 3)\)</span> or a padded tensor of shape
+<span class="math notranslate nohighlight">\((B, N, 3)\)</span>.</p></li>
+<li><p>colors: Can either be a list of tensors of shape <span class="math notranslate nohighlight">\((N_b, 3)\)</span> or a padded tensor of shape
+<span class="math notranslate nohighlight">\((B, N, 3)\)</span>.</p></li>
+<li><p>features: Can either be a list of tensors of shape <span class="math notranslate nohighlight">\((N_b, C)\)</span> or a padded tensor of shape
+<span class="math notranslate nohighlight">\((B, N, C)\)</span>.</p></li>
+</ul>
+</dd>
+</dl>
+<p>Examples:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">points_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span> <span class="n">torch</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="mi">3</span><span class="p">)]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">pcs1</span> <span class="o">=</span> <span class="n">gradslam</span><span class="o">.</span><span class="n">Pointclouds</span><span class="p">(</span><span class="n">points_list</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">pcs1</span><span class="o">.</span><span class="n">points_padded</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+<span class="go">torch.Size([2, 4, 3])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">pcs1</span><span class="o">.</span><span class="n">points_list</span><span class="p">))</span>
+<span class="go">2</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">pcs2</span> <span class="o">=</span> <span class="n">gradslam</span><span class="o">.</span><span class="n">Pointclouds</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">rand</span><span class="p">((</span><span class="mi">2</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">3</span><span class="p">)))</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">pcs2</span><span class="o">.</span><span class="n">points_padded</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+<span class="go">torch.Size([2, 4, 3])</span>
+</pre></div>
+</div>
+<dl class="py method">
+<dt class="sig sig-object py" id="gradslam.structures.Pointclouds.__getitem__">
+<span class="sig-name descname"><span class="pre">__getitem__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">index</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/structures/pointclouds.html#Pointclouds.__getitem__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.structures.Pointclouds.__getitem__" title="Link to this definition"></a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>index</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#slice" title="(in Python v3.14)"><em>slice</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em> of </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em> or </em><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>torch.Tensor</em></a>) – Specifying the index of the pointclouds to retrieve.
+Can be an int, slice, list of ints or a boolean tensor.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Selected pointclouds. The pointclouds tensors are not cloned.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>gradslam.Pointclouds</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gradslam.structures.Pointclouds.__add__">
+<span class="sig-name descname"><span class="pre">__add__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">other</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/structures/pointclouds.html#Pointclouds.__add__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.structures.Pointclouds.__add__" title="Link to this definition"></a></dt>
+<dd><p>Out-of-place implementation of <cite>Pointclouds.offset_</cite></p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gradslam.structures.Pointclouds.__sub__">
+<span class="sig-name descname"><span class="pre">__sub__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">other</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/structures/pointclouds.html#Pointclouds.__sub__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.structures.Pointclouds.__sub__" title="Link to this definition"></a></dt>
+<dd><p>Subtracts <cite>other</cite> from all Pointclouds’ points (<cite>Pointclouds</cite> - <cite>other</cite>).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>other</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>torch.Tensor</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Value(s) to subtract from all points.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Subtracted Pointclouds</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>gradslam.Pointclouds</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gradslam.structures.Pointclouds.__mul__">
+<span class="sig-name descname"><span class="pre">__mul__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">other</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/structures/pointclouds.html#Pointclouds.__mul__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.structures.Pointclouds.__mul__" title="Link to this definition"></a></dt>
+<dd><p>Out-of-place implementation of <cite>Pointclouds.scale_</cite></p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gradslam.structures.Pointclouds.__truediv__">
+<span class="sig-name descname"><span class="pre">__truediv__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">other</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/structures/pointclouds.html#Pointclouds.__truediv__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.structures.Pointclouds.__truediv__" title="Link to this definition"></a></dt>
+<dd><p>Divides all Pointclouds’ points by <cite>other</cite>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>other</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>torch.Tensor</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Value(s) to divide all points by.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>self</p>
+</dd>
+</dl>
+<dl class="simple">
+<dt>Shape:</dt><dd><ul class="simple">
+<li><p>other: Any. Must be compatible with <span class="math notranslate nohighlight">\((B, N, 3)\)</span>.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gradslam.structures.Pointclouds.__matmul__">
+<span class="sig-name descname"><span class="pre">__matmul__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">other</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/structures/pointclouds.html#Pointclouds.__matmul__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.structures.Pointclouds.__matmul__" title="Link to this definition"></a></dt>
+<dd><p>Post-multiplication <span class="math notranslate nohighlight">\(SE(3)\)</span> transformation or <span class="math notranslate nohighlight">\(SO(3)\)</span> rotation of Pointclouds’ points and
+normals.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>other</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>torch.Tensor</em></a>) – Either <span class="math notranslate nohighlight">\(SE(3)\)</span> transformation or <span class="math notranslate nohighlight">\(SO(3)\)</span> rotation</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>self</p>
+</dd>
+</dl>
+<dl class="simple">
+<dt>Shape:</dt><dd><ul class="simple">
+<li><dl class="simple">
+<dt>other: Either <span class="math notranslate nohighlight">\(SE(3)\)</span> transformation of shape <span class="math notranslate nohighlight">\((4, 4)\)</span> or <span class="math notranslate nohighlight">\((B, 4, 4)\)</span>, or <span class="math notranslate nohighlight">\(SO(3)\)</span></dt><dd><p>rotation of shape <span class="math notranslate nohighlight">\((3, 3)\)</span> or <span class="math notranslate nohighlight">\((B, 3, 3)\)</span></p>
+</dd>
+</dl>
+</li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gradslam.structures.Pointclouds.rotate">
+<span class="sig-name descname"><span class="pre">rotate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">rmat</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">pre_multiplication</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/structures/pointclouds.html#Pointclouds.rotate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.structures.Pointclouds.rotate" title="Link to this definition"></a></dt>
+<dd><p>Out-of-place implementation of <cite>Pointclouds.rotate_</cite></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>rmat</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>Tensor</em></a>)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gradslam.structures.Pointclouds.transform">
+<span class="sig-name descname"><span class="pre">transform</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">transform</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">pre_multiplication</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/structures/pointclouds.html#Pointclouds.transform"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.structures.Pointclouds.transform" title="Link to this definition"></a></dt>
+<dd><p>Out-of-place implementation of <cite>Pointclouds.transform_</cite></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>transform</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>Tensor</em></a>)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gradslam.structures.Pointclouds.pinhole_projection">
+<span class="sig-name descname"><span class="pre">pinhole_projection</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">intrinsics</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/structures/pointclouds.html#Pointclouds.pinhole_projection"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.structures.Pointclouds.pinhole_projection" title="Link to this definition"></a></dt>
+<dd><p>Out-of-place implementation of <cite>Pointclouds.pinhole_projection_</cite></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>intrinsics</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>Tensor</em></a>)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gradslam.structures.Pointclouds.offset_">
+<span class="sig-name descname"><span class="pre">offset_</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">offset</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/structures/pointclouds.html#Pointclouds.offset_"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.structures.Pointclouds.offset_" title="Link to this definition"></a></dt>
+<dd><p>Adds <span class="math notranslate nohighlight">\(offset\)</span> to all Pointclouds’ points. In place operation.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>offset</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>torch.Tensor</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Value(s) to add to all points.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>self</p>
+</dd>
+</dl>
+<dl class="simple">
+<dt>Shape:</dt><dd><ul class="simple">
+<li><p>offset: Any. Must be compatible with <span class="math notranslate nohighlight">\((B, N, 3)\)</span>.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gradslam.structures.Pointclouds.scale_">
+<span class="sig-name descname"><span class="pre">scale_</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">scale</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/structures/pointclouds.html#Pointclouds.scale_"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.structures.Pointclouds.scale_" title="Link to this definition"></a></dt>
+<dd><p>Scales all Pointclouds’ points by <cite>scale</cite>. In place operation.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>scale</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>torch.Tensor</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Value(s) to scale all points by.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>self</p>
+</dd>
+</dl>
+<dl class="simple">
+<dt>Shape:</dt><dd><ul class="simple">
+<li><p>scale: Any. Must be compatible with <span class="math notranslate nohighlight">\((B, N, 3)\)</span>.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gradslam.structures.Pointclouds.rotate_">
+<span class="sig-name descname"><span class="pre">rotate_</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">rmat</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">pre_multiplication</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/structures/pointclouds.html#Pointclouds.rotate_"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.structures.Pointclouds.rotate_" title="Link to this definition"></a></dt>
+<dd><p>Applies batch or single <span class="math notranslate nohighlight">\(SO(3)\)</span> rotation to all Pointclouds’ points and normals. In place operation.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>rmat</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>torch.Tensor</em></a>) – Either batch or single <span class="math notranslate nohighlight">\(SO(3)\)</span> rotation matrix</p></li>
+<li><p><strong>pre_multiplication</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>torch.Tensor</em></a>) – If True, will pre-multiply the rotation. Otherwise will
+post-multiply the rotation. Default: True</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>self</p>
+</dd>
+</dl>
+<dl class="simple">
+<dt>Shape:</dt><dd><ul class="simple">
+<li><p>rmat: <span class="math notranslate nohighlight">\((3, 3)\)</span> or <span class="math notranslate nohighlight">\((B, 3, 3)\)</span></p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gradslam.structures.Pointclouds.transform_">
+<span class="sig-name descname"><span class="pre">transform_</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">transform</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">pre_multiplication</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/structures/pointclouds.html#Pointclouds.transform_"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.structures.Pointclouds.transform_" title="Link to this definition"></a></dt>
+<dd><p>Applies batch or single <span class="math notranslate nohighlight">\(SE(3)\)</span> transformation to all Pointclouds’ points and normals. In place
+operation.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>transform</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>torch.Tensor</em></a>) – Either batch or single <span class="math notranslate nohighlight">\(SE(3)\)</span> transformation tensor</p></li>
+<li><p><strong>pre_multiplication</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>torch.Tensor</em></a>) – If True, will pre-multiply the transformation. Otherwise will
+post-multiply the transformation. Default: True</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>self</p>
+</dd>
+</dl>
+<dl class="simple">
+<dt>Shape:</dt><dd><ul class="simple">
+<li><p>transform: <span class="math notranslate nohighlight">\((4, 4)\)</span> or <span class="math notranslate nohighlight">\((B, 4, 4)\)</span></p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gradslam.structures.Pointclouds.pinhole_projection_">
+<span class="sig-name descname"><span class="pre">pinhole_projection_</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">intrinsics</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/structures/pointclouds.html#Pointclouds.pinhole_projection_"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.structures.Pointclouds.pinhole_projection_" title="Link to this definition"></a></dt>
+<dd><p>Projects Pointclouds’ points onto <span class="math notranslate nohighlight">\(z=1\)</span> plane using intrinsics of a pinhole camera. In place
+operation.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>intrinsics</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>torch.Tensor</em></a>) – Either batch or single intrinsics matrix</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>self</p>
+</dd>
+</dl>
+<dl class="simple">
+<dt>Shape:</dt><dd><ul class="simple">
+<li><p>intrinsics: <span class="math notranslate nohighlight">\((4, 4)\)</span> or <span class="math notranslate nohighlight">\((B, 4, 4)\)</span></p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="gradslam.structures.Pointclouds.has_points">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">has_points</span></span><a class="headerlink" href="#gradslam.structures.Pointclouds.has_points" title="Link to this definition"></a></dt>
+<dd><p>Determines whether pointclouds have points or not</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="gradslam.structures.Pointclouds.has_normals">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">has_normals</span></span><a class="headerlink" href="#gradslam.structures.Pointclouds.has_normals" title="Link to this definition"></a></dt>
+<dd><p>Determines whether pointclouds have normals or not</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="gradslam.structures.Pointclouds.has_colors">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">has_colors</span></span><a class="headerlink" href="#gradslam.structures.Pointclouds.has_colors" title="Link to this definition"></a></dt>
+<dd><p>Determines whether pointclouds have colors or not</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="gradslam.structures.Pointclouds.has_features">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">has_features</span></span><a class="headerlink" href="#gradslam.structures.Pointclouds.has_features" title="Link to this definition"></a></dt>
+<dd><p>Determines whether pointclouds have features or not</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="gradslam.structures.Pointclouds.num_features">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">num_features</span></span><a class="headerlink" href="#gradslam.structures.Pointclouds.num_features" title="Link to this definition"></a></dt>
+<dd><p>Determines number of features in pointclouds</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="gradslam.structures.Pointclouds.nonpad_mask">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">nonpad_mask</span></span><a class="headerlink" href="#gradslam.structures.Pointclouds.nonpad_mask" title="Link to this definition"></a></dt>
+<dd><p>Returns tensor of <cite>bool</cite> values which are True wherever points exist and False wherever there is padding.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>2d <cite>bool</cite> mask</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)">torch.Tensor</a></p>
+</dd>
+</dl>
+<dl class="simple">
+<dt>Shape:</dt><dd><ul class="simple">
+<li><p>Output: <span class="math notranslate nohighlight">\((B, N)\)</span></p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="gradslam.structures.Pointclouds.num_points_per_pointcloud">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">num_points_per_pointcloud</span></span><a class="headerlink" href="#gradslam.structures.Pointclouds.num_points_per_pointcloud" title="Link to this definition"></a></dt>
+<dd><p>Returns a 1D tensor with length equal to the number of pointclouds giving the number of points in each
+pointcloud.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>1D tensor of sizes</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)">torch.Tensor</a></p>
+</dd>
+</dl>
+<dl class="simple">
+<dt>Shape:</dt><dd><ul class="simple">
+<li><p>Output: tensor of shape <span class="math notranslate nohighlight">\((B)\)</span>.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="gradslam.structures.Pointclouds.points_list">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">points_list</span></span><a class="headerlink" href="#gradslam.structures.Pointclouds.points_list" title="Link to this definition"></a></dt>
+<dd><p>Gets the list representation of the points.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list of <span class="math notranslate nohighlight">\(B\)</span> tensors of points of shape <span class="math notranslate nohighlight">\((N_b, 3)\)</span>.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)">list</a> of <a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)">torch.Tensor</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="gradslam.structures.Pointclouds.normals_list">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">normals_list</span></span><a class="headerlink" href="#gradslam.structures.Pointclouds.normals_list" title="Link to this definition"></a></dt>
+<dd><p>Gets the list representation of the point normals.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list of <span class="math notranslate nohighlight">\(B\)</span> tensors of normals of shape <span class="math notranslate nohighlight">\((N_b, 3)\)</span>.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)">list</a> of <a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)">torch.Tensor</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="gradslam.structures.Pointclouds.colors_list">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">colors_list</span></span><a class="headerlink" href="#gradslam.structures.Pointclouds.colors_list" title="Link to this definition"></a></dt>
+<dd><p>Gets the list representation of the point colors.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list of <span class="math notranslate nohighlight">\(B\)</span> tensors of colors of shape <span class="math notranslate nohighlight">\((N_b, 3)\)</span>.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)">list</a> of <a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)">torch.Tensor</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="gradslam.structures.Pointclouds.features_list">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">features_list</span></span><a class="headerlink" href="#gradslam.structures.Pointclouds.features_list" title="Link to this definition"></a></dt>
+<dd><p>Gets the list representation of the point features.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list of <span class="math notranslate nohighlight">\(B\)</span> tensors of features of shape <span class="math notranslate nohighlight">\((N_b, 3)\)</span>.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)">list</a> of <a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)">torch.Tensor</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="gradslam.structures.Pointclouds.points_padded">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">points_padded</span></span><a class="headerlink" href="#gradslam.structures.Pointclouds.points_padded" title="Link to this definition"></a></dt>
+<dd><p>Gets the padded representation of the points.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>tensor representation of points with zero padding as required</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)">torch.Tensor</a></p>
+</dd>
+</dl>
+<dl class="simple">
+<dt>Shape:</dt><dd><ul class="simple">
+<li><p>Output: <span class="math notranslate nohighlight">\((B, max(N_b), 3)\)</span></p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="gradslam.structures.Pointclouds.normals_padded">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">normals_padded</span></span><a class="headerlink" href="#gradslam.structures.Pointclouds.normals_padded" title="Link to this definition"></a></dt>
+<dd><p>Gets the padded representation of the normals.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>tensor representation of normals with zero padding as required</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)">torch.Tensor</a></p>
+</dd>
+</dl>
+<dl class="simple">
+<dt>Shape:</dt><dd><ul class="simple">
+<li><p>Output: <span class="math notranslate nohighlight">\((B, max(N_b), 3)\)</span></p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="gradslam.structures.Pointclouds.colors_padded">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">colors_padded</span></span><a class="headerlink" href="#gradslam.structures.Pointclouds.colors_padded" title="Link to this definition"></a></dt>
+<dd><p>Gets the padded representation of the colors.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>tensor representation of colors with zero padding as required</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)">torch.Tensor</a></p>
+</dd>
+</dl>
+<dl class="simple">
+<dt>Shape:</dt><dd><ul class="simple">
+<li><p>Output: <span class="math notranslate nohighlight">\((B, max(N_b), 3)\)</span></p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="gradslam.structures.Pointclouds.features_padded">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">features_padded</span></span><a class="headerlink" href="#gradslam.structures.Pointclouds.features_padded" title="Link to this definition"></a></dt>
+<dd><p>Gets the padded representation of the features.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>tensor representation of features with zero padding as required</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)">torch.Tensor</a></p>
+</dd>
+</dl>
+<dl class="simple">
+<dt>Shape:</dt><dd><ul class="simple">
+<li><p>Output: <span class="math notranslate nohighlight">\((B, max(N_b), C)\)</span></p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gradslam.structures.Pointclouds.clone">
+<span class="sig-name descname"><span class="pre">clone</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/structures/pointclouds.html#Pointclouds.clone"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.structures.Pointclouds.clone" title="Link to this definition"></a></dt>
+<dd><p>Returns deep copy of Pointclouds object. All internal tensors are cloned individually.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>cloned gradslam.Pointclouds object</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>gradslam.Pointclouds</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gradslam.structures.Pointclouds.detach">
+<span class="sig-name descname"><span class="pre">detach</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/structures/pointclouds.html#Pointclouds.detach"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.structures.Pointclouds.detach" title="Link to this definition"></a></dt>
+<dd><p>Detachs Pointclouds object. All internal tensors are detached individually.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>detached gradslam.Pointclouds object</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>gradslam.Pointclouds</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gradslam.structures.Pointclouds.to">
+<span class="sig-name descname"><span class="pre">to</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">device</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">copy</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/structures/pointclouds.html#Pointclouds.to"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.structures.Pointclouds.to" title="Link to this definition"></a></dt>
+<dd><p>Match functionality of torch.Tensor.to(device)
+If copy = True or the self Tensor is on a different device, the returned tensor is a copy of self with the
+desired torch.device.
+If copy = False and the self Tensor already has the correct torch.device, then self is returned.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>device</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensor_attributes.html#torch.device" title="(in PyTorch v2.12)"><em>torch.device</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Device id for the new tensor.</p></li>
+<li><p><strong>copy</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – Boolean indicator whether or not to clone self. Default False.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>gradslam.Pointclouds</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gradslam.structures.Pointclouds.cpu">
+<span class="sig-name descname"><span class="pre">cpu</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/structures/pointclouds.html#Pointclouds.cpu"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.structures.Pointclouds.cpu" title="Link to this definition"></a></dt>
+<dd><p>Match functionality of torch.Tensor.cpu()</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>gradslam.Pointclouds</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gradslam.structures.Pointclouds.cuda">
+<span class="sig-name descname"><span class="pre">cuda</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/structures/pointclouds.html#Pointclouds.cuda"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.structures.Pointclouds.cuda" title="Link to this definition"></a></dt>
+<dd><p>Match functionality of torch.Tensor.cuda()</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>gradslam.Pointclouds</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gradslam.structures.Pointclouds.append_points">
+<span class="sig-name descname"><span class="pre">append_points</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pointclouds</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/structures/pointclouds.html#Pointclouds.append_points"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.structures.Pointclouds.append_points" title="Link to this definition"></a></dt>
+<dd><p>Appends points, normals, colors and features of a gradslam.Pointclouds object to the current pointclouds.
+Both Pointclouds must have/not have the same attributes. In place operation.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>pointclouds</strong> (<em>gradslam.Pointclouds</em>) – Pointclouds to get appended to self. Must have same batch size as self.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>self</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gradslam.structures.Pointclouds.open3d">
+<span class="sig-name descname"><span class="pre">open3d</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">index</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">include_colors</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_num_points</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">include_normals</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/structures/pointclouds.html#Pointclouds.open3d"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.structures.Pointclouds.open3d" title="Link to this definition"></a></dt>
+<dd><p>Converts <cite>index</cite>-th pointcloud to a <cite>open3d.geometry.Pointcloud</cite> object (e.g. for visualization).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>index</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Index of which pointcloud (from the batch of pointclouds) to convert to
+<cite>open3d.geometry.Pointcloud</cite>.</p></li>
+<li><p><strong>include_colors</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – If True, will include colors in the <cite>o3d.geometry.Pointcloud</cite>
+objects. Default: True</p></li>
+<li><p><strong>max_num_points</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Maximum number of points to include in the returned object. If None,
+will not set a max size (will not downsample). Default: None</p></li>
+<li><p><strong>include_normals</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – If True, will include normal vectors in the <cite>o3d.geometry.Pointcloud</cite>
+objects. Default: False</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><cite>open3d.geometry.Pointcloud</cite> object from <cite>index</cite>-th pointcloud.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>pcd (open3d.geometry.Pointcloud)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gradslam.structures.Pointclouds.plotly">
+<span class="sig-name descname"><span class="pre">plotly</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">index</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">include_colors</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_num_points</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">200000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">as_figure</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">point_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/structures/pointclouds.html#Pointclouds.plotly"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.structures.Pointclouds.plotly" title="Link to this definition"></a></dt>
+<dd><p>Converts <cite>index</cite>-th pointcloud to either a <cite>plotly.graph_objects.Figure</cite> or a
+<cite>plotly.graph_objects.Scatter3d</cite> object (for visualization).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>index</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Index of which pointcloud (from the batch of pointclouds) to convert to plotly
+representation.</p></li>
+<li><p><strong>include_colors</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – If True, will include point colors in the returned object. Default: True</p></li>
+<li><p><strong>max_num_points</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Maximum number of points to include in the returned object. If None,
+will not set a max size (will not downsample). Default: 200000</p></li>
+<li><p><strong>as_figure</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – If True, returns a <cite>plotly.graph_objects.Figure</cite> object which can easily
+be visualized by calling <cite>.show()</cite> on. Otherwise, returns a
+<cite>plotly.graph_objects.Scatter3d</cite> object. Default: True</p></li>
+<li><p><strong>point_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Point size radius (for visualization). Default: 2</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>If <cite>as_figure</cite> is True, will return
+<cite>plotly.graph_objects.Figure</cite> object from the <cite>index</cite>-th pointcloud. Else,
+returns <cite>plotly.graph_objects.Scatter3d</cite> object from the <cite>index</cite>-th pointcloud.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>plotly.graph_objects.Figure or plotly.graph_objects.Scatter3d</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="gradslam-structures-rgbdimages">
+<h2>gradslam.structures.rgbdimages<a class="headerlink" href="#gradslam-structures-rgbdimages" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="gradslam.structures.RGBDImages">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">RGBDImages</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">rgb_image</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">depth_image</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">intrinsics</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">poses</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">channels_first</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">device</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">pixel_pos</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/structures/rgbdimages.html#RGBDImages"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.structures.RGBDImages" title="Link to this definition"></a></dt>
+<dd><p>Initializes an RGBDImage object consisting of a batch of a sequence of rgb images, depth maps,
+camera intrinsics, and (optionally) poses.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>rgb_image</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>torch.Tensor</em></a>) – 3-channel rgb image</p></li>
+<li><p><strong>depth_image</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>torch.Tensor</em></a>) – 1-channel depth map</p></li>
+<li><p><strong>intrinsics</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>torch.Tensor</em></a>) – camera intrinsics</p></li>
+<li><p><strong>poses</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>torch.Tensor</em></a><em> or </em><em>None</em>) – camera extrinsics. Default: None</p></li>
+<li><p><strong>channels_first</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – indicates whether <cite>rgb_image</cite> and <cite>depth_image</cite> have channels first or channels last
+representation (i.e. rgb_image.shape is <span class="math notranslate nohighlight">\((B, L, H, W, 3)\)</span> or <span class="math notranslate nohighlight">\((B, L, 3, H, W)\)</span>.
+Default: False</p></li>
+<li><p><strong>device</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensor_attributes.html#torch.device" title="(in PyTorch v2.12)"><em>torch.device</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> or </em><em>None</em>) – The desired device of internal tensors. If None, sets device to be
+same as <cite>rgb_image</cite> device. Default: None</p></li>
+<li><p><strong>pixel_pos</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>torch.Tensor</em></a><em> or </em><em>None</em>) – Similar to meshgrid but with extra channel of 1s at the end. If provided,
+can save computations when computing vertex maps. Default: None</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="simple">
+<dt>Shape:</dt><dd><ul class="simple">
+<li><p>rgb_image: <span class="math notranslate nohighlight">\((B, L, H, W, 3)\)</span> if <cite>channels_first</cite> is False, else <span class="math notranslate nohighlight">\((B, L, 3, H, W)\)</span></p></li>
+<li><p>depth_image: <span class="math notranslate nohighlight">\((B, L, H, W, 1)\)</span> if <cite>channels_first</cite> is False, else <span class="math notranslate nohighlight">\((B, L, 1, H, W)\)</span></p></li>
+<li><p>intrinsics: <span class="math notranslate nohighlight">\((B, 1, 4, 4)\)</span></p></li>
+<li><p>poses: <span class="math notranslate nohighlight">\((B, L, 4, 4)\)</span></p></li>
+<li><p>pixel_pos: <span class="math notranslate nohighlight">\((B, L, H, W, 3)\)</span> if <cite>channels_first</cite> is False, else <span class="math notranslate nohighlight">\((B, L, 3, H, W)\)</span></p></li>
+</ul>
+</dd>
+</dl>
+<p>Examples:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">colors</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">rand</span><span class="p">([</span><span class="mi">2</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">32</span><span class="p">,</span> <span class="mi">32</span><span class="p">,</span> <span class="mi">3</span><span class="p">])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">depths</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">rand</span><span class="p">([</span><span class="mi">2</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">32</span><span class="p">,</span> <span class="mi">32</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">intrinsics</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">rand</span><span class="p">([</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">4</span><span class="p">])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">poses</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">rand</span><span class="p">([</span><span class="mi">2</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">4</span><span class="p">])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">rgbdimages</span> <span class="o">=</span> <span class="n">gradslam</span><span class="o">.</span><span class="n">RGBDImages</span><span class="p">(</span><span class="n">colors</span><span class="p">,</span> <span class="n">depths</span><span class="p">,</span> <span class="n">intrinsics</span><span class="p">,</span> <span class="n">poses</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">rgbdimages</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+<span class="go">(2, 8, 32, 32)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">rgbd_select</span> <span class="o">=</span> <span class="n">rgbd_frame</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">4</span><span class="p">:</span><span class="mi">8</span><span class="p">]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">rgbd_select</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+<span class="go">(1, 4, 32, 32)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">rgbdimages</span><span class="o">.</span><span class="n">vertex_map</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+<span class="go">(2, 8, 32, 32, 3)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">rgbdimages</span><span class="o">.</span><span class="n">normal_map</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+<span class="go">(2, 8, 32, 32, 3)</span>
+</pre></div>
+</div>
+<dl class="py method">
+<dt class="sig sig-object py" id="gradslam.structures.RGBDImages.__getitem__">
+<span class="sig-name descname"><span class="pre">__getitem__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">index</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/structures/rgbdimages.html#RGBDImages.__getitem__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.structures.RGBDImages.__getitem__" title="Link to this definition"></a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>index</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#slice" title="(in Python v3.14)"><em>slice</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em> of </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Specifying the index of the rgbdimages to retrieve.
+Can be an int, slice, list of ints or a boolean tensor.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Selected rgbdimages. The rgbdimages tensors are not cloned.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>gradslam.RGBDImages</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="gradslam.structures.RGBDImages.channels_first">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">channels_first</span></span><a class="headerlink" href="#gradslam.structures.RGBDImages.channels_first" title="Link to this definition"></a></dt>
+<dd><p>Gets bool indicating whether RGBDImages representation is channels first or not</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>True if RGBDImages representation is channels first, else False.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)">bool</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="gradslam.structures.RGBDImages.cdim">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">cdim</span></span><a class="headerlink" href="#gradslam.structures.RGBDImages.cdim" title="Link to this definition"></a></dt>
+<dd><p>Gets the channel dimension</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="math notranslate nohighlight">\(2\)</span> if self.channels_first is True, else <span class="math notranslate nohighlight">\(4\)</span>.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)">int</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="gradslam.structures.RGBDImages.pixel_pos">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">pixel_pos</span></span><a class="headerlink" href="#gradslam.structures.RGBDImages.pixel_pos" title="Link to this definition"></a></dt>
+<dd><p>Gets the <cite>pixel_pos</cite></p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>tensor representation of <cite>pixel_pos</cite></p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)">torch.Tensor</a></p>
+</dd>
+</dl>
+<dl class="simple">
+<dt>Shape:</dt><dd><ul class="simple">
+<li><p>Output: <span class="math notranslate nohighlight">\((B, L, H, W, 3)\)</span> if self.channels_first is False, else <span class="math notranslate nohighlight">\((B, L, 3, H, W)\)</span></p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="gradslam.structures.RGBDImages.valid_depth_mask">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">valid_depth_mask</span></span><a class="headerlink" href="#gradslam.structures.RGBDImages.valid_depth_mask" title="Link to this definition"></a></dt>
+<dd><p>Gets a mask which is True wherever <cite>self.dept_image</cite> is <span class="math notranslate nohighlight">\(&gt;0\)</span></p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Tensor of dtype bool with same shape as <cite>self.depth_image</cite>. Tensor is True wherever
+<cite>self.depth_image</cite> &gt; 0, and False otherwise.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)">torch.Tensor</a></p>
+</dd>
+</dl>
+<dl class="simple">
+<dt>Shape:</dt><dd><ul class="simple">
+<li><p>Output: <span class="math notranslate nohighlight">\((B, L, H, W, 1)\)</span> if self.channels_first is False, else <span class="math notranslate nohighlight">\((B, L, 1, H, W)\)</span></p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="gradslam.structures.RGBDImages.has_poses">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">has_poses</span></span><a class="headerlink" href="#gradslam.structures.RGBDImages.has_poses" title="Link to this definition"></a></dt>
+<dd><p>Determines whether self has <cite>poses</cite> or not</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="gradslam.structures.RGBDImages.vertex_map">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">vertex_map</span></span><a class="headerlink" href="#gradslam.structures.RGBDImages.vertex_map" title="Link to this definition"></a></dt>
+<dd><p>Gets the local vertex maps</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>tensor representation of local coordinated vertex maps</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)">torch.Tensor</a></p>
+</dd>
+</dl>
+<dl class="simple">
+<dt>Shape:</dt><dd><ul class="simple">
+<li><p>Output: <span class="math notranslate nohighlight">\((B, L, H, W, 3)\)</span> if self.channels_first is False, else <span class="math notranslate nohighlight">\((B, L, 3, H, W)\)</span></p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="gradslam.structures.RGBDImages.normal_map">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">normal_map</span></span><a class="headerlink" href="#gradslam.structures.RGBDImages.normal_map" title="Link to this definition"></a></dt>
+<dd><p>Gets the local normal maps</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>tensor representation of local coordinated normal maps</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)">torch.Tensor</a></p>
+</dd>
+</dl>
+<dl class="simple">
+<dt>Shape:</dt><dd><ul class="simple">
+<li><p>Output: <span class="math notranslate nohighlight">\((B, L, H, W, 3)\)</span> if self.channels_first is False, else <span class="math notranslate nohighlight">\((B, L, 3, H, W)\)</span></p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="gradslam.structures.RGBDImages.global_vertex_map">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">global_vertex_map</span></span><a class="headerlink" href="#gradslam.structures.RGBDImages.global_vertex_map" title="Link to this definition"></a></dt>
+<dd><p>Gets the global vertex maps</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>tensor representation of global coordinated vertex maps</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)">torch.Tensor</a></p>
+</dd>
+</dl>
+<dl class="simple">
+<dt>Shape:</dt><dd><ul class="simple">
+<li><p>Output: <span class="math notranslate nohighlight">\((B, L, H, W, 3)\)</span> if self.channels_first is False, else <span class="math notranslate nohighlight">\((B, L, 3, H, W)\)</span></p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="gradslam.structures.RGBDImages.global_normal_map">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">global_normal_map</span></span><a class="headerlink" href="#gradslam.structures.RGBDImages.global_normal_map" title="Link to this definition"></a></dt>
+<dd><p>Gets the global normal maps</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>tensor representation of global coordinated normal maps</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)">torch.Tensor</a></p>
+</dd>
+</dl>
+<dl class="simple">
+<dt>Shape:</dt><dd><ul class="simple">
+<li><p>Output: <span class="math notranslate nohighlight">\((B, L, H, W, 3)\)</span> if self.channels_first is False, else <span class="math notranslate nohighlight">\((B, L, 3, H, W)\)</span></p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="gradslam.structures.RGBDImages.rgb_image">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">rgb_image</span></span><a class="headerlink" href="#gradslam.structures.RGBDImages.rgb_image" title="Link to this definition"></a></dt>
+<dd><p>Gets the rgb image</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>tensor representation of <cite>rgb_image</cite></p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)">torch.Tensor</a></p>
+</dd>
+</dl>
+<dl class="simple">
+<dt>Shape:</dt><dd><ul class="simple">
+<li><p>Output: <span class="math notranslate nohighlight">\((B, L, H, W, 3)\)</span> if self.channels_first is False, else <span class="math notranslate nohighlight">\((B, L, 3, H, W)\)</span></p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="gradslam.structures.RGBDImages.depth_image">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">depth_image</span></span><a class="headerlink" href="#gradslam.structures.RGBDImages.depth_image" title="Link to this definition"></a></dt>
+<dd><p>Gets the depth image</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>tensor representation of <cite>depth_image</cite></p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)">torch.Tensor</a></p>
+</dd>
+</dl>
+<dl class="simple">
+<dt>Shape:</dt><dd><ul class="simple">
+<li><p>Output: <span class="math notranslate nohighlight">\((B, L, H, W, 1)\)</span> if self.channels_first is False, else <span class="math notranslate nohighlight">\((B, L, 1, H, W)\)</span></p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="gradslam.structures.RGBDImages.intrinsics">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">intrinsics</span></span><a class="headerlink" href="#gradslam.structures.RGBDImages.intrinsics" title="Link to this definition"></a></dt>
+<dd><p>Gets the <cite>intrinsics</cite></p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>tensor representation of <cite>intrinsics</cite></p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)">torch.Tensor</a></p>
+</dd>
+</dl>
+<dl class="simple">
+<dt>Shape:</dt><dd><ul class="simple">
+<li><p>Output: <span class="math notranslate nohighlight">\((B, 1, 4, 4)\)</span></p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="gradslam.structures.RGBDImages.poses">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">poses</span></span><a class="headerlink" href="#gradslam.structures.RGBDImages.poses" title="Link to this definition"></a></dt>
+<dd><p>Gets the <cite>poses</cite></p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>tensor representation of <cite>poses</cite></p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)">torch.Tensor</a></p>
+</dd>
+</dl>
+<dl class="simple">
+<dt>Shape:</dt><dd><ul class="simple">
+<li><p>Output: <span class="math notranslate nohighlight">\((B, L, 4, 4)\)</span></p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gradslam.structures.RGBDImages.detach">
+<span class="sig-name descname"><span class="pre">detach</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/structures/rgbdimages.html#RGBDImages.detach"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.structures.RGBDImages.detach" title="Link to this definition"></a></dt>
+<dd><p>Detachs RGBDImages object. All internal tensors are detached individually.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>detached gradslam.RGBDImages object</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>gradslam.RGBDImages</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gradslam.structures.RGBDImages.clone">
+<span class="sig-name descname"><span class="pre">clone</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/structures/rgbdimages.html#RGBDImages.clone"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.structures.RGBDImages.clone" title="Link to this definition"></a></dt>
+<dd><p>Returns deep copy of RGBDImages object. All internal tensors are cloned individually.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>cloned gradslam.RGBDImages object</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>gradslam.RGBDImages</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gradslam.structures.RGBDImages.to">
+<span class="sig-name descname"><span class="pre">to</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">device</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">copy</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/structures/rgbdimages.html#RGBDImages.to"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.structures.RGBDImages.to" title="Link to this definition"></a></dt>
+<dd><p>Match functionality of torch.Tensor.to(device)
+If copy = True or the self Tensor is on a different device, the returned tensor is a copy of self with the
+desired torch.device.
+If copy = False and the self Tensor already has the correct torch.device, then self is returned.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>device</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensor_attributes.html#torch.device" title="(in PyTorch v2.12)"><em>torch.device</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Device id for the new tensor.</p></li>
+<li><p><strong>copy</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – Boolean indicator whether or not to clone self. Default False.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>gradslam.RGBDImages</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gradslam.structures.RGBDImages.cpu">
+<span class="sig-name descname"><span class="pre">cpu</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/structures/rgbdimages.html#RGBDImages.cpu"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.structures.RGBDImages.cpu" title="Link to this definition"></a></dt>
+<dd><p>Match functionality of torch.Tensor.cpu()</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>gradslam.RGBDImages</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gradslam.structures.RGBDImages.cuda">
+<span class="sig-name descname"><span class="pre">cuda</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/structures/rgbdimages.html#RGBDImages.cuda"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.structures.RGBDImages.cuda" title="Link to this definition"></a></dt>
+<dd><p>Match functionality of torch.Tensor.cuda()</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>gradslam.RGBDImages</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gradslam.structures.RGBDImages.to_channels_last">
+<span class="sig-name descname"><span class="pre">to_channels_last</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">copy</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/structures/rgbdimages.html#RGBDImages.to_channels_last"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.structures.RGBDImages.to_channels_last" title="Link to this definition"></a></dt>
+<dd><p>Converts to channels last representation
+If copy = True or self channels_first is True, the returned RGBDImages object is a copy of self with
+channels last representation.
+If copy = False and self channels_first is already False, then self is returned.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>copy</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – Boolean indicator whether or not to clone self. Default False.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>gradslam.RGBDImages</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gradslam.structures.RGBDImages.to_channels_first">
+<span class="sig-name descname"><span class="pre">to_channels_first</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">copy</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/structures/rgbdimages.html#RGBDImages.to_channels_first"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.structures.RGBDImages.to_channels_first" title="Link to this definition"></a></dt>
+<dd><p>Converts to channels first representation
+If copy = True or self channels_first is False, the returned RGBDImages object is a copy of self with
+channels first representation.
+If copy = False and self channels_first is already True, then self is returned.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>copy</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – Boolean indicator whether or not to clone self. Default False.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>gradslam.RGBDImages</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gradslam.structures.RGBDImages.to_channels_last_">
+<span class="sig-name descname"><span class="pre">to_channels_last_</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/structures/rgbdimages.html#RGBDImages.to_channels_last_"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.structures.RGBDImages.to_channels_last_" title="Link to this definition"></a></dt>
+<dd><p>Converts to channels last representation. In place operation.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>gradslam.RGBDImages</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gradslam.structures.RGBDImages.to_channels_first_">
+<span class="sig-name descname"><span class="pre">to_channels_first_</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/structures/rgbdimages.html#RGBDImages.to_channels_first_"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.structures.RGBDImages.to_channels_first_" title="Link to this definition"></a></dt>
+<dd><p>Converts to channels first representation. In place operation.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>gradslam.RGBDImages</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gradslam.structures.RGBDImages.plotly">
+<span class="sig-name descname"><span class="pre">plotly</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">index</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">include_depth</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">as_figure</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ms_per_frame</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">50</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/structures/rgbdimages.html#RGBDImages.plotly"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.structures.RGBDImages.plotly" title="Link to this definition"></a></dt>
+<dd><p>Converts <cite>index</cite>-th sequence of rgbd images to either a <cite>plotly.graph_objects.Figure</cite> or a
+list of dicts containing <cite>plotly.graph_objects.Image</cite> objects of rgb and (optionally) depth images:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">frames</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="p">{</span><span class="s1">&#39;name&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;data&#39;</span><span class="p">:</span> <span class="p">[</span><span class="n">rgbImage0</span><span class="p">,</span> <span class="n">depthImage0</span><span class="p">],</span> <span class="s1">&#39;traces&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]},</span>
+    <span class="p">{</span><span class="s1">&#39;name&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;data&#39;</span><span class="p">:</span> <span class="p">[</span><span class="n">rgbImage1</span><span class="p">,</span> <span class="n">depthImage1</span><span class="p">],</span> <span class="s1">&#39;traces&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]},</span>
+    <span class="p">{</span><span class="s1">&#39;name&#39;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span> <span class="s1">&#39;data&#39;</span><span class="p">:</span> <span class="p">[</span><span class="n">rgbImage2</span><span class="p">,</span> <span class="n">depthImage2</span><span class="p">],</span> <span class="s1">&#39;traces&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]},</span>
+    <span class="o">...</span>
+<span class="p">]</span>
+</pre></div>
+</div>
+<p>Returned <cite>frames</cite> can be passed to <cite>go.Figure(frames=frames)</cite>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>index</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Index of which rgbd image (from the batch of rgbd images) to convert to plotly
+representation.</p></li>
+<li><p><strong>include_depth</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – If True, will include depth images in the returned object. Default: True</p></li>
+<li><p><strong>as_figure</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – If True, returns a <cite>plotly.graph_objects.Figure</cite> object which can easily
+be visualized by calling <cite>.show()</cite> on. Otherwise, returns a list of dicts (<cite>frames</cite>)
+which can be passed to <cite>go.Figure(frames=frames)</cite>. Default: True</p></li>
+<li><p><strong>ms_per_frame</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Milliseconds per frame when play button is hit. Only applicable if <cite>as_figure=True</cite>.
+Default: 50</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>If <cite>as_figure</cite> is True, will return
+<cite>plotly.graph_objects.Figure</cite> object from the <cite>index</cite>-th sequence of rgbd images. Else,
+returns a list of dicts (<cite>frames</cite>).</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>plotly.graph_objects.Figure or <a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)">list</a> of <a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)">dict</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="gradslam-structures-utils">
+<h2>gradslam.structures.utils<a class="headerlink" href="#gradslam-structures-utils" title="Link to this heading"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="gradslam.structures.utils.pointclouds_from_rgbdimages">
+<span class="sig-name descname"><span class="pre">pointclouds_from_rgbdimages</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">rgbdimages</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">global_coordinates</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filter_missing_depths</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/structures/utils.html#pointclouds_from_rgbdimages"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.structures.utils.pointclouds_from_rgbdimages" title="Link to this definition"></a></dt>
+<dd><p>Converts gradslam.RGBDImages containing batch of RGB-D images with sequence length of 1 to gradslam.Pointclouds</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>rgbdimages</strong> (<em>gradslam.RGBDImages</em>) – Can contain a batch of RGB-D images but must have sequence length of 1.</p></li>
+<li><p><strong>global_coordinates</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – If True, will create pointclouds object based on <span class="math notranslate nohighlight">\((X, Y, Z)\)</span> coordinates
+in the global coordinates (based on <cite>rgbdimages.poses</cite>). Otherwise, will use the local frame coordinates.</p></li>
+<li><p><strong>filter_missing_depths</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – If True, will not include vertices corresponding to missing depth values
+in the output pointclouds.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Output pointclouds</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>gradslam.Pointclouds</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="slam.html" class="btn btn-neutral float-left" title="gradslam.slam" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="utils.html" class="btn btn-neutral float-right" title="gradslam.utils" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020–2026, Montreal Robotics Lab.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

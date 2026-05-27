@@ -1,0 +1,248 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>gradslam &mdash; gradslam 0.2.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+
+  
+    <link rel="shortcut icon" href="_static/gradslam-favicon-32x32.png"/>
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=938c9ccc"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Getting started with RGBDImages" href="tutorials.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="#" class="icon icon-home">
+            gradslam
+              <img src="_static/gradslam-logo.png" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/tutorial_prerequisits.html">Prerequisits</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorials.html">Getting started with RGBDImages</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorials.html#getting-started-with-pointclouds">Getting started with Pointclouds</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorials.html#pointfusion-slam">PointFusion SLAM</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="modules/config.html">gradslam.config</a></li>
+<li class="toctree-l1"><a class="reference internal" href="modules/backend.html">Backend</a></li>
+<li class="toctree-l1"><a class="reference internal" href="modules/datasets.html">gradslam.datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="modules/geometry.html">gradslam.geometry</a></li>
+<li class="toctree-l1"><a class="reference internal" href="modules/icp.html">ICP Tracking</a></li>
+<li class="toctree-l1"><a class="reference internal" href="modules/mapping.html">Mapping &amp; Fusion</a></li>
+<li class="toctree-l1"><a class="reference internal" href="modules/metrics.html">gradslam.metrics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="modules/odometry.html">gradslam.odometry</a></li>
+<li class="toctree-l1"><a class="reference internal" href="modules/rendering.html">Rendering</a></li>
+<li class="toctree-l1"><a class="reference internal" href="modules/slam.html">gradslam.slam</a></li>
+<li class="toctree-l1"><a class="reference internal" href="modules/structures.html">gradslam.structures</a></li>
+<li class="toctree-l1"><a class="reference internal" href="modules/utils.html">gradslam.utils</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="#">gradslam</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="#" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">gradslam</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/index.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="gradslam">
+<h1>gradslam<a class="headerlink" href="#gradslam" title="Link to this heading"></a></h1>
+<p>gradSLAM is an open-source library aimed at providing implementations of SLAM subsystems for deep learning (DL) practitioners. While several DL practitioners want to use SLAM (or sub-components therein) from the comfort of their favorite DL library (TensorFlow / PyTorch), there are currently no freely available implementations. We aim to fill in that gap with this library.</p>
+<p>Another underlying motivation is to release code for the gradSLAM paper, where we demonstrate end-to-end differentiable dense SLAM systems. People should be able to load up their favorite dataset and run differentiable / non-differentiable dense SLAM systems on them.</p>
+<div class="toctree-wrapper compound">
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/tutorial_prerequisits.html">Prerequisits</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorials.html">Getting started with RGBDImages</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="tutorials/rgbdimages_tutorial.html">Try This Tutorial Yourself!</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorials/rgbdimages_tutorial.html#Instantiation">Instantiation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorials/rgbdimages_tutorial.html#Indexing-and-slicing">Indexing and slicing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorials/rgbdimages_tutorial.html#Vertex-maps-and-normal-maps">Vertex maps and normal maps</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorials/rgbdimages_tutorial.html#Transfer-between-GPU/CPU">Transfer between GPU/CPU</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorials/rgbdimages_tutorial.html#Detach-and-clone-tensors">Detach and clone tensors</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorials/rgbdimages_tutorial.html#Channels-first-and-channels-last-representation">Channels first and channels last representation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorials/rgbdimages_tutorial.html#Visualization">Visualization</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="tutorials.html#getting-started-with-pointclouds">Getting started with Pointclouds</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="tutorials/pointclouds_tutorial.html">Try This Tutorial Yourself!</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorials/pointclouds_tutorial.html#Instantiation">Instantiation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorials/pointclouds_tutorial.html#List-and-padded-internal-representations">List and padded internal representations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorials/pointclouds_tutorial.html#Indexing-and-slicing">Indexing and slicing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorials/pointclouds_tutorial.html#Translations,-rotations-and-transformations">Translations, rotations and transformations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorials/pointclouds_tutorial.html#Pinhole-camera-projection">Pinhole camera projection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorials/pointclouds_tutorial.html#Transfer-between-GPU/CPU">Transfer between GPU/CPU</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorials/pointclouds_tutorial.html#Detach-and-clone-tensors">Detach and clone tensors</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorials/pointclouds_tutorial.html#Visualization">Visualization</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="tutorials.html#pointfusion-slam">PointFusion SLAM</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="tutorials/pointfusion_tutorial.html">Try This Tutorial Yourself!</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorials/pointfusion_tutorial.html#Basic-PointFusion">Basic PointFusion</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorials/pointfusion_tutorial.html#Step-by-step-PointFusion">Step by step PointFusion</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorials/pointfusion_tutorial.html#Advanced-visualization">Advanced visualization</a></li>
+</ul>
+</li>
+</ul>
+</div>
+<div class="toctree-wrapper compound">
+<p class="caption" role="heading"><span class="caption-text">API Reference:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="modules/config.html">gradslam.config</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="modules/config.html#gradslam.config.CfgNode"><code class="docutils literal notranslate"><span class="pre">CfgNode</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="modules/backend.html">Backend</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="modules/backend.html#gradslam.backend.accelerator_backend"><code class="docutils literal notranslate"><span class="pre">accelerator_backend()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules/backend.html#gradslam.backend.backend_report"><code class="docutils literal notranslate"><span class="pre">backend_report()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules/backend.html#gradslam.backend.default_device"><code class="docutils literal notranslate"><span class="pre">default_device()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules/backend.html#gradslam.backend.compile_if_requested"><code class="docutils literal notranslate"><span class="pre">compile_if_requested()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules/backend.html#gradslam.backend.compile_debug"><code class="docutils literal notranslate"><span class="pre">compile_debug()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules/backend.html#module-gradslam.backend.device">Device Management</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules/backend.html#module-gradslam.backend.compile">Compilation</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="modules/datasets.html">gradslam.datasets</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="modules/datasets.html#gradslam-datasets-icl">gradslam.datasets.icl</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules/datasets.html#gradslam-datasets-scannet">gradslam.datasets.scannet</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules/datasets.html#gradslam-datasets-tum">gradslam.datasets.tum</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules/datasets.html#gradslam-datasets-datautils">gradslam.datasets.datautils</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="modules/geometry.html">gradslam.geometry</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="modules/geometry.html#gradslam-geometry-projutils">gradslam.geometry.projutils</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="modules/icp.html">ICP Tracking</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="modules/icp.html#gradslam.icp.solve_lm_6x6"><code class="docutils literal notranslate"><span class="pre">solve_lm_6x6()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules/icp.html#gradslam.icp.point_to_plane_projective"><code class="docutils literal notranslate"><span class="pre">point_to_plane_projective()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules/icp.html#gradslam.icp.ProjectiveICPTracker"><code class="docutils literal notranslate"><span class="pre">ProjectiveICPTracker</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules/icp.html#gradslam.icp.ProjectiveICPConfig"><code class="docutils literal notranslate"><span class="pre">ProjectiveICPConfig</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules/icp.html#module-gradslam.icp.projective">Projective ICP</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules/icp.html#module-gradslam.icp.residuals">Residuals</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules/icp.html#module-gradslam.icp.solvers">Solvers</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="modules/mapping.html">Mapping &amp; Fusion</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="modules/mapping.html#gradslam.mapping.TSDFVolume"><code class="docutils literal notranslate"><span class="pre">TSDFVolume</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules/mapping.html#gradslam.mapping.TSDFConfig"><code class="docutils literal notranslate"><span class="pre">TSDFConfig</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules/mapping.html#module-gradslam.mapping.tsdf">TSDF Volume</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="modules/metrics.html">gradslam.metrics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="modules/odometry.html">gradslam.odometry</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="modules/odometry.html#gradslam-odometry-base">gradslam.odometry.base</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules/odometry.html#gradslam-odometry-gradicp">gradslam.odometry.gradicp</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules/odometry.html#gradslam-odometry-groundtruth">gradslam.odometry.groundtruth</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules/odometry.html#gradslam-odometry-icp">gradslam.odometry.icp</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules/odometry.html#gradslam-odometry-icputils">gradslam.odometry.icputils</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="modules/rendering.html">Rendering</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="modules/rendering.html#gradslam.rendering.raycast_tsdf"><code class="docutils literal notranslate"><span class="pre">raycast_tsdf()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules/rendering.html#gradslam.rendering.RenderedFrame"><code class="docutils literal notranslate"><span class="pre">RenderedFrame</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules/rendering.html#module-gradslam.rendering.tsdf_raycast">TSDF Raycasting</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="modules/slam.html">gradslam.slam</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="modules/slam.html#gradslam-slam-icpslam">gradslam.slam.icpslam</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules/slam.html#gradslam-slam-pointfusion">gradslam.slam.pointfusion</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules/slam.html#gradslam-slam-fusionutils">gradslam.slam.fusionutils</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="modules/structures.html">gradslam.structures</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="modules/structures.html#gradslam-structures-pointclouds">gradslam.structures.pointclouds</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules/structures.html#gradslam-structures-rgbdimages">gradslam.structures.rgbdimages</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules/structures.html#gradslam-structures-utils">gradslam.structures.utils</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="modules/utils.html">gradslam.utils</a></li>
+</ul>
+</div>
+</section>
+<section id="indices-and-tables">
+<h1>Indices and tables<a class="headerlink" href="#indices-and-tables" title="Link to this heading"></a></h1>
+<ul class="simple">
+<li><p><a class="reference internal" href="genindex.html"><span class="std std-ref">Index</span></a></p></li>
+<li><p><a class="reference internal" href="py-modindex.html"><span class="std std-ref">Module Index</span></a></p></li>
+<li><p><a class="reference internal" href="search.html"><span class="std std-ref">Search Page</span></a></p></li>
+</ul>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="tutorials.html" class="btn btn-neutral float-right" title="Getting started with RGBDImages" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020–2026, Montreal Robotics Lab.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

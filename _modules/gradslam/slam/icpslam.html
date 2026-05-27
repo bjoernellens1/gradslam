@@ -1,0 +1,395 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>gradslam.slam.icpslam &mdash; gradslam 0.2.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
+
+  
+    <link rel="shortcut icon" href="../../../_static/gradslam-favicon-32x32.png"/>
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=938c9ccc"></script>
+      <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            gradslam
+              <img src="../../../_static/gradslam-logo.png" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials/tutorial_prerequisits.html">Prerequisits</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials.html">Getting started with RGBDImages</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials.html#getting-started-with-pointclouds">Getting started with Pointclouds</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials.html#pointfusion-slam">PointFusion SLAM</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/config.html">gradslam.config</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/backend.html">Backend</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/datasets.html">gradslam.datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/geometry.html">gradslam.geometry</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/icp.html">ICP Tracking</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/mapping.html">Mapping &amp; Fusion</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/metrics.html">gradslam.metrics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/odometry.html">gradslam.odometry</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/rendering.html">Rendering</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/slam.html">gradslam.slam</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/structures.html">gradslam.structures</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/utils.html">gradslam.utils</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">gradslam</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">gradslam.slam.icpslam</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for gradslam.slam.icpslam</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Union</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">torch.nn</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">nn</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">kornia.geometry.linalg</span><span class="w"> </span><span class="kn">import</span> <span class="n">compose_transformations</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">..odometry.gradicp</span><span class="w"> </span><span class="kn">import</span> <span class="n">GradICPOdometryProvider</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">..odometry.icp</span><span class="w"> </span><span class="kn">import</span> <span class="n">ICPOdometryProvider</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">..odometry.icputils</span><span class="w"> </span><span class="kn">import</span> <span class="n">downsample_pointclouds</span><span class="p">,</span> <span class="n">downsample_rgbdimages</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">..structures.pointclouds</span><span class="w"> </span><span class="kn">import</span> <span class="n">Pointclouds</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">..structures.rgbdimages</span><span class="w"> </span><span class="kn">import</span> <span class="n">RGBDImages</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.fusionutils</span><span class="w"> </span><span class="kn">import</span> <span class="n">find_active_map_points</span><span class="p">,</span> <span class="n">update_map_aggregate</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;ICPSLAM&quot;</span><span class="p">]</span>
+
+
+<div class="viewcode-block" id="ICPSLAM">
+<a class="viewcode-back" href="../../../modules/slam.html#gradslam.slam.ICPSLAM">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">ICPSLAM</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;ICP-SLAM for batched sequences of RGB-D images.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        odom (str): Odometry method to be used from {&#39;gt&#39;, &#39;icp&#39;, &#39;gradicp&#39;}. Default: &#39;gradicp&#39;</span>
+<span class="sd">        dsratio (int): Downsampling ratio to apply to input frames before ICP. Only used if `odom` is</span>
+<span class="sd">            &#39;icp&#39; or &#39;gradicp&#39;. Default: 4</span>
+<span class="sd">        numiters (int): Number of iterations to run the optimization for. Only used if `odom` is</span>
+<span class="sd">            &#39;icp&#39; or &#39;gradicp&#39;. Default: 20</span>
+<span class="sd">        damp (float or torch.Tensor): Damping coefficient for nonlinear least-squares. Only used if `odom` is</span>
+<span class="sd">            &#39;icp&#39; or &#39;gradicp&#39;. Default: 1e-8</span>
+<span class="sd">        dist_thresh (float or int or None): Distance threshold for removing `src_pc` points distant from `tgt_pc`.</span>
+<span class="sd">                Only used if `odom` is &#39;icp&#39; or &#39;gradicp&#39;. Default: None</span>
+<span class="sd">        lambda_max (float or int): Maximum value the damping function can assume (`lambda_min` will be</span>
+<span class="sd">            :math:`\frac{1}{\text{lambda_max}}`). Only used if `odom` is &#39;gradicp&#39;.</span>
+<span class="sd">        B (float or int): gradLM falloff control parameter (see GradICPOdometryProvider description).</span>
+<span class="sd">            Only used if `odom` is &#39;gradicp&#39;.</span>
+<span class="sd">        B2 (float or int): gradLM control parameter (see GradICPOdometryProvider description).</span>
+<span class="sd">            Only used if `odom` is &#39;gradicp&#39;.</span>
+<span class="sd">        nu (float or int): gradLM control parameter (see GradICPOdometryProvider description).</span>
+<span class="sd">            Only used if `odom` is &#39;gradicp&#39;.</span>
+<span class="sd">        device (torch.device or str or None): The desired device of internal tensors. If None, sets device to be</span>
+<span class="sd">            the CPU. Default: None</span>
+
+
+<span class="sd">    Examples::</span>
+
+<span class="sd">        &gt;&gt;&gt; rgbdimages = RGBDImages(colors, depths, intrinsics, poses)</span>
+<span class="sd">        &gt;&gt;&gt; slam = ICPSLAM(odom=&#39;gt&#39;)</span>
+<span class="sd">        &gt;&gt;&gt; pointclouds, poses = slam(rgbdimages)</span>
+<span class="sd">        &gt;&gt;&gt; o3d.visualization.draw_geometries([pointclouds.o3d(0)])</span>
+
+<span class="sd">        &gt;&gt;&gt; rgbdimages = RGBDImages(colors, depths, intrinsics, poses)</span>
+<span class="sd">        &gt;&gt;&gt; slam = ICPSLAM(odom=&#39;gt&#39;)</span>
+<span class="sd">        &gt;&gt;&gt; pointclouds = Pointclouds()</span>
+<span class="sd">        &gt;&gt;&gt; pointclouds, new_poses = self.step(pointclouds, frames[:, 0], None)</span>
+<span class="sd">        &gt;&gt;&gt; frames.poses[:, :1] = new_poses</span>
+<span class="sd">        &gt;&gt;&gt; pointclouds, new_poses = self.step(pointclouds, frames[:, 1], frames[:, 0])</span>
+
+<span class="sd">        &gt;&gt;&gt; rgbdimages = RGBDImages(colors, depths, intrinsics, poses)</span>
+<span class="sd">        &gt;&gt;&gt; slam = ICPSLAM(odom=&#39;gradicp&#39;)</span>
+<span class="sd">        &gt;&gt;&gt; pointclouds = Pointclouds()</span>
+<span class="sd">        &gt;&gt;&gt; pointclouds, new_poses = self.step(pointclouds, frames[:, 0], None)</span>
+<span class="sd">        &gt;&gt;&gt; frames.poses[:, :1] = new_poses</span>
+<span class="sd">        &gt;&gt;&gt; pointclouds, new_poses = self.step(pointclouds, frames[:, 1], frames[:, 0])</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># TODO: Try to have nn.Module features supported</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">odom</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;gradicp&quot;</span><span class="p">,</span>
+        <span class="n">dsratio</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">4</span><span class="p">,</span>
+        <span class="n">numiters</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">20</span><span class="p">,</span>
+        <span class="n">damp</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-8</span><span class="p">,</span>
+        <span class="n">dist_thresh</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">lambda_max</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="mf">2.0</span><span class="p">,</span>
+        <span class="n">B</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
+        <span class="n">B2</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
+        <span class="n">nu</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="mf">200.0</span><span class="p">,</span>
+        <span class="n">device</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">device</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">odom</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;gt&quot;</span><span class="p">,</span> <span class="s2">&quot;icp&quot;</span><span class="p">,</span> <span class="s2">&quot;gradicp&quot;</span><span class="p">]:</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="s2">&quot;odometry method (</span><span class="si">{}</span><span class="s2">) not supported for PointFusion. &quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">odom</span><span class="p">)</span>
+            <span class="n">msg</span> <span class="o">+=</span> <span class="s2">&quot;Currently supported odometry modules for PointFusion are: &#39;gt&#39;, &#39;icp&#39;, &#39;gradicp&#39;&quot;</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
+        <span class="n">odomprov</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">odom</span> <span class="o">==</span> <span class="s2">&quot;icp&quot;</span><span class="p">:</span>
+            <span class="n">odomprov</span> <span class="o">=</span> <span class="n">ICPOdometryProvider</span><span class="p">(</span><span class="n">numiters</span><span class="p">,</span> <span class="n">damp</span><span class="p">,</span> <span class="n">dist_thresh</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">odom</span> <span class="o">==</span> <span class="s2">&quot;gradicp&quot;</span><span class="p">:</span>
+            <span class="n">odomprov</span> <span class="o">=</span> <span class="n">GradICPOdometryProvider</span><span class="p">(</span>
+                <span class="n">numiters</span><span class="p">,</span> <span class="n">damp</span><span class="p">,</span> <span class="n">dist_thresh</span><span class="p">,</span> <span class="n">lambda_max</span><span class="p">,</span> <span class="n">B</span><span class="p">,</span> <span class="n">B2</span><span class="p">,</span> <span class="n">nu</span>
+            <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">odom</span> <span class="o">=</span> <span class="n">odom</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">odomprov</span> <span class="o">=</span> <span class="n">odomprov</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dsratio</span> <span class="o">=</span> <span class="n">dsratio</span>
+        <span class="n">device</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">device</span><span class="p">(</span><span class="n">device</span><span class="p">)</span> <span class="k">if</span> <span class="n">device</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">torch</span><span class="o">.</span><span class="n">device</span><span class="p">(</span><span class="s2">&quot;cpu&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">device</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">()</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="p">)</span><span class="o">.</span><span class="n">device</span>
+
+<div class="viewcode-block" id="ICPSLAM.forward">
+<a class="viewcode-back" href="../../../modules/slam.html#gradslam.slam.ICPSLAM.forward">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">frames</span><span class="p">:</span> <span class="n">RGBDImages</span><span class="p">):</span>
+<span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Builds global map pointclouds from a batch of input RGBDImages with a batch size</span>
+<span class="sd">        of :math:`B` and sequence length of :math:`L`.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            frames (gradslam.RGBDImages): Input batch of frames with a sequence length of `L`.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            tuple: tuple containing:</span>
+
+<span class="sd">            - pointclouds (gradslam.Pointclouds): Pointclouds object containing :math:`B` global maps</span>
+<span class="sd">            - poses (torch.Tensor): Poses computed by the odometry method</span>
+
+<span class="sd">        Shape:</span>
+<span class="sd">            - poses: :math:`(B, L, 4, 4)`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">frames</span><span class="p">,</span> <span class="n">RGBDImages</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+                <span class="s2">&quot;Expected frames to be of type gradslam.RGBDImages. Got </span><span class="si">{0}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="nb">type</span><span class="p">(</span><span class="n">frames</span><span class="p">)</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+        <span class="n">pointclouds</span> <span class="o">=</span> <span class="n">Pointclouds</span><span class="p">(</span><span class="n">device</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+        <span class="n">batch_size</span><span class="p">,</span> <span class="n">seq_len</span> <span class="o">=</span> <span class="n">frames</span><span class="o">.</span><span class="n">shape</span><span class="p">[:</span><span class="mi">2</span><span class="p">]</span>
+        <span class="n">recovered_poses</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="n">batch_size</span><span class="p">,</span> <span class="n">seq_len</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">4</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+        <span class="n">prev_frame</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">seq_len</span><span class="p">):</span>
+            <span class="n">live_frame</span> <span class="o">=</span> <span class="n">frames</span><span class="p">[:,</span> <span class="n">s</span><span class="p">]</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">s</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">live_frame</span><span class="o">.</span><span class="n">poses</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">live_frame</span><span class="o">.</span><span class="n">poses</span> <span class="o">=</span> <span class="p">(</span>
+                    <span class="n">torch</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+                    <span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">4</span><span class="p">)</span>
+                    <span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="n">batch_size</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+                <span class="p">)</span>
+            <span class="n">pointclouds</span><span class="p">,</span> <span class="n">live_frame</span><span class="o">.</span><span class="n">poses</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">step</span><span class="p">(</span>
+                <span class="n">pointclouds</span><span class="p">,</span> <span class="n">live_frame</span><span class="p">,</span> <span class="n">prev_frame</span><span class="p">,</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span>
+            <span class="p">)</span>
+            <span class="n">prev_frame</span> <span class="o">=</span> <span class="n">live_frame</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">odom</span> <span class="o">!=</span> <span class="s2">&quot;gt&quot;</span> <span class="k">else</span> <span class="kc">None</span>
+            <span class="n">recovered_poses</span><span class="p">[:,</span> <span class="n">s</span><span class="p">]</span> <span class="o">=</span> <span class="n">live_frame</span><span class="o">.</span><span class="n">poses</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">pointclouds</span><span class="p">,</span> <span class="n">recovered_poses</span></div>
+
+
+<div class="viewcode-block" id="ICPSLAM.step">
+<a class="viewcode-back" href="../../../modules/slam.html#gradslam.slam.ICPSLAM.step">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">step</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">pointclouds</span><span class="p">:</span> <span class="n">Pointclouds</span><span class="p">,</span>
+        <span class="n">live_frame</span><span class="p">:</span> <span class="n">RGBDImages</span><span class="p">,</span>
+        <span class="n">prev_frame</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RGBDImages</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">inplace</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Updates global map pointclouds with a SLAM step on `live_frame`.</span>
+<span class="sd">        If `prev_frame` is not None, computes the relative transformation between `live_frame`</span>
+<span class="sd">        and `prev_frame` using the selected odometry provider. If `prev_frame` is None,</span>
+<span class="sd">        use the pose from `live_frame`.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            pointclouds (gradslam.Pointclouds): Input batch of pointcloud global maps</span>
+<span class="sd">            live_frame (gradslam.RGBDImages): Input batch of live frames (at time step :math:`t`). Must have sequence</span>
+<span class="sd">                length of 1.</span>
+<span class="sd">            prev_frame (gradslam.RGBDImages or None): Input batch of previous frames (at time step :math:`t-1`).</span>
+<span class="sd">                Must have sequence length of 1. If None, will (skip calling odometry provider and) use the pose</span>
+<span class="sd">                from `live_frame`. Default: None</span>
+<span class="sd">            inplace (bool): Can optionally update the pointclouds and live_frame poses in-place. Default: False</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            tuple: tuple containing:</span>
+
+<span class="sd">            - pointclouds (gradslam.Pointclouds): Updated :math:`B` global maps</span>
+<span class="sd">            - poses (torch.Tensor): Poses for the live_frame batch</span>
+
+<span class="sd">        Shape:</span>
+<span class="sd">            - poses: :math:`(B, 1, 4, 4)`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">live_frame</span><span class="p">,</span> <span class="n">RGBDImages</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+                <span class="s2">&quot;Expected live_frame to be of type gradslam.RGBDImages. Got </span><span class="si">{0}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="nb">type</span><span class="p">(</span><span class="n">live_frame</span><span class="p">)</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+        <span class="n">live_frame</span><span class="o">.</span><span class="n">poses</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_localize</span><span class="p">(</span><span class="n">pointclouds</span><span class="p">,</span> <span class="n">live_frame</span><span class="p">,</span> <span class="n">prev_frame</span><span class="p">)</span>
+        <span class="n">pointclouds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_map</span><span class="p">(</span><span class="n">pointclouds</span><span class="p">,</span> <span class="n">live_frame</span><span class="p">,</span> <span class="n">inplace</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">pointclouds</span><span class="p">,</span> <span class="n">live_frame</span><span class="o">.</span><span class="n">poses</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_localize</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">pointclouds</span><span class="p">:</span> <span class="n">Pointclouds</span><span class="p">,</span> <span class="n">live_frame</span><span class="p">:</span> <span class="n">RGBDImages</span><span class="p">,</span> <span class="n">prev_frame</span><span class="p">:</span> <span class="n">RGBDImages</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Compute the poses for `live_frame`. If `prev_frame` is not None, computes the relative</span>
+<span class="sd">        transformation between `live_frame` and `prev_frame` using the selected odometry provider.</span>
+<span class="sd">        If `prev_frame` is None, use the pose from `live_frame`.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            pointclouds (gradslam.Pointclouds): Input batch of pointcloud global maps</span>
+<span class="sd">            live_frame (gradslam.RGBDImages): Input batch of live frames (at time step :math:`t`). Must have sequence</span>
+<span class="sd">                length of 1.</span>
+<span class="sd">            prev_frame (gradslam.RGBDImages or None): Input batch of previous frames (at time step :math:`t-1`).</span>
+<span class="sd">                Must have sequence length of 1. If None, will (skip calling odometry provider and) use the pose</span>
+<span class="sd">                from `live_frame`. Default: None</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            torch.Tensor: Poses for the live_frame batch</span>
+
+<span class="sd">        Shape:</span>
+<span class="sd">            - Output: :math:`(B, 1, 4, 4)`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">pointclouds</span><span class="p">,</span> <span class="n">Pointclouds</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+                <span class="s2">&quot;Expected pointclouds to be of type gradslam.Pointclouds. Got </span><span class="si">{0}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="nb">type</span><span class="p">(</span><span class="n">pointclouds</span><span class="p">)</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">live_frame</span><span class="p">,</span> <span class="n">RGBDImages</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+                <span class="s2">&quot;Expected live_frame to be of type gradslam.RGBDImages. Got </span><span class="si">{0}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="nb">type</span><span class="p">(</span><span class="n">live_frame</span><span class="p">)</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">prev_frame</span><span class="p">,</span> <span class="p">(</span><span class="n">RGBDImages</span><span class="p">,</span> <span class="nb">type</span><span class="p">(</span><span class="kc">None</span><span class="p">))):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+                <span class="s2">&quot;Expected prev_frame to be of type gradslam.RGBDImages or None. Got </span><span class="si">{0}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="nb">type</span><span class="p">(</span><span class="n">prev_frame</span><span class="p">)</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+        <span class="k">if</span> <span class="n">prev_frame</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">odom</span> <span class="o">==</span> <span class="s2">&quot;gt&quot;</span><span class="p">:</span>
+                <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+                    <span class="s2">&quot;`prev_frame` is not used when using `odom=&#39;gt&#39;` (should be None)&quot;</span>
+                <span class="p">)</span>
+            <span class="k">elif</span> <span class="ow">not</span> <span class="n">prev_frame</span><span class="o">.</span><span class="n">has_poses</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;`prev_frame` should have poses, but did not.&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">prev_frame</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">pointclouds</span><span class="o">.</span><span class="n">has_points</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">odom</span> <span class="o">!=</span> <span class="s2">&quot;gt&quot;</span><span class="p">:</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="s2">&quot;`prev_frame` was None despite `</span><span class="si">{}</span><span class="s2">` odometry method. Using `live_frame` poses.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">odom</span>
+            <span class="p">)</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">prev_frame</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">odom</span> <span class="o">==</span> <span class="s2">&quot;gt&quot;</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">live_frame</span><span class="o">.</span><span class="n">has_poses</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="s2">&quot;`live_frame` must have poses when `prev_frame` is None or `odom=&#39;gt&#39;`.&quot;</span>
+                <span class="p">)</span>
+            <span class="k">return</span> <span class="n">live_frame</span><span class="o">.</span><span class="n">poses</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">odom</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;icp&quot;</span><span class="p">,</span> <span class="s2">&quot;gradicp&quot;</span><span class="p">]:</span>
+            <span class="n">live_frame</span><span class="o">.</span><span class="n">poses</span> <span class="o">=</span> <span class="n">prev_frame</span><span class="o">.</span><span class="n">poses</span>
+            <span class="n">frames_pc</span> <span class="o">=</span> <span class="n">downsample_rgbdimages</span><span class="p">(</span><span class="n">live_frame</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">dsratio</span><span class="p">)</span>
+            <span class="n">pc2im_bnhw</span> <span class="o">=</span> <span class="n">find_active_map_points</span><span class="p">(</span><span class="n">pointclouds</span><span class="p">,</span> <span class="n">prev_frame</span><span class="p">)</span>
+            <span class="n">maps_pc</span> <span class="o">=</span> <span class="n">downsample_pointclouds</span><span class="p">(</span><span class="n">pointclouds</span><span class="p">,</span> <span class="n">pc2im_bnhw</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">dsratio</span><span class="p">)</span>
+            <span class="n">transform</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">odomprov</span><span class="o">.</span><span class="n">provide</span><span class="p">(</span><span class="n">maps_pc</span><span class="p">,</span> <span class="n">frames_pc</span><span class="p">)</span>
+
+            <span class="k">return</span> <span class="n">compose_transformations</span><span class="p">(</span>
+                <span class="n">transform</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="mi">1</span><span class="p">),</span> <span class="n">prev_frame</span><span class="o">.</span><span class="n">poses</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+            <span class="p">)</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_map</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">pointclouds</span><span class="p">:</span> <span class="n">Pointclouds</span><span class="p">,</span> <span class="n">live_frame</span><span class="p">:</span> <span class="n">RGBDImages</span><span class="p">,</span> <span class="n">inplace</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Updates global map pointclouds by aggregating them with points from `live_frame`.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            pointclouds (gradslam.Pointclouds): Input batch of pointcloud global maps</span>
+<span class="sd">            live_frame (gradslam.RGBDImages): Input batch of live frames (at time step :math:`t`). Must have sequence</span>
+<span class="sd">                length of 1.</span>
+<span class="sd">            inplace (bool): Can optionally update the pointclouds in-place. Default: False</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            gradslam.Pointclouds: Updated :math:`B` global maps</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">update_map_aggregate</span><span class="p">(</span><span class="n">pointclouds</span><span class="p">,</span> <span class="n">live_frame</span><span class="p">,</span> <span class="n">inplace</span><span class="p">)</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020–2026, Montreal Robotics Lab.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

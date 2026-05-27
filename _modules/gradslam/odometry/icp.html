@@ -1,0 +1,225 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>gradslam.odometry.icp &mdash; gradslam 0.2.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
+
+  
+    <link rel="shortcut icon" href="../../../_static/gradslam-favicon-32x32.png"/>
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=938c9ccc"></script>
+      <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            gradslam
+              <img src="../../../_static/gradslam-logo.png" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials/tutorial_prerequisits.html">Prerequisits</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials.html">Getting started with RGBDImages</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials.html#getting-started-with-pointclouds">Getting started with Pointclouds</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials.html#pointfusion-slam">PointFusion SLAM</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/config.html">gradslam.config</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/backend.html">Backend</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/datasets.html">gradslam.datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/geometry.html">gradslam.geometry</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/icp.html">ICP Tracking</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/mapping.html">Mapping &amp; Fusion</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/metrics.html">gradslam.metrics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/odometry.html">gradslam.odometry</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/rendering.html">Rendering</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/slam.html">gradslam.slam</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/structures.html">gradslam.structures</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/utils.html">gradslam.utils</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">gradslam</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">gradslam.odometry.icp</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for gradslam.odometry.icp</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Union</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">..structures.pointclouds</span><span class="w"> </span><span class="kn">import</span> <span class="n">Pointclouds</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.base</span><span class="w"> </span><span class="kn">import</span> <span class="n">OdometryProvider</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.icputils</span><span class="w"> </span><span class="kn">import</span> <span class="n">point_to_plane_ICP</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;ICPOdometryProvider&quot;</span><span class="p">]</span>
+
+
+<div class="viewcode-block" id="ICPOdometryProvider">
+<a class="viewcode-back" href="../../../modules/odometry.html#gradslam.odometry.ICPOdometryProvider">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">ICPOdometryProvider</span><span class="p">(</span><span class="n">OdometryProvider</span><span class="p">):</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;ICP odometry provider using a point-to-plane error metric. Computes the relative transformation between</span>
+<span class="sd">    a pair of `gradslam.Pointclouds` objects using ICP (Iterative Closest Point). Uses LM (Levenberg-Marquardt) solver.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">numiters</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">20</span><span class="p">,</span>
+        <span class="n">damp</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-8</span><span class="p">,</span>
+        <span class="n">dist_thresh</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Initializes internal ICPOdometryProvider state.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            numiters (int): Number of iterations to run the optimization for. Default: 20</span>
+<span class="sd">            damp (float or torch.Tensor): Damping coefficient for nonlinear least-squares. Default: 1e-8</span>
+<span class="sd">            dist_thresh (float or int or None): Distance threshold for removing `src_pc` points distant from `tgt_pc`.</span>
+<span class="sd">                Default: None</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">numiters</span> <span class="o">=</span> <span class="n">numiters</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">damp</span> <span class="o">=</span> <span class="n">damp</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dist_thresh</span> <span class="o">=</span> <span class="n">dist_thresh</span>
+
+<div class="viewcode-block" id="ICPOdometryProvider.provide">
+<a class="viewcode-back" href="../../../modules/odometry.html#gradslam.odometry.ICPOdometryProvider.provide">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">provide</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">maps_pointclouds</span><span class="p">:</span> <span class="n">Pointclouds</span><span class="p">,</span>
+        <span class="n">frames_pointclouds</span><span class="p">:</span> <span class="n">Pointclouds</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Uses ICP to compute the relative homogenous transformation that, when applied to `frames_pointclouds`,</span>
+<span class="sd">        would cause the points to align with points of `maps_pointclouds`.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            maps_pointclouds (gradslam.Pointclouds): Object containing batch of map pointclouds of batch size</span>
+<span class="sd">                :math:`(B)`</span>
+<span class="sd">            frames_pointclouds (gradslam.Pointclouds): Object containing batch of live frame pointclouds of batch size</span>
+<span class="sd">                :math:`(B)`</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            torch.Tensor: The relative transformation that would align `maps_pointclouds` with `frames_pointclouds`</span>
+
+<span class="sd">        Shape:</span>
+<span class="sd">            - Output: :math:`(B, 1, 4, 4)`</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">maps_pointclouds</span><span class="p">,</span> <span class="n">Pointclouds</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+                <span class="s2">&quot;Expected maps_pointclouds to be of type gradslam.Pointclouds. Got </span><span class="si">{0}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="nb">type</span><span class="p">(</span><span class="n">maps_pointclouds</span><span class="p">)</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">frames_pointclouds</span><span class="p">,</span> <span class="n">Pointclouds</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+                <span class="s2">&quot;Expected frames_pointclouds to be of type gradslam.Pointclouds. Got </span><span class="si">{0}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="nb">type</span><span class="p">(</span><span class="n">frames_pointclouds</span><span class="p">)</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+        <span class="k">if</span> <span class="n">maps_pointclouds</span><span class="o">.</span><span class="n">normals_list</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;maps_pointclouds missing normals. Map normals must be provided if using ICPOdometryProvider&quot;</span>
+            <span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">maps_pointclouds</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">frames_pointclouds</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;Batch size of maps_pointclouds and frames_pointclouds should be equal (</span><span class="si">{0}</span><span class="s2"> != </span><span class="si">{1}</span><span class="s2">)&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="nb">len</span><span class="p">(</span><span class="n">maps_pointclouds</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">frames_pointclouds</span><span class="p">)</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+
+        <span class="n">device</span> <span class="o">=</span> <span class="n">maps_pointclouds</span><span class="o">.</span><span class="n">device</span>
+        <span class="n">initial_transform</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">)</span>
+
+        <span class="n">transforms</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">maps_pointclouds</span><span class="p">)):</span>
+            <span class="n">transform</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">point_to_plane_ICP</span><span class="p">(</span>
+                <span class="n">frames_pointclouds</span><span class="o">.</span><span class="n">points_list</span><span class="p">[</span><span class="n">b</span><span class="p">]</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span>
+                <span class="n">maps_pointclouds</span><span class="o">.</span><span class="n">points_list</span><span class="p">[</span><span class="n">b</span><span class="p">]</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span>
+                <span class="n">maps_pointclouds</span><span class="o">.</span><span class="n">normals_list</span><span class="p">[</span><span class="n">b</span><span class="p">]</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span>
+                <span class="n">initial_transform</span><span class="p">,</span>
+                <span class="n">numiters</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">numiters</span><span class="p">,</span>
+                <span class="n">damp</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">damp</span><span class="p">,</span>
+                <span class="n">dist_thresh</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">dist_thresh</span><span class="p">,</span>
+            <span class="p">)</span>
+
+            <span class="n">transforms</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">transform</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">transforms</span><span class="p">)</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020–2026, Montreal Robotics Lab.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

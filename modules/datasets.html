@@ -1,0 +1,653 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>gradslam.datasets &mdash; gradslam 0.2.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
+
+  
+    <link rel="shortcut icon" href="../_static/gradslam-favicon-32x32.png"/>
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=938c9ccc"></script>
+      <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true}, "options": {"ignoreHtmlClass": "tex2jax_ignore|mathjax_ignore|document", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+      <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="gradslam.geometry" href="geometry.html" />
+    <link rel="prev" title="Backend" href="backend.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            gradslam
+              <img src="../_static/gradslam-logo.png" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/tutorial_prerequisits.html">Prerequisits</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials.html">Getting started with RGBDImages</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials.html#getting-started-with-pointclouds">Getting started with Pointclouds</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials.html#pointfusion-slam">PointFusion SLAM</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="config.html">gradslam.config</a></li>
+<li class="toctree-l1"><a class="reference internal" href="backend.html">Backend</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">gradslam.datasets</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#gradslam-datasets-icl">gradslam.datasets.icl</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#gradslam.datasets.ICL"><code class="docutils literal notranslate"><span class="pre">ICL</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.datasets.ICL.__len__"><code class="docutils literal notranslate"><span class="pre">ICL.__len__()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.datasets.ICL.__getitem__"><code class="docutils literal notranslate"><span class="pre">ICL.__getitem__()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#gradslam-datasets-scannet">gradslam.datasets.scannet</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#gradslam.datasets.Scannet"><code class="docutils literal notranslate"><span class="pre">Scannet</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.datasets.Scannet.__len__"><code class="docutils literal notranslate"><span class="pre">Scannet.__len__()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.datasets.Scannet.__getitem__"><code class="docutils literal notranslate"><span class="pre">Scannet.__getitem__()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#gradslam-datasets-tum">gradslam.datasets.tum</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#gradslam.datasets.TUM"><code class="docutils literal notranslate"><span class="pre">TUM</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.datasets.TUM.__len__"><code class="docutils literal notranslate"><span class="pre">TUM.__len__()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.datasets.TUM.__getitem__"><code class="docutils literal notranslate"><span class="pre">TUM.__getitem__()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#gradslam-datasets-datautils">gradslam.datasets.datautils</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#gradslam.datasets.normalize_image"><code class="docutils literal notranslate"><span class="pre">normalize_image()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#gradslam.datasets.channels_first"><code class="docutils literal notranslate"><span class="pre">channels_first()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#gradslam.datasets.scale_intrinsics"><code class="docutils literal notranslate"><span class="pre">scale_intrinsics()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#gradslam.datasets.pointquaternion_to_homogeneous"><code class="docutils literal notranslate"><span class="pre">pointquaternion_to_homogeneous()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#gradslam.datasets.poses_to_transforms"><code class="docutils literal notranslate"><span class="pre">poses_to_transforms()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#gradslam.datasets.create_label_image"><code class="docutils literal notranslate"><span class="pre">create_label_image()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="geometry.html">gradslam.geometry</a></li>
+<li class="toctree-l1"><a class="reference internal" href="icp.html">ICP Tracking</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mapping.html">Mapping &amp; Fusion</a></li>
+<li class="toctree-l1"><a class="reference internal" href="metrics.html">gradslam.metrics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="odometry.html">gradslam.odometry</a></li>
+<li class="toctree-l1"><a class="reference internal" href="rendering.html">Rendering</a></li>
+<li class="toctree-l1"><a class="reference internal" href="slam.html">gradslam.slam</a></li>
+<li class="toctree-l1"><a class="reference internal" href="structures.html">gradslam.structures</a></li>
+<li class="toctree-l1"><a class="reference internal" href="utils.html">gradslam.utils</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">gradslam</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">gradslam.datasets</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/modules/datasets.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="gradslam-datasets">
+<h1>gradslam.datasets<a class="headerlink" href="#gradslam-datasets" title="Link to this heading"></a></h1>
+<section id="gradslam-datasets-icl">
+<h2>gradslam.datasets.icl<a class="headerlink" href="#gradslam-datasets-icl" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="gradslam.datasets.ICL">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">ICL</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">basedir</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">trajectories</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">seqlen</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">4</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dilation</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stride</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">start</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">end</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">height</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">480</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">width</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">640</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">channels_first</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">normalize_color</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">return_depth</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">return_intrinsics</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">return_pose</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">return_transform</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">return_names</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/datasets/icl.html#ICL"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.datasets.ICL" title="Link to this definition"></a></dt>
+<dd><p>A torch Dataset for loading in <a class="reference external" href="https://www.doc.ic.ac.uk/~ahanda/VaFRIC/iclnuim.html">the ICL-NUIM dataset</a>.
+Will fetch sequences of rgb images, depth maps, intrinsics matrix, poses, frame to frame relative transformations
+(with first frame’s pose as the reference transformation), names of frames. Uses the
+<cite>TUM RGB-D Compatible PNGs</cite> files and <cite>Global_RT_Trajectory_GT</cite> from
+<a class="reference external" href="https://www.doc.ic.ac.uk/~ahanda/VaFRIC/iclnuim.html}{ICL-NUIMdataset">here</a>. Expects the following folder
+structure for the ICL dataset:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>| ├── ICL
+| │   ├── living_room_traj0_frei_png
+| │   │   ├── depth/
+| │   │   ├── rgb/
+| │   │   ├── associations.txt
+| │   │   └── livingRoom0n.gt.sim
+| │   ├── living_room_traj1_frei_png
+| │   │   ├── depth/
+| │   │   ├── rgb/
+| │   │   ├── associations.txt
+| │   │   └── livingRoom1n.gt.sim
+| │   ├── living_room_traj2_frei_png
+| │   │   ├── depth/
+| │   │   ├── rgb/
+| │   │   ├── associations.txt
+| │   │   └── livingRoom2n.gt.sim
+| │   ├── living_room_traj3_frei_png
+| │   │   ├── depth/
+| │   │   ├── rgb/
+| │   │   ├── associations.txt
+| │   │   └── livingRoom3n.gt.sim
+| │   ├── living_room_trajX_frei_png
+| │   │   ├── depth/
+| │   │   ├── rgb/
+| │   │   ├── associations.txt
+| │   │   └── livingRoomXn.gt.sim
+|
+</pre></div>
+</div>
+<p>Example of sequence creation from frames with <cite>seqlen=4</cite>, <cite>dilation=1</cite>, <cite>stride=3</cite>, and <cite>start=2</cite>:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>                                    sequence0
+                ┎───────────────┲───────────────┲───────────────┒
+                |               |               |               |
+frame0  frame1  frame2  frame3  frame4  frame5  frame6  frame7  frame8  frame9  frame10  frame11 ...
+                                        |               |               |                |
+                                        └───────────────┵───────────────┵────────────────┚
+                                                            sequence1
+</pre></div>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>basedir</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – <p>Path to the base directory containing the <cite>living_room_trajX_frei_png/</cite> directories from
+ICL-NUIM. Each trajectory subdirectory is assumed to contain <cite>depth/</cite>, <cite>rgb/</cite>, <cite>associations.txt</cite> and
+<cite>livingRoom0n.gt.sim</cite>.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>├── living_room_trajX_frei_png
+│   ├── depth/
+│   ├── rgb/
+│   ├── associations.txt
+│   └── livingRoomXn.gt.sim
+</pre></div>
+</div>
+</p></li>
+<li><p><strong>trajectories</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)"><em>tuple</em></a><em> of </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> or </em><em>None</em>) – Trajectories to use from “living_room_traj0_frei_png”,
+“living_room_traj1_frei_png”, “living_room_traj2_frei_png” or “living_room_traj3_frei_png”.
+Can be path to a <cite>.txt</cite> file where each line is a trajectory name (<cite>living_room_traj0_frei_png</cite>),
+a tuple of trajectory names, or None to use all trajectories. Default: None</p></li>
+<li><p><strong>seqlen</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Number of frames to use for each sequence of frames. Default: 4</p></li>
+<li><p><strong>dilation</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em> or </em><em>None</em>) – Number of (original trajectory’s) frames to skip between two consecutive
+frames in the extracted sequence. See above example if unsure.
+If None, will set <cite>dilation = 0</cite>. Default: None</p></li>
+<li><p><strong>stride</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em> or </em><em>None</em>) – Number of frames between the first frames of two consecutive extracted sequences.
+See above example if unsure. If None, will set <cite>stride = seqlen * (dilation + 1)</cite>
+(non-overlapping sequences). Default: None</p></li>
+<li><p><strong>start</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em> or </em><em>None</em>) – Index of the frame from which to start extracting sequences for every trajectory.
+If None, will start from the first frame. Default: None</p></li>
+<li><p><strong>end</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Index of the frame at which to stop extracting sequences for every trajectory.
+If None, will continue extracting frames until the end of the trajectory. Default: None</p></li>
+<li><p><strong>height</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Spatial height to resize frames to. Default: 480</p></li>
+<li><p><strong>width</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Spatial width to resize frames to. Default: 640</p></li>
+<li><p><strong>channels_first</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – If True, will use channels first representation <span class="math notranslate nohighlight">\((B, L, C, H, W)\)</span> for images
+<cite>(batchsize, sequencelength, channels, height, width)</cite>. If False, will use channels last representation
+<span class="math notranslate nohighlight">\((B, L, H, W, C)\)</span>. Default: False</p></li>
+<li><p><strong>normalize_color</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – Normalize color to range <span class="math notranslate nohighlight">\([0 1]\)</span> or leave it at range <span class="math notranslate nohighlight">\([0 255]\)</span>.
+Default: False</p></li>
+<li><p><strong>return_depth</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – Determines whether to return depths. Default: True</p></li>
+<li><p><strong>return_intrinsics</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – Determines whether to return intrinsics. Default: True</p></li>
+<li><p><strong>return_pose</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – Determines whether to return poses. Default: True</p></li>
+<li><p><strong>return_transform</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – Determines whether to return transforms w.r.t. initial pose being transformed to be
+identity. Default: True</p></li>
+<li><p><strong>return_names</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – Determines whether to return sequence names. Default: True</p></li>
+</ul>
+</dd>
+</dl>
+<p>Examples:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">dataset</span> <span class="o">=</span> <span class="n">ICL</span><span class="p">(</span>
+<span class="go">    basedir=&quot;ICL-data/&quot;,</span>
+<span class="go">    trajectories=(&quot;living_room_traj0_frei_png&quot;, &quot;living_room_traj1_frei_png&quot;)</span>
+<span class="go">    )</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">loader</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">DataLoader</span><span class="p">(</span><span class="n">dataset</span><span class="o">=</span><span class="n">dataset</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">colors</span><span class="p">,</span> <span class="n">depths</span><span class="p">,</span> <span class="n">intrinsics</span><span class="p">,</span> <span class="n">poses</span><span class="p">,</span> <span class="n">transforms</span><span class="p">,</span> <span class="n">names</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="nb">iter</span><span class="p">(</span><span class="n">loader</span><span class="p">))</span>
+</pre></div>
+</div>
+<dl class="py method">
+<dt class="sig sig-object py" id="gradslam.datasets.ICL.__len__">
+<span class="sig-name descname"><span class="pre">__len__</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/datasets/icl.html#ICL.__len__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.datasets.ICL.__len__" title="Link to this definition"></a></dt>
+<dd><p>Returns the length of the dataset.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gradslam.datasets.ICL.__getitem__">
+<span class="sig-name descname"><span class="pre">__getitem__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">idx</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/datasets/icl.html#ICL.__getitem__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.datasets.ICL.__getitem__" title="Link to this definition"></a></dt>
+<dd><p>Return the data for the ICL sequence at <cite>idx</cite>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>idx</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>)</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="gradslam-datasets-scannet">
+<h2>gradslam.datasets.scannet<a class="headerlink" href="#gradslam-datasets-scannet" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="gradslam.datasets.Scannet">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">Scannet</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">basedir</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">seqmetadir</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scenes</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">start</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">end</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">height</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">480</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">width</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">640</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">seg_classes</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'scannet20'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">channels_first</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">normalize_color</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">return_depth</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">return_intrinsics</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">return_pose</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">return_transform</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">return_names</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">return_labels</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/datasets/scannet.html#Scannet"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.datasets.Scannet" title="Link to this definition"></a></dt>
+<dd><p>A torch Dataset for loading in <a class="reference external" href="http://www.scan-net.org/">the Scannet dataset</a>. Will fetch sequences of
+rgb images, depth maps, intrinsics matrices, poses, frame to frame relative transformations (with first frame’s
+pose as the reference transformation), names of sequences, and semantic segmentation labels.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>basedir</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Path to the base directory containing the <cite>sceneXXXX_XX/</cite> directories from ScanNet. Each scene
+subdirectory is assumed to contain <cite>color/</cite>, <cite>depth/</cite>, <cite>intrinsic/</cite>, <cite>label-filt/</cite> and <cite>pose/</cite> directories.</p></li>
+<li><p><strong>seqmetadir</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Path to directory containing sequence associations. Directory is assumed to contain
+metadata <cite>.txt</cite> files (one metadata per sequence): e.g. <cite>sceneXXXX_XX-seq_Y.txt</cite> .</p></li>
+<li><p><strong>scenes</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)"><em>tuple</em></a><em> of </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Scenes to use from sequences (used for creating train/val/test splits). Can
+be path to a <cite>.txt</cite> file where each line is a scene name (<cite>sceneXXXX_XX</cite>), a tuple of scene names, or None
+to use all scenes.</p></li>
+<li><p><strong>start</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Index of the frame from which to start for every sequence. Default: 0</p></li>
+<li><p><strong>end</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Index of the frame at which to end for every sequence. Default: -1</p></li>
+<li><p><strong>height</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Spatial height to resize frames to. Default: 480</p></li>
+<li><p><strong>width</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Spatial width to resize frames to. Default: 640</p></li>
+<li><p><strong>seg_classes</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – The palette of classes that the network should learn. Either <cite>“nyu40”</cite> or <cite>“scannet20”</cite>.
+Default: <cite>“scannet20”</cite></p></li>
+<li><p><strong>channels_first</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – If True, will use channels first representation <span class="math notranslate nohighlight">\((B, L, C, H, W)\)</span> for images
+<cite>(batchsize, sequencelength, channels, height, width)</cite>. If False, will use channels last representation
+<span class="math notranslate nohighlight">\((B, L, H, W, C)\)</span>. Default: False</p></li>
+<li><p><strong>normalize_color</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – Normalize color to range <span class="math notranslate nohighlight">\([0, 1]\)</span> or leave it at range <span class="math notranslate nohighlight">\([0, 255]\)</span>.
+Default: False</p></li>
+<li><p><strong>return_depth</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – Determines whether to return depths. Default: True</p></li>
+<li><p><strong>return_intrinsics</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – Determines whether to return intrinsics. Default: True</p></li>
+<li><p><strong>return_pose</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – Determines whether to return poses. Default: True</p></li>
+<li><p><strong>return_transform</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – Determines whether to return transforms w.r.t. initial pose being transformed to be
+identity. Default: True</p></li>
+<li><p><strong>return_names</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – Determines whether to return sequence names. Default: True</p></li>
+<li><p><strong>return_labels</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – Determines whether to return segmentation labels. Default: True</p></li>
+</ul>
+</dd>
+</dl>
+<p>Examples:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">dataset</span> <span class="o">=</span> <span class="n">Scannet</span><span class="p">(</span>
+<span class="go">    basedir=&quot;ScanNet-gradSLAM/extractions/scans/&quot;,</span>
+<span class="go">    seqmetadir=&quot;ScanNet-gradSLAM/extractions/sequence_associations/&quot;,</span>
+<span class="go">    scenes=(&quot;scene0000_00&quot;, &quot;scene0001_00&quot;)</span>
+<span class="go">    )</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">loader</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">DataLoader</span><span class="p">(</span><span class="n">dataset</span><span class="o">=</span><span class="n">dataset</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">colors</span><span class="p">,</span> <span class="n">depths</span><span class="p">,</span> <span class="n">intrinsics</span><span class="p">,</span> <span class="n">poses</span><span class="p">,</span> <span class="n">transforms</span><span class="p">,</span> <span class="n">names</span><span class="p">,</span> <span class="n">labels</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="nb">iter</span><span class="p">(</span><span class="n">loader</span><span class="p">))</span>
+</pre></div>
+</div>
+<dl class="py method">
+<dt class="sig sig-object py" id="gradslam.datasets.Scannet.__len__">
+<span class="sig-name descname"><span class="pre">__len__</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/datasets/scannet.html#Scannet.__len__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.datasets.Scannet.__len__" title="Link to this definition"></a></dt>
+<dd><p>Returns the length of the dataset.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gradslam.datasets.Scannet.__getitem__">
+<span class="sig-name descname"><span class="pre">__getitem__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">idx</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/datasets/scannet.html#Scannet.__getitem__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.datasets.Scannet.__getitem__" title="Link to this definition"></a></dt>
+<dd><p>Return the data for the ScanNet sequence at <cite>idx</cite>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>idx</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>)</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="gradslam-datasets-tum">
+<h2>gradslam.datasets.tum<a class="headerlink" href="#gradslam-datasets-tum" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="gradslam.datasets.TUM">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">TUM</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">basedir</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sequences</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">seqlen</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">4</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dilation</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stride</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">start</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">end</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">height</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">480</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">width</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">640</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">channels_first</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">normalize_color</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">return_depth</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">return_intrinsics</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">return_pose</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">return_transform</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">return_names</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">return_timestamps</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/datasets/tum.html#TUM"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.datasets.TUM" title="Link to this definition"></a></dt>
+<dd><p>A torch Dataset for loading in <a class="reference external" href="https://vision.in.tum.de/data/datasets/rgbd-dataset">the TUM dataset</a>.
+Will fetch sequences of rgb images, depth maps, intrinsics matrix, poses, frame to frame relative transformations
+(with first frame’s pose as the reference transformation), names of frames. Uses extracted <cite>.tgz</cite> sequences
+downloaded from <a class="reference external" href="https://vision.in.tum.de/data/datasets/rgbd-dataset/download">here</a>.
+Expects similar to the following folder structure for the TUM dataset:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>| ├── TUM
+| │   ├── rgbd_dataset_freiburg1_rpy
+| │   │   ├── depth/
+| │   │   ├── rgb/
+| │   │   ├── accelerometer.txt
+| │   │   ├── depth.txt
+| │   │   ├── groundtruth.txt
+| │   │   └── rgb.txt
+| │   ├── rgbd_dataset_freiburg1_xyz
+| │   │   ├── depth/
+| │   │   ├── rgb/
+| │   │   ├── accelerometer.txt
+| │   │   ├── depth.txt
+| │   │   ├── groundtruth.txt
+| │   │   └── rgb.txt
+| │   ├── ...
+|
+|
+</pre></div>
+</div>
+<p>Example of sequence creation from frames with <cite>seqlen=4</cite>, <cite>dilation=1</cite>, <cite>stride=3</cite>, and <cite>start=2</cite>:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>                                    sequence0
+                ┎───────────────┲───────────────┲───────────────┒
+                |               |               |               |
+frame0  frame1  frame2  frame3  frame4  frame5  frame6  frame7  frame8  frame9  frame10  frame11 ...
+                                        |               |               |                |
+                                        └───────────────┵───────────────┵────────────────┚
+                                                            sequence1
+</pre></div>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>basedir</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – <p>Path to the base directory containing extracted TUM sequences in separate directories.
+Each sequence subdirectory is assumed to contain <cite>depth/</cite>, <cite>rgb/</cite>, <cite>accelerometer.txt</cite>, <cite>depth.txt</cite> and
+<cite>groundtruth.txt</cite> and <cite>rgb.txt</cite>, E.g.:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>├── rgbd_dataset_freiburgX_NAME
+│   ├── depth/
+│   ├── rgb/
+│   ├── accelerometer.txt
+│   ├── depth.txt
+│   ├── groundtruth.txt
+│   └── rgb.txt
+</pre></div>
+</div>
+</p></li>
+<li><p><strong>sequences</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)"><em>tuple</em></a><em> of </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> or </em><em>None</em>) – Sequences to use from those available in <cite>basedir</cite>.
+Can be path to a <cite>.txt</cite> file where each line is a sequence name (e.g. <cite>rgbd_dataset_freiburg1_rpy</cite>),
+a tuple of sequence names, or None to use all sequences. Default: None</p></li>
+<li><p><strong>seqlen</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Number of frames to use for each sequence of frames. Default: 4</p></li>
+<li><p><strong>dilation</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em> or </em><em>None</em>) – Number of (original trajectory’s) frames to skip between two consecutive
+frames in the extracted sequence. See above example if unsure.
+If None, will set <cite>dilation = 0</cite>. Default: None</p></li>
+<li><p><strong>stride</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em> or </em><em>None</em>) – Number of frames between the first frames of two consecutive extracted sequences.
+See above example if unsure. If None, will set <cite>stride = seqlen * (dilation + 1)</cite>
+(non-overlapping sequences). Default: None</p></li>
+<li><p><strong>start</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em> or </em><em>None</em>) – Index of the rgb frame from which to start extracting sequences for every sequence.
+If None, will start from the first frame. Default: None</p></li>
+<li><p><strong>end</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Index of the rgb frame at which to stop extracting sequences for every sequence.
+If None, will continue extracting frames until the end of the sequence. Default: None</p></li>
+<li><p><strong>height</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Spatial height to resize frames to. Default: 480</p></li>
+<li><p><strong>width</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Spatial width to resize frames to. Default: 640</p></li>
+<li><p><strong>channels_first</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – If True, will use channels first representation <span class="math notranslate nohighlight">\((B, L, C, H, W)\)</span> for images
+<cite>(batchsize, sequencelength, channels, height, width)</cite>. If False, will use channels last representation
+<span class="math notranslate nohighlight">\((B, L, H, W, C)\)</span>. Default: False</p></li>
+<li><p><strong>normalize_color</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – Normalize color to range <span class="math notranslate nohighlight">\([0 1]\)</span> or leave it at range <span class="math notranslate nohighlight">\([0 255]\)</span>.
+Default: False</p></li>
+<li><p><strong>return_depth</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – Determines whether to return depths. Default: True</p></li>
+<li><p><strong>return_intrinsics</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – Determines whether to return intrinsics. Default: True</p></li>
+<li><p><strong>return_pose</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – Determines whether to return poses. Default: True</p></li>
+<li><p><strong>return_transform</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – Determines whether to return transforms w.r.t. initial pose being transformed to be
+identity. Default: True</p></li>
+<li><p><strong>return_names</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – Determines whether to return sequence names. Default: True</p></li>
+<li><p><strong>return_timestamps</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – Determines whether to return rgb, depth and pose timestamps. Default: True</p></li>
+</ul>
+</dd>
+</dl>
+<p>Examples:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">dataset</span> <span class="o">=</span> <span class="n">TUM</span><span class="p">(</span>
+<span class="go">    basedir=&quot;TUM-data/&quot;,</span>
+<span class="go">    sequences=(&quot;rgbd_dataset_freiburg1_rpy&quot;, &quot;rgbd_dataset_freiburg1_xyz&quot;))</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">loader</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">DataLoader</span><span class="p">(</span><span class="n">dataset</span><span class="o">=</span><span class="n">dataset</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">colors</span><span class="p">,</span> <span class="n">depths</span><span class="p">,</span> <span class="n">intrinsics</span><span class="p">,</span> <span class="n">poses</span><span class="p">,</span> <span class="n">transforms</span><span class="p">,</span> <span class="n">names</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="nb">iter</span><span class="p">(</span><span class="n">loader</span><span class="p">))</span>
+</pre></div>
+</div>
+<dl class="py method">
+<dt class="sig sig-object py" id="gradslam.datasets.TUM.__len__">
+<span class="sig-name descname"><span class="pre">__len__</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/datasets/tum.html#TUM.__len__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.datasets.TUM.__len__" title="Link to this definition"></a></dt>
+<dd><p>Returns the length of the dataset.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gradslam.datasets.TUM.__getitem__">
+<span class="sig-name descname"><span class="pre">__getitem__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">idx</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/datasets/tum.html#TUM.__getitem__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.datasets.TUM.__getitem__" title="Link to this definition"></a></dt>
+<dd><p>Return the data for the TUM sequence at <cite>idx</cite>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>idx</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>)</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="gradslam-datasets-datautils">
+<h2>gradslam.datasets.datautils<a class="headerlink" href="#gradslam-datasets-datautils" title="Link to this heading"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="gradslam.datasets.normalize_image">
+<span class="sig-name descname"><span class="pre">normalize_image</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">rgb</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/datasets/datautils.html#normalize_image"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.datasets.normalize_image" title="Link to this definition"></a></dt>
+<dd><p>Normalizes RGB image values from <span class="math notranslate nohighlight">\([0, 255]\)</span> range to <span class="math notranslate nohighlight">\([0, 1]\)</span> range.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>rgb</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>torch.Tensor</em></a><em> or </em><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.4)"><em>numpy.ndarray</em></a>) – RGB image in range <span class="math notranslate nohighlight">\([0, 255]\)</span></p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Normalized RGB image in range <span class="math notranslate nohighlight">\([0, 1]\)</span></p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)">torch.Tensor</a> or <a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.4)">numpy.ndarray</a></p>
+</dd>
+</dl>
+<dl class="simple">
+<dt>Shape:</dt><dd><ul class="simple">
+<li><p>rgb: <span class="math notranslate nohighlight">\((*)\)</span> (any shape)</p></li>
+<li><p>Output: Same shape as input <span class="math notranslate nohighlight">\((*)\)</span></p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="gradslam.datasets.channels_first">
+<span class="sig-name descname"><span class="pre">channels_first</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">rgb</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/datasets/datautils.html#channels_first"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.datasets.channels_first" title="Link to this definition"></a></dt>
+<dd><p>Converts from channels last representation <span class="math notranslate nohighlight">\((*, H, W, C)\)</span> to channels first representation
+<span class="math notranslate nohighlight">\((*, C, H, W)\)</span></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>rgb</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>torch.Tensor</em></a><em> or </em><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.4)"><em>numpy.ndarray</em></a>) – <span class="math notranslate nohighlight">\((*, H, W, C)\)</span> ordering <cite>(*, height, width, channels)</cite></p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="math notranslate nohighlight">\((*, C, H, W)\)</span> ordering</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)">torch.Tensor</a> or <a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.4)">numpy.ndarray</a></p>
+</dd>
+</dl>
+<dl class="simple">
+<dt>Shape:</dt><dd><ul class="simple">
+<li><p>rgb: <span class="math notranslate nohighlight">\((*, H, W, C)\)</span></p></li>
+<li><p>Output: <span class="math notranslate nohighlight">\((*, C, H, W)\)</span></p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="gradslam.datasets.scale_intrinsics">
+<span class="sig-name descname"><span class="pre">scale_intrinsics</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">intrinsics</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">h_ratio</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">w_ratio</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/datasets/datautils.html#scale_intrinsics"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.datasets.scale_intrinsics" title="Link to this definition"></a></dt>
+<dd><p>Scales the intrinsics appropriately for resized frames where
+<span class="math notranslate nohighlight">\(h_\text{ratio} = h_\text{new} / h_\text{old}\)</span> and <span class="math notranslate nohighlight">\(w_\text{ratio} = w_\text{new} / w_\text{old}\)</span></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>intrinsics</strong> (<a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.4)"><em>numpy.ndarray</em></a><em> or </em><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>torch.Tensor</em></a>) – Intrinsics matrix of original frame</p></li>
+<li><p><strong>h_ratio</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Ratio of new frame’s height to old frame’s height
+<span class="math notranslate nohighlight">\(h_\text{ratio} = h_\text{new} / h_\text{old}\)</span></p></li>
+<li><p><strong>w_ratio</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Ratio of new frame’s width to old frame’s width
+<span class="math notranslate nohighlight">\(w_\text{ratio} = w_\text{new} / w_\text{old}\)</span></p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Intrinsics matrix scaled approprately for new frame size</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.4)">numpy.ndarray</a> or <a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)">torch.Tensor</a></p>
+</dd>
+</dl>
+<dl class="simple">
+<dt>Shape:</dt><dd><ul class="simple">
+<li><p>intrinsics: <span class="math notranslate nohighlight">\((*, 3, 3)\)</span> or <span class="math notranslate nohighlight">\((*, 4, 4)\)</span></p></li>
+<li><p>Output: Matches <cite>intrinsics</cite> shape, <span class="math notranslate nohighlight">\((*, 3, 3)\)</span> or <span class="math notranslate nohighlight">\((*, 4, 4)\)</span></p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="gradslam.datasets.pointquaternion_to_homogeneous">
+<span class="sig-name descname"><span class="pre">pointquaternion_to_homogeneous</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pointquaternions</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">eps</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1e-12</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/datasets/datautils.html#pointquaternion_to_homogeneous"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.datasets.pointquaternion_to_homogeneous" title="Link to this definition"></a></dt>
+<dd><p>Converts 3D point and unit quaternions <span class="math notranslate nohighlight">\((t_x, t_y, t_z, q_x, q_y, q_z, q_w)\)</span> to
+homogeneous transformations [R | t] where <span class="math notranslate nohighlight">\(R\)</span> denotes the <span class="math notranslate nohighlight">\((3, 3)\)</span> rotation matrix and <span class="math notranslate nohighlight">\(T\)</span>
+denotes the <span class="math notranslate nohighlight">\((3, 1)\)</span> translation matrix:</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\left[\begin{array}{&#64;{}c:c&#64;{}}
+R &amp; T \\ \hdashline
+\begin{array}{&#64;{}ccc&#64;{}}
+    0 &amp; 0 &amp; 0
+\end{array}  &amp; 1
+\end{array}\right]\end{split}\]</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>pointquaternions</strong> (<a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.4)"><em>numpy.ndarray</em></a><em> or </em><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>torch.Tensor</em></a>) – 3D point positions and unit quaternions
+<span class="math notranslate nohighlight">\((tx, ty, tz, qx, qy, qz, qw)\)</span> where <span class="math notranslate nohighlight">\((tx, ty, tz)\)</span> is the 3D position and
+<span class="math notranslate nohighlight">\((qx, qy, qz, qw)\)</span> is the unit quaternion.</p></li>
+<li><p><strong>eps</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Small value, to avoid division by zero. Default: 1e-12</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Homogeneous transformation matrices.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.4)">numpy.ndarray</a> or <a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)">torch.Tensor</a></p>
+</dd>
+</dl>
+<dl class="simple">
+<dt>Shape:</dt><dd><ul class="simple">
+<li><p>pointquaternions: <span class="math notranslate nohighlight">\((*, 7)\)</span></p></li>
+<li><p>Output: <span class="math notranslate nohighlight">\((*, 4, 4)\)</span></p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="gradslam.datasets.poses_to_transforms">
+<span class="sig-name descname"><span class="pre">poses_to_transforms</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">poses</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/datasets/datautils.html#poses_to_transforms"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.datasets.poses_to_transforms" title="Link to this definition"></a></dt>
+<dd><p>Converts poses to transformations w.r.t. the first frame in the sequence having identity pose</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>poses</strong> (<a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.4)"><em>numpy.ndarray</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em> of </em><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.4)"><em>numpy.ndarray</em></a>) – Sequence of poses in <cite>numpy.ndarray</cite> format.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><dl class="simple">
+<dt>Sequence of frame to frame transformations where initial</dt><dd><p>frame is transformed to have identity pose.</p>
+</dd>
+</dl>
+</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.4)">numpy.ndarray</a> or <a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)">list</a> of <a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.4)">numpy.ndarray</a></p>
+</dd>
+</dl>
+<dl class="simple">
+<dt>Shape:</dt><dd><ul class="simple">
+<li><p>poses: Could be <cite>numpy.ndarray</cite> of shape <span class="math notranslate nohighlight">\((N, 4, 4)\)</span>, or list of <cite>numpy.ndarray`s of shape
+:math:`(4, 4)</cite></p></li>
+<li><p>Output: Of same shape as input <cite>poses</cite></p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="gradslam.datasets.create_label_image">
+<span class="sig-name descname"><span class="pre">create_label_image</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">prediction</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">color_palette</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/datasets/datautils.html#create_label_image"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.datasets.create_label_image" title="Link to this definition"></a></dt>
+<dd><p>Creates a label image, given a network prediction (each pixel contains class index) and a color palette.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>prediction</strong> (<a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.4)"><em>numpy.ndarray</em></a>) – Predicted image where each pixel contains an integer,
+corresponding to its class label.</p></li>
+<li><p><strong>color_palette</strong> (<em>OrderedDict</em>) – Contains RGB colors (<cite>uint8</cite>) for each class.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Label image with the given color palette</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.4)">numpy.ndarray</a></p>
+</dd>
+</dl>
+<dl class="simple">
+<dt>Shape:</dt><dd><ul class="simple">
+<li><p>prediction: <span class="math notranslate nohighlight">\((H, W)\)</span></p></li>
+<li><p>Output: <span class="math notranslate nohighlight">\((H, W)\)</span></p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="backend.html" class="btn btn-neutral float-left" title="Backend" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="geometry.html" class="btn btn-neutral float-right" title="gradslam.geometry" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020–2026, Montreal Robotics Lab.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

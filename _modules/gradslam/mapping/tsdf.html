@@ -1,0 +1,312 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>gradslam.mapping.tsdf &mdash; gradslam 0.2.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
+
+  
+    <link rel="shortcut icon" href="../../../_static/gradslam-favicon-32x32.png"/>
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=938c9ccc"></script>
+      <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            gradslam
+              <img src="../../../_static/gradslam-logo.png" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials/tutorial_prerequisits.html">Prerequisits</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials.html">Getting started with RGBDImages</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials.html#getting-started-with-pointclouds">Getting started with Pointclouds</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials.html#pointfusion-slam">PointFusion SLAM</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/config.html">gradslam.config</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/backend.html">Backend</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/datasets.html">gradslam.datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/geometry.html">gradslam.geometry</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/icp.html">ICP Tracking</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/mapping.html">Mapping &amp; Fusion</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/metrics.html">gradslam.metrics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/odometry.html">gradslam.odometry</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/rendering.html">Rendering</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/slam.html">gradslam.slam</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/structures.html">gradslam.structures</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/utils.html">gradslam.utils</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">gradslam</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">gradslam.mapping.tsdf</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for gradslam.mapping.tsdf</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Truncated Signed Distance Function (TSDF) fusion for 3D reconstruction.&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+
+
+<div class="viewcode-block" id="TSDFConfig">
+<a class="viewcode-back" href="../../../modules/mapping.html#gradslam.mapping.TSDFConfig">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">TSDFConfig</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;TSDF volume configuration.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        voxel_size: Size of each voxel in meters.</span>
+<span class="sd">        truncation_margin_voxels: Truncation margin in voxel counts.</span>
+<span class="sd">        fuse_color: Whether to fuse color alongside geometry.</span>
+<span class="sd">        dtype: Data type for TSDF values.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">voxel_size</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.02</span>
+    <span class="n">truncation_margin_voxels</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3</span>
+    <span class="n">fuse_color</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">dtype</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">dtype</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">float32</span></div>
+
+
+
+<div class="viewcode-block" id="TSDFVolume">
+<a class="viewcode-back" href="../../../modules/mapping.html#gradslam.mapping.TSDFVolume">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">TSDFVolume</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;TSDF volume for incremental dense reconstruction.</span>
+
+<span class="sd">    Stores signed distance and weight for each voxel, updated via frame-wise fusion.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">voxel_dim</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">origin</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">config</span><span class="p">:</span> <span class="n">TSDFConfig</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">device</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">device</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize TSDF volume.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            voxel_dim: [3] shape of voxel grid (nx, ny, nz).</span>
+<span class="sd">            origin: [3] world-space origin of volume.</span>
+<span class="sd">            config: TSDFConfig instance.</span>
+<span class="sd">            device: Target device.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">config</span> <span class="o">=</span> <span class="n">config</span> <span class="ow">or</span> <span class="n">TSDFConfig</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">device</span> <span class="o">=</span> <span class="n">device</span> <span class="ow">or</span> <span class="n">torch</span><span class="o">.</span><span class="n">device</span><span class="p">(</span><span class="s2">&quot;cpu&quot;</span><span class="p">)</span>
+
+        <span class="n">voxel_dim</span> <span class="o">=</span> <span class="n">voxel_dim</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+        <span class="n">origin</span> <span class="o">=</span> <span class="n">origin</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">register_buffer</span><span class="p">(</span><span class="s2">&quot;_voxel_dim&quot;</span><span class="p">,</span> <span class="n">voxel_dim</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">register_buffer</span><span class="p">(</span><span class="s2">&quot;_origin&quot;</span><span class="p">,</span> <span class="n">origin</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">register_buffer</span><span class="p">(</span>
+            <span class="s2">&quot;tsdf&quot;</span><span class="p">,</span>
+            <span class="n">torch</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span>
+                <span class="n">voxel_dim</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">voxel_dim</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">voxel_dim</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span>
+                <span class="n">device</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">,</span>
+                <span class="n">dtype</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span>
+            <span class="p">),</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">register_buffer</span><span class="p">(</span>
+            <span class="s2">&quot;weight&quot;</span><span class="p">,</span>
+            <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span>
+                <span class="n">voxel_dim</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">voxel_dim</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">voxel_dim</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span>
+                <span class="n">device</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">,</span>
+                <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">,</span>
+            <span class="p">),</span>
+        <span class="p">)</span>
+
+<div class="viewcode-block" id="TSDFVolume.integrate">
+<a class="viewcode-back" href="../../../modules/mapping.html#gradslam.mapping.TSDFVolume.integrate">[docs]</a>
+    <span class="nd">@torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">()</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">integrate</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">depth</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">intrinsics</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">T_world_camera</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">obs_weight</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
+        <span class="n">color</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Integrate a depth frame into the TSDF volume.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            depth: Depth image [H, W] in meters.</span>
+<span class="sd">            intrinsics: Camera intrinsics [3, 3] (K matrix).</span>
+<span class="sd">            T_world_camera: Camera pose in world frame [4, 4].</span>
+<span class="sd">            obs_weight: Weight of this observation. Default: 1.0.</span>
+<span class="sd">            color: Optional color image [H, W, 3] in [0, 1] or [0, 255].</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">H</span><span class="p">,</span> <span class="n">W</span> <span class="o">=</span> <span class="n">depth</span><span class="o">.</span><span class="n">shape</span>
+        <span class="n">device</span> <span class="o">=</span> <span class="n">depth</span><span class="o">.</span><span class="n">device</span>
+        <span class="n">dtype</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">dtype</span>
+
+        <span class="c1"># Inverse camera transform (world to camera)</span>
+        <span class="n">T_camera_world</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">inv</span><span class="p">(</span><span class="n">T_world_camera</span><span class="p">)</span>
+        <span class="n">R</span> <span class="o">=</span> <span class="n">T_camera_world</span><span class="p">[:</span><span class="mi">3</span><span class="p">,</span> <span class="p">:</span><span class="mi">3</span><span class="p">]</span>
+        <span class="n">t</span> <span class="o">=</span> <span class="n">T_camera_world</span><span class="p">[:</span><span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">]</span>
+
+        <span class="c1"># Voxel centers in world coordinates</span>
+        <span class="n">voxel_dim_float</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_voxel_dim</span><span class="o">.</span><span class="n">float</span><span class="p">()</span>
+        <span class="n">voxel_coords</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_voxel_coordinates</span><span class="p">(</span><span class="n">device</span><span class="p">,</span> <span class="n">dtype</span><span class="p">)</span>  <span class="c1"># [N, 3]</span>
+        <span class="n">voxel_world</span> <span class="o">=</span> <span class="n">voxel_coords</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">voxel_size</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">_origin</span>
+
+        <span class="c1"># Transform to camera frame</span>
+        <span class="n">voxel_camera</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">matmul</span><span class="p">(</span><span class="n">voxel_world</span><span class="p">,</span> <span class="n">R</span><span class="o">.</span><span class="n">t</span><span class="p">())</span> <span class="o">+</span> <span class="n">t</span>  <span class="c1"># [N, 3]</span>
+
+        <span class="c1"># Project to image</span>
+        <span class="n">fx</span><span class="p">,</span> <span class="n">fy</span> <span class="o">=</span> <span class="n">intrinsics</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">intrinsics</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span>
+        <span class="n">cx</span><span class="p">,</span> <span class="n">cy</span> <span class="o">=</span> <span class="n">intrinsics</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">],</span> <span class="n">intrinsics</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span>
+
+        <span class="n">u</span> <span class="o">=</span> <span class="p">(</span><span class="n">voxel_camera</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">fx</span> <span class="o">/</span> <span class="n">voxel_camera</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">]</span> <span class="o">+</span> <span class="n">cx</span><span class="p">)</span><span class="o">.</span><span class="n">long</span><span class="p">()</span>
+        <span class="n">v</span> <span class="o">=</span> <span class="p">(</span><span class="n">voxel_camera</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">fy</span> <span class="o">/</span> <span class="n">voxel_camera</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">]</span> <span class="o">+</span> <span class="n">cy</span><span class="p">)</span><span class="o">.</span><span class="n">long</span><span class="p">()</span>
+
+        <span class="c1"># Frustum check</span>
+        <span class="n">valid</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="p">(</span><span class="n">voxel_camera</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span>
+            <span class="o">&amp;</span> <span class="p">(</span><span class="n">u</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">)</span>
+            <span class="o">&amp;</span> <span class="p">(</span><span class="n">u</span> <span class="o">&lt;</span> <span class="n">W</span><span class="p">)</span>
+            <span class="o">&amp;</span> <span class="p">(</span><span class="n">v</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">)</span>
+            <span class="o">&amp;</span> <span class="p">(</span><span class="n">v</span> <span class="o">&lt;</span> <span class="n">H</span><span class="p">)</span>
+        <span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">valid</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="c1"># Valid voxel positions</span>
+        <span class="n">voxel_coords_valid</span> <span class="o">=</span> <span class="n">voxel_coords</span><span class="p">[</span><span class="n">valid</span><span class="p">]</span>
+        <span class="n">u_valid</span> <span class="o">=</span> <span class="n">u</span><span class="p">[</span><span class="n">valid</span><span class="p">]</span>
+        <span class="n">v_valid</span> <span class="o">=</span> <span class="n">v</span><span class="p">[</span><span class="n">valid</span><span class="p">]</span>
+        <span class="n">voxel_camera_valid</span> <span class="o">=</span> <span class="n">voxel_camera</span><span class="p">[</span><span class="n">valid</span><span class="p">]</span>
+
+        <span class="c1"># Sample depth at projected pixel positions</span>
+        <span class="n">depth_sampled</span> <span class="o">=</span> <span class="n">depth</span><span class="p">[</span><span class="n">v_valid</span><span class="p">,</span> <span class="n">u_valid</span><span class="p">]</span>
+
+        <span class="c1"># Keep only voxels with valid (non-zero) depth readings</span>
+        <span class="n">depth_mask</span> <span class="o">=</span> <span class="n">depth_sampled</span> <span class="o">&gt;</span> <span class="mi">0</span>
+        <span class="k">if</span> <span class="n">depth_mask</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="n">voxel_coords_valid</span> <span class="o">=</span> <span class="n">voxel_coords_valid</span><span class="p">[</span><span class="n">depth_mask</span><span class="p">]</span>
+        <span class="n">voxel_camera_valid</span> <span class="o">=</span> <span class="n">voxel_camera_valid</span><span class="p">[</span><span class="n">depth_mask</span><span class="p">]</span>
+        <span class="n">depth_sampled</span> <span class="o">=</span> <span class="n">depth_sampled</span><span class="p">[</span><span class="n">depth_mask</span><span class="p">]</span>
+
+        <span class="c1"># Signed distance and truncation</span>
+        <span class="n">signed_dist</span> <span class="o">=</span> <span class="n">depth_sampled</span> <span class="o">-</span> <span class="n">voxel_camera_valid</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">]</span>
+        <span class="n">trunc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">truncation_margin_voxels</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">voxel_size</span>
+        <span class="n">truncated_dist</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">clamp</span><span class="p">(</span><span class="n">signed_dist</span><span class="p">,</span> <span class="o">-</span><span class="n">trunc</span><span class="p">,</span> <span class="n">trunc</span><span class="p">)</span>
+
+        <span class="c1"># Linearize 3D voxel coordinates to flat indices (row-major / C order)</span>
+        <span class="n">nx</span><span class="p">,</span> <span class="n">ny</span><span class="p">,</span> <span class="n">nz</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_voxel_dim</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">_voxel_dim</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">_voxel_dim</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+        <span class="n">xi</span><span class="p">,</span> <span class="n">yi</span><span class="p">,</span> <span class="n">zi</span> <span class="o">=</span> <span class="n">voxel_coords_valid</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">long</span><span class="p">(),</span> <span class="n">voxel_coords_valid</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">long</span><span class="p">(),</span> <span class="n">voxel_coords_valid</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">long</span><span class="p">()</span>
+        <span class="n">flat_idx</span> <span class="o">=</span> <span class="n">xi</span> <span class="o">*</span> <span class="p">(</span><span class="n">ny</span> <span class="o">*</span> <span class="n">nz</span><span class="p">)</span> <span class="o">+</span> <span class="n">yi</span> <span class="o">*</span> <span class="n">nz</span> <span class="o">+</span> <span class="n">zi</span>  <span class="c1"># [M]</span>
+
+        <span class="c1"># Vectorized running-average TSDF update</span>
+        <span class="n">tsdf_flat</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tsdf</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">weight_flat</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">weight</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="n">old_w</span> <span class="o">=</span> <span class="n">weight_flat</span><span class="p">[</span><span class="n">flat_idx</span><span class="p">]</span>
+        <span class="n">old_tsdf</span> <span class="o">=</span> <span class="n">tsdf_flat</span><span class="p">[</span><span class="n">flat_idx</span><span class="p">]</span>
+        <span class="n">new_w</span> <span class="o">=</span> <span class="n">old_w</span> <span class="o">+</span> <span class="n">obs_weight</span>
+        <span class="n">new_tsdf</span> <span class="o">=</span> <span class="p">(</span><span class="n">old_tsdf</span> <span class="o">*</span> <span class="n">old_w</span> <span class="o">+</span> <span class="n">truncated_dist</span> <span class="o">*</span> <span class="n">obs_weight</span><span class="p">)</span> <span class="o">/</span> <span class="n">new_w</span>
+
+        <span class="n">tsdf_flat</span><span class="o">.</span><span class="n">scatter_</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">flat_idx</span><span class="p">,</span> <span class="n">new_tsdf</span><span class="p">)</span>
+        <span class="n">weight_flat</span><span class="o">.</span><span class="n">scatter_</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">flat_idx</span><span class="p">,</span> <span class="n">new_w</span><span class="p">)</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_voxel_coordinates</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">device</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">device</span><span class="p">,</span> <span class="n">dtype</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">dtype</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Generate all voxel coordinates.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            [N, 3] voxel coordinates where N = nx*ny*nz.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">nx</span><span class="p">,</span> <span class="n">ny</span><span class="p">,</span> <span class="n">nz</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_voxel_dim</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">nx</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">ny</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span>
+        <span class="n">z</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">nz</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span>
+        <span class="n">coords</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">meshgrid</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">z</span><span class="p">,</span> <span class="n">indexing</span><span class="o">=</span><span class="s2">&quot;ij&quot;</span><span class="p">),</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">coords</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020–2026, Montreal Robotics Lab.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

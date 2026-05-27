@@ -1,0 +1,371 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>gradslam.slam &mdash; gradslam 0.2.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
+
+  
+    <link rel="shortcut icon" href="../_static/gradslam-favicon-32x32.png"/>
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=938c9ccc"></script>
+      <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true}, "options": {"ignoreHtmlClass": "tex2jax_ignore|mathjax_ignore|document", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+      <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="gradslam.structures" href="structures.html" />
+    <link rel="prev" title="Rendering" href="rendering.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            gradslam
+              <img src="../_static/gradslam-logo.png" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/tutorial_prerequisits.html">Prerequisits</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials.html">Getting started with RGBDImages</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials.html#getting-started-with-pointclouds">Getting started with Pointclouds</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials.html#pointfusion-slam">PointFusion SLAM</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="config.html">gradslam.config</a></li>
+<li class="toctree-l1"><a class="reference internal" href="backend.html">Backend</a></li>
+<li class="toctree-l1"><a class="reference internal" href="datasets.html">gradslam.datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="geometry.html">gradslam.geometry</a></li>
+<li class="toctree-l1"><a class="reference internal" href="icp.html">ICP Tracking</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mapping.html">Mapping &amp; Fusion</a></li>
+<li class="toctree-l1"><a class="reference internal" href="metrics.html">gradslam.metrics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="odometry.html">gradslam.odometry</a></li>
+<li class="toctree-l1"><a class="reference internal" href="rendering.html">Rendering</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">gradslam.slam</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#gradslam-slam-icpslam">gradslam.slam.icpslam</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#gradslam.slam.ICPSLAM"><code class="docutils literal notranslate"><span class="pre">ICPSLAM</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.slam.ICPSLAM.forward"><code class="docutils literal notranslate"><span class="pre">ICPSLAM.forward()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.slam.ICPSLAM.step"><code class="docutils literal notranslate"><span class="pre">ICPSLAM.step()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#gradslam-slam-pointfusion">gradslam.slam.pointfusion</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#gradslam.slam.PointFusion"><code class="docutils literal notranslate"><span class="pre">PointFusion</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#gradslam-slam-fusionutils">gradslam.slam.fusionutils</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#gradslam.slam.update_map_fusion"><code class="docutils literal notranslate"><span class="pre">update_map_fusion()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#gradslam.slam.update_map_aggregate"><code class="docutils literal notranslate"><span class="pre">update_map_aggregate()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="structures.html">gradslam.structures</a></li>
+<li class="toctree-l1"><a class="reference internal" href="utils.html">gradslam.utils</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">gradslam</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">gradslam.slam</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/modules/slam.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="gradslam-slam">
+<h1>gradslam.slam<a class="headerlink" href="#gradslam-slam" title="Link to this heading"></a></h1>
+<section id="gradslam-slam-icpslam">
+<h2>gradslam.slam.icpslam<a class="headerlink" href="#gradslam-slam-icpslam" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="gradslam.slam.ICPSLAM">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">ICPSLAM</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">odom</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'gradicp'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dsratio</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">4</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">numiters</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">damp</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1e-08</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dist_thresh</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lambda_max</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">B</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">B2</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nu</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">200.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">device</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/slam/icpslam.html#ICPSLAM"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.slam.ICPSLAM" title="Link to this definition"></a></dt>
+<dd><p>ICP-SLAM for batched sequences of RGB-D images.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>odom</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Odometry method to be used from {‘gt’, ‘icp’, ‘gradicp’}. Default: ‘gradicp’</p></li>
+<li><p><strong>dsratio</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Downsampling ratio to apply to input frames before ICP. Only used if <cite>odom</cite> is
+‘icp’ or ‘gradicp’. Default: 4</p></li>
+<li><p><strong>numiters</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Number of iterations to run the optimization for. Only used if <cite>odom</cite> is
+‘icp’ or ‘gradicp’. Default: 20</p></li>
+<li><p><strong>damp</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em> or </em><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>torch.Tensor</em></a>) – Damping coefficient for nonlinear least-squares. Only used if <cite>odom</cite> is
+‘icp’ or ‘gradicp’. Default: 1e-8</p></li>
+<li><p><strong>dist_thresh</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em> or </em><em>None</em>) – Distance threshold for removing <cite>src_pc</cite> points distant from <cite>tgt_pc</cite>.
+Only used if <cite>odom</cite> is ‘icp’ or ‘gradicp’. Default: None</p></li>
+<li><p><strong>lambda_max</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Maximum value the damping function can assume (<cite>lambda_min</cite> will be
+<span class="math notranslate nohighlight">\(\frac{1}{\text{lambda_max}}\)</span>). Only used if <cite>odom</cite> is ‘gradicp’.</p></li>
+<li><p><strong>B</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – gradLM falloff control parameter (see GradICPOdometryProvider description).
+Only used if <cite>odom</cite> is ‘gradicp’.</p></li>
+<li><p><strong>B2</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – gradLM control parameter (see GradICPOdometryProvider description).
+Only used if <cite>odom</cite> is ‘gradicp’.</p></li>
+<li><p><strong>nu</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – gradLM control parameter (see GradICPOdometryProvider description).
+Only used if <cite>odom</cite> is ‘gradicp’.</p></li>
+<li><p><strong>device</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensor_attributes.html#torch.device" title="(in PyTorch v2.12)"><em>torch.device</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> or </em><em>None</em>) – The desired device of internal tensors. If None, sets device to be
+the CPU. Default: None</p></li>
+</ul>
+</dd>
+</dl>
+<p>Examples:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">rgbdimages</span> <span class="o">=</span> <span class="n">RGBDImages</span><span class="p">(</span><span class="n">colors</span><span class="p">,</span> <span class="n">depths</span><span class="p">,</span> <span class="n">intrinsics</span><span class="p">,</span> <span class="n">poses</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">slam</span> <span class="o">=</span> <span class="n">ICPSLAM</span><span class="p">(</span><span class="n">odom</span><span class="o">=</span><span class="s1">&#39;gt&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">pointclouds</span><span class="p">,</span> <span class="n">poses</span> <span class="o">=</span> <span class="n">slam</span><span class="p">(</span><span class="n">rgbdimages</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">o3d</span><span class="o">.</span><span class="n">visualization</span><span class="o">.</span><span class="n">draw_geometries</span><span class="p">([</span><span class="n">pointclouds</span><span class="o">.</span><span class="n">o3d</span><span class="p">(</span><span class="mi">0</span><span class="p">)])</span>
+
+<span class="gp">&gt;&gt;&gt; </span><span class="n">rgbdimages</span> <span class="o">=</span> <span class="n">RGBDImages</span><span class="p">(</span><span class="n">colors</span><span class="p">,</span> <span class="n">depths</span><span class="p">,</span> <span class="n">intrinsics</span><span class="p">,</span> <span class="n">poses</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">slam</span> <span class="o">=</span> <span class="n">ICPSLAM</span><span class="p">(</span><span class="n">odom</span><span class="o">=</span><span class="s1">&#39;gt&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">pointclouds</span> <span class="o">=</span> <span class="n">Pointclouds</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">pointclouds</span><span class="p">,</span> <span class="n">new_poses</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">step</span><span class="p">(</span><span class="n">pointclouds</span><span class="p">,</span> <span class="n">frames</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="kc">None</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">frames</span><span class="o">.</span><span class="n">poses</span><span class="p">[:,</span> <span class="p">:</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">new_poses</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">pointclouds</span><span class="p">,</span> <span class="n">new_poses</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">step</span><span class="p">(</span><span class="n">pointclouds</span><span class="p">,</span> <span class="n">frames</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">frames</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">])</span>
+
+<span class="gp">&gt;&gt;&gt; </span><span class="n">rgbdimages</span> <span class="o">=</span> <span class="n">RGBDImages</span><span class="p">(</span><span class="n">colors</span><span class="p">,</span> <span class="n">depths</span><span class="p">,</span> <span class="n">intrinsics</span><span class="p">,</span> <span class="n">poses</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">slam</span> <span class="o">=</span> <span class="n">ICPSLAM</span><span class="p">(</span><span class="n">odom</span><span class="o">=</span><span class="s1">&#39;gradicp&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">pointclouds</span> <span class="o">=</span> <span class="n">Pointclouds</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">pointclouds</span><span class="p">,</span> <span class="n">new_poses</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">step</span><span class="p">(</span><span class="n">pointclouds</span><span class="p">,</span> <span class="n">frames</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="kc">None</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">frames</span><span class="o">.</span><span class="n">poses</span><span class="p">[:,</span> <span class="p">:</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">new_poses</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">pointclouds</span><span class="p">,</span> <span class="n">new_poses</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">step</span><span class="p">(</span><span class="n">pointclouds</span><span class="p">,</span> <span class="n">frames</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">frames</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">])</span>
+</pre></div>
+</div>
+<dl class="py method">
+<dt class="sig sig-object py" id="gradslam.slam.ICPSLAM.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">frames</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/slam/icpslam.html#ICPSLAM.forward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.slam.ICPSLAM.forward" title="Link to this definition"></a></dt>
+<dd><p>Builds global map pointclouds from a batch of input RGBDImages with a batch size
+of <span class="math notranslate nohighlight">\(B\)</span> and sequence length of <span class="math notranslate nohighlight">\(L\)</span>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>frames</strong> (<em>gradslam.RGBDImages</em>) – Input batch of frames with a sequence length of <cite>L</cite>.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><p>tuple containing:</p>
+<ul class="simple">
+<li><p>pointclouds (gradslam.Pointclouds): Pointclouds object containing <span class="math notranslate nohighlight">\(B\)</span> global maps</p></li>
+<li><p>poses (torch.Tensor): Poses computed by the odometry method</p></li>
+</ul>
+</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)">tuple</a></p>
+</dd>
+</dl>
+<dl class="simple">
+<dt>Shape:</dt><dd><ul class="simple">
+<li><p>poses: <span class="math notranslate nohighlight">\((B, L, 4, 4)\)</span></p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gradslam.slam.ICPSLAM.step">
+<span class="sig-name descname"><span class="pre">step</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pointclouds</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">live_frame</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">prev_frame</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">inplace</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/slam/icpslam.html#ICPSLAM.step"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.slam.ICPSLAM.step" title="Link to this definition"></a></dt>
+<dd><p>Updates global map pointclouds with a SLAM step on <cite>live_frame</cite>.
+If <cite>prev_frame</cite> is not None, computes the relative transformation between <cite>live_frame</cite>
+and <cite>prev_frame</cite> using the selected odometry provider. If <cite>prev_frame</cite> is None,
+use the pose from <cite>live_frame</cite>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>pointclouds</strong> (<em>gradslam.Pointclouds</em>) – Input batch of pointcloud global maps</p></li>
+<li><p><strong>live_frame</strong> (<em>gradslam.RGBDImages</em>) – Input batch of live frames (at time step <span class="math notranslate nohighlight">\(t\)</span>). Must have sequence
+length of 1.</p></li>
+<li><p><strong>prev_frame</strong> (<em>gradslam.RGBDImages</em><em> or </em><em>None</em>) – Input batch of previous frames (at time step <span class="math notranslate nohighlight">\(t-1\)</span>).
+Must have sequence length of 1. If None, will (skip calling odometry provider and) use the pose
+from <cite>live_frame</cite>. Default: None</p></li>
+<li><p><strong>inplace</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – Can optionally update the pointclouds and live_frame poses in-place. Default: False</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><p>tuple containing:</p>
+<ul class="simple">
+<li><p>pointclouds (gradslam.Pointclouds): Updated <span class="math notranslate nohighlight">\(B\)</span> global maps</p></li>
+<li><p>poses (torch.Tensor): Poses for the live_frame batch</p></li>
+</ul>
+</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)">tuple</a></p>
+</dd>
+</dl>
+<dl class="simple">
+<dt>Shape:</dt><dd><ul class="simple">
+<li><p>poses: <span class="math notranslate nohighlight">\((B, 1, 4, 4)\)</span></p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="gradslam-slam-pointfusion">
+<h2>gradslam.slam.pointfusion<a class="headerlink" href="#gradslam-slam-pointfusion" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="gradslam.slam.PointFusion">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">PointFusion</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">odom</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'gradicp'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dist_th</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.05</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">angle_th</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sigma</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.6</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dsratio</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">4</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">numiters</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">damp</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1e-08</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dist_thresh</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lambda_max</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">B</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">B2</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nu</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">200.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">device</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/slam/pointfusion.html#PointFusion"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.slam.PointFusion" title="Link to this definition"></a></dt>
+<dd><p>Point-based Fusion (PointFusion for short) SLAM for batched sequences of RGB-D images
+(See Point-based Fusion <a class="reference external" href="http://reality.cs.ucl.ac.uk/projects/kinect/keller13realtime.pdf">paper</a>).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>odom</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Odometry method to be used from {‘gt’, ‘icp’, ‘gradicp’}. Default: ‘gradicp’</p></li>
+<li><p><strong>dist_th</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Distance threshold.</p></li>
+<li><p><strong>dot_th</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Dot product threshold.</p></li>
+<li><p><strong>sigma</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>torch.Tensor</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Width of the gaussian bell. Original paper uses 0.6 emperically.</p></li>
+<li><p><strong>dsratio</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Downsampling ratio to apply to input frames before ICP. Only used if <cite>odom</cite> is
+‘icp’ or ‘gradicp’. Default: 4</p></li>
+<li><p><strong>numiters</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Number of iterations to run the optimization for. Only used if <cite>odom</cite> is
+‘icp’ or ‘gradicp’. Default: 20</p></li>
+<li><p><strong>damp</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em> or </em><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>torch.Tensor</em></a>) – Damping coefficient for nonlinear least-squares. Only used if <cite>odom</cite> is
+‘icp’ or ‘gradicp’. Default: 1e-8</p></li>
+<li><p><strong>dist_thresh</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em> or </em><em>None</em>) – Distance threshold for removing <cite>src_pc</cite> points distant from <cite>tgt_pc</cite>.
+Only used if <cite>odom</cite> is ‘icp’ or ‘gradicp’. Default: None</p></li>
+<li><p><strong>lambda_max</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Maximum value the damping function can assume (<cite>lambda_min</cite> will be
+<span class="math notranslate nohighlight">\(\frac{1}{\text{lambda_max}}\)</span>). Only used if <cite>odom</cite> is ‘gradicp’.</p></li>
+<li><p><strong>B</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – gradLM falloff control parameter (see GradICPOdometryProvider description).
+Only used if <cite>odom</cite> is ‘gradicp’.</p></li>
+<li><p><strong>B2</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – gradLM control parameter (see GradICPOdometryProvider description).
+Only used if <cite>odom</cite> is ‘gradicp’.</p></li>
+<li><p><strong>nu</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – gradLM control parameter (see GradICPOdometryProvider description).
+Only used if <cite>odom</cite> is ‘gradicp’.</p></li>
+<li><p><strong>device</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensor_attributes.html#torch.device" title="(in PyTorch v2.12)"><em>torch.device</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> or </em><em>None</em>) – The desired device of internal tensors. If None, sets device to be
+the CPU. Default: None</p></li>
+<li><p><strong>angle_th</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>)</p></li>
+</ul>
+</dd>
+</dl>
+<p>Examples:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">rgbdimages</span> <span class="o">=</span> <span class="n">RGBDImages</span><span class="p">(</span><span class="n">colors</span><span class="p">,</span> <span class="n">depths</span><span class="p">,</span> <span class="n">intrinsics</span><span class="p">,</span> <span class="n">poses</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">slam</span> <span class="o">=</span> <span class="n">PointFusion</span><span class="p">(</span><span class="n">odom</span><span class="o">=</span><span class="s1">&#39;gt&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">pointclouds</span><span class="p">,</span> <span class="n">poses</span> <span class="o">=</span> <span class="n">slam</span><span class="p">(</span><span class="n">rgbdimages</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">o3d</span><span class="o">.</span><span class="n">visualization</span><span class="o">.</span><span class="n">draw_geometries</span><span class="p">([</span><span class="n">pointclouds</span><span class="o">.</span><span class="n">o3d</span><span class="p">(</span><span class="mi">0</span><span class="p">)])</span>
+</pre></div>
+</div>
+</dd></dl>
+
+</section>
+<section id="gradslam-slam-fusionutils">
+<h2>gradslam.slam.fusionutils<a class="headerlink" href="#gradslam-slam-fusionutils" title="Link to this heading"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="gradslam.slam.update_map_fusion">
+<span class="sig-name descname"><span class="pre">update_map_fusion</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pointclouds</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rgbdimages</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dist_th</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dot_th</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sigma</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">inplace</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/slam/fusionutils.html#update_map_fusion"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.slam.update_map_fusion" title="Link to this definition"></a></dt>
+<dd><p>Updates pointclouds in-place given the live frame RGB-D images using PointFusion.
+(See Point-based Fusion <a class="reference external" href="http://reality.cs.ucl.ac.uk/projects/kinect/keller13realtime.pdf">paper</a>).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>pointclouds</strong> (<em>gradslam.Pointclouds</em>) – Pointclouds of global maps. Must have points, colors, normals and features
+(ccounts).</p></li>
+<li><p><strong>rgbdimages</strong> (<em>gradslam.RGBDImages</em>) – Live frames from the latest sequence</p></li>
+<li><p><strong>dist_th</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Distance threshold.</p></li>
+<li><p><strong>dot_th</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Dot product threshold.</p></li>
+<li><p><strong>sigma</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>torch.Tensor</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Standard deviation of the Gaussian. Original paper uses 0.6 emperically.</p></li>
+<li><p><strong>inplace</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – Can optionally update the pointclouds in-place. Default: False</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Updated Pointclouds object containing global maps.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>gradslam.Pointclouds</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="gradslam.slam.update_map_aggregate">
+<span class="sig-name descname"><span class="pre">update_map_aggregate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pointclouds</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rgbdimages</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">inplace</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/slam/fusionutils.html#update_map_aggregate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.slam.update_map_aggregate" title="Link to this definition"></a></dt>
+<dd><p>Aggregate points from live frames with global maps by appending the live frame points.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>pointclouds</strong> (<em>gradslam.Pointclouds</em>) – Pointclouds of global maps. Must have points, colors, normals and features
+(ccounts).</p></li>
+<li><p><strong>rgbdimages</strong> (<em>gradslam.RGBDImages</em>) – Live frames from the latest sequence</p></li>
+<li><p><strong>inplace</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – Can optionally update the pointclouds in-place. Default: False</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Updated Pointclouds object containing global maps.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>gradslam.Pointclouds</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="rendering.html" class="btn btn-neutral float-left" title="Rendering" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="structures.html" class="btn btn-neutral float-right" title="gradslam.structures" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020–2026, Montreal Robotics Lab.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
