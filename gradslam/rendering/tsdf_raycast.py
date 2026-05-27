@@ -1,10 +1,11 @@
-"""TSDF raycasting for frame rendering."""
+"""TSDF raycasting for frame rendering — fully vectorized GPU implementation."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 
 import torch
+import torch.nn.functional as F
 
 
 @dataclass
@@ -22,6 +23,7 @@ class RenderedFrame:
     mask: torch.Tensor
 
 
+@torch.no_grad()
 def raycast_tsdf(
     tsdf_volume: torch.Tensor,
     tsdf_origin: torch.Tensor,
@@ -32,21 +34,23 @@ def raycast_tsdf(
     width: int,
     near: float = 0.1,
     far: float = 5.0,
-    n_samples: int = 256,
+    n_samples: int = 128,
 ) -> RenderedFrame:
     """Raycast a TSDF volume to render depth and normals.
+
+    Fully vectorized: all H*W rays processed simultaneously on GPU.
 
     Args:
         tsdf_volume: TSDF tensor [nx, ny, nz].
         tsdf_origin: Origin of TSDF volume [3].
         voxel_size: Voxel size in meters.
-        T_world_camera: Camera pose [4, 4].
-        intrinsics: Camera intrinsics [3, 3].
+        T_world_camera: Camera pose [4, 4] (camera-to-world).
+        intrinsics: Camera intrinsics [3, 3] or [4, 4].
         height: Output image height.
         width: Output image width.
-        near: Near plane distance.
-        far: Far plane distance.
-        n_samples: Number of samples along each ray.
+        near: Near plane distance in meters.
+        far: Far plane distance in meters.
+        n_samples: Samples along each ray.
 
     Returns:
         RenderedFrame with depth, normals, and mask.
@@ -54,152 +58,108 @@ def raycast_tsdf(
     device = tsdf_volume.device
     dtype = tsdf_volume.dtype
 
-    # Inverse camera transform
-    T_camera_world = torch.linalg.inv(T_world_camera)
-    R = T_camera_world[:3, :3]
-    t = T_camera_world[:3, 3]
-
-    # Pixel to ray direction in camera frame
-    u = torch.arange(width, device=device, dtype=dtype)
-    v = torch.arange(height, device=device, dtype=dtype)
-    u, v = torch.meshgrid(u, v, indexing="xy")
-
-    fx, fy = intrinsics[0, 0], intrinsics[1, 1]
-    cx, cy = intrinsics[0, 2], intrinsics[1, 2]
-
-    # Ray directions in camera frame
-    ray_x = (u - cx) / fx
-    ray_y = (v - cy) / fy
-    ray_z = torch.ones_like(u)
-
-    ray_length = torch.sqrt(ray_x**2 + ray_y**2 + ray_z**2)
-    ray_x /= ray_length
-    ray_y /= ray_length
-    ray_z /= ray_length
-
-    # Initialize output
-    depth_map = torch.zeros(height, width, device=device, dtype=dtype)
-    normal_map = torch.zeros(height, width, 3, device=device, dtype=dtype)
-    mask = torch.zeros(height, width, dtype=torch.bool, device=device)
-
-    # Sample along rays
-    for h_idx in range(height):
-        for w_idx in range(width):
-            # Ray from camera center in world frame
-            ray_dir_cam = torch.tensor(
-                [ray_x[h_idx, w_idx], ray_y[h_idx, w_idx], ray_z[h_idx, w_idx]],
-                device=device,
-                dtype=dtype,
-            )
-            ray_dir_world = torch.matmul(R.t(), ray_dir_cam)
-            camera_pos = -torch.matmul(R.t(), t)
-
-            # Find zero crossing along ray
-            best_depth = None
-            for t_val in torch.linspace(near, far, n_samples, device=device):
-                pos_world = camera_pos + t_val * ray_dir_world
-                tsdf_val = _sample_tsdf(
-                    tsdf_volume, pos_world, tsdf_origin, voxel_size
-                )
-                if tsdf_val is not None and tsdf_val < 0:
-                    best_depth = t_val
-                    break
-
-            if best_depth is not None:
-                depth_map[h_idx, w_idx] = best_depth
-                mask[h_idx, w_idx] = True
-
-                # Compute normal via finite differences
-                pos_world = camera_pos + best_depth * ray_dir_world
-                eps = voxel_size
-                tsdf_center = _sample_tsdf(
-                    tsdf_volume, pos_world, tsdf_origin, voxel_size
-                )
-                tsdf_x = _sample_tsdf(
-                    tsdf_volume,
-                    pos_world + torch.tensor([eps, 0, 0], device=device, dtype=dtype),
-                    tsdf_origin,
-                    voxel_size,
-                )
-                tsdf_y = _sample_tsdf(
-                    tsdf_volume,
-                    pos_world + torch.tensor([0, eps, 0], device=device, dtype=dtype),
-                    tsdf_origin,
-                    voxel_size,
-                )
-                tsdf_z = _sample_tsdf(
-                    tsdf_volume,
-                    pos_world + torch.tensor([0, 0, eps], device=device, dtype=dtype),
-                    tsdf_origin,
-                    voxel_size,
-                )
-
-                if tsdf_x is not None and tsdf_y is not None and tsdf_z is not None:
-                    grad = torch.tensor(
-                        [(tsdf_x - tsdf_center) / eps,
-                         (tsdf_y - tsdf_center) / eps,
-                         (tsdf_z - tsdf_center) / eps],
-                        device=device,
-                        dtype=dtype,
-                    )
-                    norm = torch.norm(grad)
-                    if norm > 1e-6:
-                        normal_map[h_idx, w_idx] = grad / norm
-
-    return RenderedFrame(depth=depth_map, normal=normal_map, mask=mask)
-
-
-def _sample_tsdf(
-    tsdf_volume: torch.Tensor,
-    pos_world: torch.Tensor,
-    tsdf_origin: torch.Tensor,
-    voxel_size: float,
-) -> float | None:
-    """Sample TSDF at world position via trilinear interpolation.
-
-    Args:
-        tsdf_volume: TSDF tensor [nx, ny, nz].
-        pos_world: World position [3].
-        tsdf_origin: Volume origin [3].
-        voxel_size: Voxel size.
-
-    Returns:
-        TSDF value or None if out of bounds.
-    """
-    # World to voxel coordinates
-    pos_voxel = (pos_world - tsdf_origin) / voxel_size
     nx, ny, nz = tsdf_volume.shape
 
-    # Trilinear interpolation
-    x, y, z = pos_voxel[0], pos_voxel[1], pos_voxel[2]
-    x_i, y_i, z_i = int(x), int(y), int(z)
+    # Camera rotation and position in world frame
+    R_cw = T_world_camera[:3, :3]  # camera axes in world [3,3]
+    t_w = T_world_camera[:3, 3]    # camera origin in world [3]
 
-    # Bounds check
-    if x_i < 0 or x_i >= nx - 1 or y_i < 0 or y_i >= ny - 1 or z_i < 0 or z_i >= nz - 1:
-        return None
+    fx, fy = intrinsics[0, 0].to(dtype), intrinsics[1, 1].to(dtype)
+    cx, cy = intrinsics[0, 2].to(dtype), intrinsics[1, 2].to(dtype)
 
-    # Interpolation weights
-    x_w, y_w, z_w = x - x_i, y - y_i, z - z_i
+    # Ray directions in camera frame → world frame [H*W, 3]
+    u = torch.arange(width, device=device, dtype=dtype)
+    v = torch.arange(height, device=device, dtype=dtype)
+    vv, uu = torch.meshgrid(v, u, indexing="ij")   # [H, W] each
+    ray_cam = torch.stack(
+        [(uu - cx) / fx, (vv - cy) / fy, torch.ones_like(uu)], dim=-1
+    )  # [H, W, 3], unnormalized
+    ray_cam_flat = ray_cam.reshape(-1, 3)            # [N, 3]
+    ray_world = ray_cam_flat @ R_cw.t()             # [N, 3]
+    ray_world = F.normalize(ray_world, dim=-1)       # [N, 3]
 
-    # Eight corner values
-    v000 = tsdf_volume[x_i, y_i, z_i].item()
-    v100 = tsdf_volume[x_i + 1, y_i, z_i].item()
-    v010 = tsdf_volume[x_i, y_i + 1, z_i].item()
-    v110 = tsdf_volume[x_i + 1, y_i + 1, z_i].item()
-    v001 = tsdf_volume[x_i, y_i, z_i + 1].item()
-    v101 = tsdf_volume[x_i + 1, y_i, z_i + 1].item()
-    v011 = tsdf_volume[x_i, y_i + 1, z_i + 1].item()
-    v111 = tsdf_volume[x_i + 1, y_i + 1, z_i + 1].item()
+    # Sample depths along rays [n_samples]
+    t_vals = torch.linspace(near, far, n_samples, device=device, dtype=dtype)
 
-    # Trilinear interpolation
-    v00 = v000 * (1 - x_w) + v100 * x_w
-    v10 = v010 * (1 - x_w) + v110 * x_w
-    v01 = v001 * (1 - x_w) + v101 * x_w
-    v11 = v011 * (1 - x_w) + v111 * x_w
+    # Sample points in world space [N, n_samples, 3]
+    # t_w[None, None, :] + t_vals[None, :, None] * ray_world[:, None, :]
+    pts_world = t_w[None, None, :] + t_vals[None, :, None] * ray_world[:, None, :]
 
-    v0 = v00 * (1 - y_w) + v10 * y_w
-    v1 = v01 * (1 - y_w) + v11 * y_w
+    # Convert to voxel coordinates [N, n_samples, 3]
+    pts_vox = (pts_world - tsdf_origin[None, None, :]) / voxel_size
 
-    v = v0 * (1 - z_w) + v1 * z_w
+    # Sample TSDF via trilinear grid_sample (expects input [1, 1, nz, ny, nx], grid [..., (x,y,z)])
+    # grid_sample 3D convention: input [N,C,D,H,W], grid [N,D_out,H_out,W_out,3] as (x,y,z) in [-1,1]
+    # Our tsdf is indexed [x, y, z] → we treat tsdf.permute(2,1,0) as [z, y, x] = [D, H, W]
+    tsdf_for_gs = tsdf_volume.permute(2, 1, 0).unsqueeze(0).unsqueeze(0)  # [1, 1, nz, ny, nx]
+    vol_size = torch.tensor([nx - 1, ny - 1, nz - 1], device=device, dtype=dtype)
 
-    return v
+    # Normalize voxel coords to [-1, 1] as (x, y, z)
+    pts_norm = 2.0 * pts_vox / vol_size[None, None, :] - 1.0  # [N, n_samples, 3] as (x, y, z)
+
+    N = ray_world.shape[0]
+    # Reshape for grid_sample: [1, N, n_samples, 1, 3]
+    grid = pts_norm.unsqueeze(0).unsqueeze(3)  # [1, N, n_samples, 1, 3]
+
+    # grid_sample 3D: output [1, 1, N, n_samples, 1]
+    tsdf_samples = F.grid_sample(
+        tsdf_for_gs, grid, mode="bilinear", align_corners=True, padding_mode="border"
+    )  # [1, 1, N, n_samples, 1]
+    tsdf_samples = tsdf_samples.squeeze(0).squeeze(0).squeeze(-1)  # [N, n_samples]
+
+    # Mark out-of-bounds samples as +1 (no surface)
+    oob = (
+        (pts_vox[..., 0] < 0) | (pts_vox[..., 0] >= nx)
+        | (pts_vox[..., 1] < 0) | (pts_vox[..., 1] >= ny)
+        | (pts_vox[..., 2] < 0) | (pts_vox[..., 2] >= nz)
+    )
+    tsdf_samples = tsdf_samples.masked_fill(oob, 1.0)
+
+    # Find first negative TSDF (surface crossing): sign goes + to -)
+    sign_curr = tsdf_samples[:, :-1]   # [N, n_samples-1]
+    sign_next = tsdf_samples[:, 1:]    # [N, n_samples-1]
+    crossing = (sign_curr > 0) & (sign_next <= 0)  # [N, n_samples-1]
+
+    has_crossing = crossing.any(dim=1)              # [N]
+    first_idx = crossing.float().argmax(dim=1)      # [N] — index of step before crossing
+
+    # Linear interpolation to find exact depth
+    t0 = t_vals[first_idx]           # [N]
+    t1 = t_vals[(first_idx + 1).clamp(max=n_samples - 1)]  # [N]
+    s0 = tsdf_samples[torch.arange(N, device=device), first_idx]          # [N]
+    s1 = tsdf_samples[torch.arange(N, device=device), (first_idx + 1).clamp(max=n_samples - 1)]  # [N]
+    denom = (s0 - s1).abs().clamp(min=1e-6)
+    t_surface = t0 + (t1 - t0) * s0.abs() / denom  # linear interp
+
+    depth_flat = torch.where(has_crossing, t_surface, torch.zeros_like(t_surface))  # [N]
+
+    # Normals: TSDF gradient at surface position
+    surf_pts = t_w[None, :] + depth_flat[:, None] * ray_world  # [N, 3]
+    surf_vox = (surf_pts - tsdf_origin[None, :]) / voxel_size  # [N, 3]
+    eps = 1.0  # 1 voxel step for gradient
+
+    def sample_at(offsets):
+        """Sample tsdf at surf_vox + offsets (offsets: [3])."""
+        pts = surf_vox + offsets.to(device=device, dtype=dtype)[None, :]
+        pts_n = (2.0 * pts / vol_size[None, :] - 1.0).unsqueeze(0).unsqueeze(2).unsqueeze(3)
+        out = F.grid_sample(tsdf_for_gs, pts_n, mode="bilinear", align_corners=True, padding_mode="border")
+        return out.squeeze()  # [N]
+
+    gx = sample_at(torch.tensor([eps, 0, 0])) - sample_at(torch.tensor([-eps, 0, 0]))
+    gy = sample_at(torch.tensor([0, eps, 0])) - sample_at(torch.tensor([0, -eps, 0]))
+    gz = sample_at(torch.tensor([0, 0, eps])) - sample_at(torch.tensor([0, 0, -eps]))
+
+    grad = torch.stack([gx, gy, gz], dim=-1)  # [N, 3] in world space
+    grad_cam = grad @ R_cw  # rotate to camera frame [N, 3]
+    normal_flat = F.normalize(grad_cam, dim=-1)  # [N, 3]
+    # Flip normals facing away from camera
+    flip = (normal_flat[:, 2] > 0).float() * 2 - 1
+    normal_flat = normal_flat * flip[:, None]
+    normal_flat = torch.where(has_crossing[:, None].expand_as(normal_flat), normal_flat,
+                              torch.zeros_like(normal_flat))
+
+    depth_map = depth_flat.reshape(height, width)
+    normal_map = normal_flat.reshape(height, width, 3)
+    mask = has_crossing.reshape(height, width)
+
+    return RenderedFrame(depth=depth_map, normal=normal_map, mask=mask)

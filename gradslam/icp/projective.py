@@ -95,13 +95,13 @@ class ProjectiveICPTracker(torch.nn.Module):
         else:
             T_model_live = init_T_model_live.clone().to(device=device, dtype=dtype)
 
-        # Build depth/normal pyramids
+        # Build depth/normal pyramids (coarsest first, index 0 = most downsampled)
         live_depths = self._build_pyramid(live_depth)
         live_normals = self._build_pyramid(live_normal, is_normal=True)
         model_depths = self._build_pyramid(model_depth)
         model_normals = self._build_pyramid(model_normal, is_normal=True)
 
-        # Coarse-to-fine ICP
+        # Coarse-to-fine ICP: iterate from coarsest (index 0) to finest (index n-1)
         quality_metrics = {
             "num_valid": 0,
             "inlier_ratio": 0.0,
@@ -111,14 +111,15 @@ class ProjectiveICPTracker(torch.nn.Module):
             "converged": False,
         }
 
-        for level in range(self.config.n_pyramid_levels - 1, -1, -1):
-            # Get pyramid level data
-            live_d = live_depths[level]  # [H_l, W_l]
+        for level in range(self.config.n_pyramid_levels):
+            # pyramid[0] = coarsest (most downsampled), pyramid[-1] = finest
+            live_d = live_depths[level]   # [H_l, W_l]
             live_n = live_normals[level]  # [H_l, W_l, 3]
-            model_d = model_depths[level]  # [H_l, W_l]
-            model_n = model_normals[level]  # [H_l, W_l, 3]
+            model_d = model_depths[level]
+            model_n = model_normals[level]
+            # scale factor: coarsest level has highest downsampling
             scale = 2 ** (self.config.n_pyramid_levels - 1 - level)
-            K = intrinsics / scale  # Scaled intrinsics
+            K = intrinsics / scale  # Scaled intrinsics for this level
 
             # Run ICP iterations at this level
             for it in range(self.config.iterations[level]):
@@ -126,7 +127,7 @@ class ProjectiveICPTracker(torch.nn.Module):
                 live_vertex = self._depth_to_vertex(live_d, K, device, dtype)  # [H_l, W_l, 3]
                 live_vertex_model = self._transform_points(live_vertex, T_model_live)
 
-                # Find correspondences
+                # Find correspondences via projective lookup
                 model_vertex = self._depth_to_vertex(model_d, K, device, dtype)
                 assoc_vertex, assoc_normal, valid = self._find_correspondences(
                     live_vertex_model,
@@ -134,22 +135,24 @@ class ProjectiveICPTracker(torch.nn.Module):
                     model_vertex,
                     model_n,
                     model_d,
+                    K=K,
                 )
 
                 if valid.sum() < 10:
                     break  # Too few correspondences
 
-                # Extract valid points
-                live_v = live_vertex_model[valid]  # [N, 3]
-                model_v = assoc_vertex[valid]  # [N, 3]
-                model_n_valid = assoc_normal[valid]  # [N, 3]
+                # Extract valid points (valid is [H*W], flatten spatial dims first)
+                H_l, W_l = live_vertex_model.shape[:2]
+                live_v = live_vertex_model.reshape(-1, 3)[valid]      # [N, 3]
+                model_v = assoc_vertex.reshape(-1, 3)[valid]          # [N, 3]
+                model_n_valid = assoc_normal.reshape(-1, 3)[valid]    # [N, 3]
 
                 # Compute residuals and Jacobian
                 A, b = point_to_plane_projective(live_v, model_n_valid, model_v)
 
-                # Solve for update
+                # Solve for update: normal eqs are (A^T A) δξ = -A^T r
                 damp = self.config.damping[level]
-                xi = solve_lm_6x6(A, b, damp=damp)  # [6, 1]
+                xi = solve_lm_6x6(A, -b, damp=damp)  # [6, 1]
 
                 # Compute quality metrics
                 residual = b[:, 0]  # [N]
@@ -172,20 +175,19 @@ class ProjectiveICPTracker(torch.nn.Module):
     def _build_pyramid(
         self, tensor: torch.Tensor, is_normal: bool = False
     ) -> list[torch.Tensor]:
-        """Build Gaussian pyramid for coarse-to-fine optimization.
+        """Build Gaussian pyramid coarsest-first.
 
         Args:
-            tensor: Tensor to downsample (depth or normal).
-            is_normal: If True, average normals more carefully.
+            tensor: Full-resolution input (depth [H,W] or normal [H,W,3]).
+            is_normal: If True, renormalize after averaging.
 
         Returns:
-            List of pyramid levels (coarse to fine).
+            List of n_pyramid_levels tensors, index 0 = most downsampled (coarsest),
+            index -1 = original resolution (finest).
         """
-        pyramid = [tensor]
+        levels = [tensor]
         for _ in range(self.config.n_pyramid_levels - 1):
-            # Downsampling by average pooling
             if is_normal:
-                # For normals, compute mean and renormalize
                 downed = torch.nn.functional.avg_pool2d(
                     tensor.unsqueeze(0).permute(0, 3, 1, 2), kernel_size=2, stride=2
                 )
@@ -195,10 +197,11 @@ class ProjectiveICPTracker(torch.nn.Module):
                 downed = torch.nn.functional.avg_pool2d(
                     tensor.unsqueeze(0).unsqueeze(0), kernel_size=2, stride=2
                 ).squeeze(0).squeeze(0)
-            pyramid.append(downed)
+            levels.append(downed)
             tensor = downed
 
-        return pyramid
+        # Reverse so index 0 = coarsest (most downsampled)
+        return list(reversed(levels))
 
     @staticmethod
     def _depth_to_vertex(
@@ -264,34 +267,58 @@ class ProjectiveICPTracker(torch.nn.Module):
         model_vertex: torch.Tensor,
         model_normal: torch.Tensor,
         model_depth: torch.Tensor,
+        K: torch.Tensor | None = None,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        """Find correspondences via projection and validation.
+        """Find correspondences via projective lookup and validity checks.
+
+        Projects the (already-transformed) live vertices into image space to
+        look up model vertices at their projected pixel positions.
 
         Args:
             live_vertex: Live vertices in model frame [H, W, 3].
-            live_normal: Live normals [H, W, 3].
+            live_normal: Live normals (in live frame) [H, W, 3].
             model_vertex: Model vertices [H, W, 3].
             model_normal: Model normals [H, W, 3].
             model_depth: Model depth [H, W].
+            K: Camera intrinsics [3, 3] (used for projective lookup when provided).
 
         Returns:
             Tuple of:
-            - assoc_vertex: Associated model vertices [H, W, 3].
+            - assoc_vertex: Associated model vertices [H, W, 3] (same layout as live).
             - assoc_normal: Associated model normals [H, W, 3].
             - valid: Validity mask [H*W].
         """
         H, W = live_vertex.shape[:2]
+        device = live_vertex.device
 
-        # For now, use direct spatial correspondence (same pixel)
-        # This is valid for frame-to-model when model is rendered at live's resolution
-        assoc_vertex = model_vertex
-        assoc_normal = model_normal
+        if K is not None:
+            # Projective correspondence: project live vertices in model frame to pixels
+            fx, fy = K[0, 0], K[1, 1]
+            cx, cy = K[0, 2], K[1, 2]
+            z = live_vertex[:, :, 2].clamp(min=1e-6)  # [H, W]
+            u = (live_vertex[:, :, 0] * fx / z + cx).long()  # [H, W]
+            v = (live_vertex[:, :, 1] * fy / z + cy).long()  # [H, W]
 
-        # Validity checks
-        valid_live = live_vertex[:, :, 2] > 0  # Valid depth
-        valid_model = model_depth > 0  # Valid model
-        valid_angle = self._check_normal_angle(live_normal, model_normal)
-        valid_depth = torch.abs(live_vertex[:, :, 2] - model_depth) < self.config.max_depth_diff
+            in_bounds = (u >= 0) & (u < W) & (v >= 0) & (v < H)
+            u_safe = u.clamp(0, W - 1)
+            v_safe = v.clamp(0, H - 1)
+
+            # Look up model at projected pixel (u, v)
+            assoc_vertex = model_vertex[v_safe, u_safe]    # [H, W, 3]
+            assoc_normal = model_normal[v_safe, u_safe]    # [H, W, 3]
+            assoc_depth = model_depth[v_safe, u_safe]      # [H, W]
+        else:
+            # Fallback: same-pixel correspondence (valid only for near-identity T)
+            in_bounds = torch.ones(H, W, dtype=torch.bool, device=device)
+            assoc_vertex = model_vertex
+            assoc_normal = model_normal
+            assoc_depth = model_depth
+
+        # Validity: live depth > 0, model depth > 0, projected in bounds, depth diff, angle
+        valid_live = live_vertex[:, :, 2] > 0
+        valid_model = (assoc_depth > 0) & in_bounds
+        valid_angle = self._check_normal_angle(live_normal, assoc_normal)
+        valid_depth = torch.abs(live_vertex[:, :, 2] - assoc_depth) < self.config.max_depth_diff
 
         valid = (valid_live & valid_model & valid_angle & valid_depth).reshape(-1)
 
