@@ -1,7 +1,8 @@
 from typing import Optional, Union
 
-from chamferdist.chamfer import knn_points
 import torch
+
+from ..geometry.knn import knn_points
 
 from ..geometry.geometryutils import transform_pointcloud
 from ..geometry.se3utils import se3_exp

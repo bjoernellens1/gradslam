@@ -1,6 +1,5 @@
 from typing import List, Optional, Union
 
-import open3d as o3d
 import plotly.graph_objects as go
 import torch
 
@@ -1258,6 +1257,13 @@ class Pointclouds(object):
         Returns:
             pcd (open3d.geometry.Pointcloud): `open3d.geometry.Pointcloud` object from `index`-th pointcloud.
         """
+        try:
+            import open3d as o3d
+        except ImportError:
+            raise ImportError(
+                "open3d is required for .open3d(). Install with: pip install gradslam[vis]"
+            )
+
         if not isinstance(index, int):
             raise TypeError("Index should be int, but was {}.".format(type(index)))
 

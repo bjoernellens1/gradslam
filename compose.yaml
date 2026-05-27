@@ -1,0 +1,28 @@
+services:
+  gradslam:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        BASE_IMAGE: rocm/pytorch:rocm7.2.2_ubuntu24.04_py3.12_pytorch_release_2.7.1
+    image: gradslam-rocm:rocm7.2.2-torch2.7.1-py3.12
+    ipc: host
+    network_mode: host
+    devices:
+      - /dev/kfd
+      - /dev/dri
+    group_add:
+      - video
+      - render
+    security_opt:
+      - seccomp=unconfined
+    cap_add:
+      - SYS_PTRACE
+    volumes:
+      - .:/workspace/gradslam
+      - ./data:/workspace/data
+      - ./outputs:/workspace/outputs
+    environment:
+      HIP_VISIBLE_DEVICES: "0"
+      PYTHONUNBUFFERED: "1"
+    command: bash
