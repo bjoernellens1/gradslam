@@ -4,24 +4,18 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        BASE_IMAGE: rocm/pytorch:rocm7.2.2_ubuntu24.04_py3.12_pytorch_release_2.7.1
+        BASE_IMAGE: docker.io/rocm/pytorch:rocm7.2.2_ubuntu24.04_py3.12_pytorch_release_2.7.1
     image: gradslam-rocm:rocm7.2.2-torch2.7.1-py3.12
+    privileged: true
     ipc: host
     network_mode: host
-    devices:
-      - /dev/kfd
-      - /dev/dri
-    group_add:
-      - video
-      - render
     security_opt:
-      - seccomp=unconfined
-    cap_add:
-      - SYS_PTRACE
+      - label=disable
     volumes:
-      - .:/workspace/gradslam
-      - ./data:/workspace/data
-      - ./outputs:/workspace/outputs
+      - .:/workspace/gradslam:Z
+      - ./data:/workspace/data:Z
+      - ./outputs:/workspace/outputs:Z
+      - /mnt/cps_persistent1_shared/datasets:/workspace/datasets:Z,ro
     environment:
       HIP_VISIBLE_DEVICES: "0"
       PYTHONUNBUFFERED: "1"

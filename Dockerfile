@@ -1,4 +1,4 @@
-ARG BASE_IMAGE=rocm/pytorch:rocm7.2.2_ubuntu24.04_py3.12_pytorch_release_2.7.1
+ARG BASE_IMAGE=docker.io/rocm/pytorch:rocm7.2.2_ubuntu24.04_py3.12_pytorch_release_2.7.1
 FROM ${BASE_IMAGE}
 
 ENV DEBIAN_FRONTEND=noninteractive

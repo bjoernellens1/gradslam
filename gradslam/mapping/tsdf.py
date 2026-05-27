@@ -131,52 +131,39 @@ class TSDFVolume(torch.nn.Module):
         v_valid = v[valid]
         voxel_camera_valid = voxel_camera[valid]
 
-        # Bilinear interpolation of depth (simple: nearest neighbor for now)
+        # Sample depth at projected pixel positions
         depth_sampled = depth[v_valid, u_valid]
 
-        # Signed distance
+        # Keep only voxels with valid (non-zero) depth readings
+        depth_mask = depth_sampled > 0
+        if depth_mask.sum() == 0:
+            return
+
+        voxel_coords_valid = voxel_coords_valid[depth_mask]
+        voxel_camera_valid = voxel_camera_valid[depth_mask]
+        depth_sampled = depth_sampled[depth_mask]
+
+        # Signed distance and truncation
         signed_dist = depth_sampled - voxel_camera_valid[:, 2]
-        truncated_dist = torch.clamp(
-            signed_dist,
-            -self.config.truncation_margin_voxels * self.config.voxel_size,
-            self.config.truncation_margin_voxels * self.config.voxel_size,
-        )
+        trunc = self.config.truncation_margin_voxels * self.config.voxel_size
+        truncated_dist = torch.clamp(signed_dist, -trunc, trunc)
 
-        # Update TSDF volume
-        voxel_coords_valid_long = voxel_coords_valid.long()
-        tsdf_update = (
-            (self.tsdf.reshape(-1)[
-                voxel_coords_valid_long[:, 0]
-                + voxel_coords_valid_long[:, 1] * self._voxel_dim[0]
-                + voxel_coords_valid_long[:, 2] * self._voxel_dim[0] * self._voxel_dim[1]
-            ]
-            * self.weight.reshape(-1)[
-                voxel_coords_valid_long[:, 0]
-                + voxel_coords_valid_long[:, 1] * self._voxel_dim[0]
-                + voxel_coords_valid_long[:, 2] * self._voxel_dim[0] * self._voxel_dim[1]
-            ]
-            + truncated_dist * obs_weight)
-            / (
-                self.weight.reshape(-1)[
-                    voxel_coords_valid_long[:, 0]
-                    + voxel_coords_valid_long[:, 1] * self._voxel_dim[0]
-                    + voxel_coords_valid_long[:, 2] * self._voxel_dim[0] * self._voxel_dim[1]
-                ]
-                + obs_weight
-            )
-        )
+        # Linearize 3D voxel coordinates to flat indices (row-major / C order)
+        nx, ny, nz = self._voxel_dim[0], self._voxel_dim[1], self._voxel_dim[2]
+        xi, yi, zi = voxel_coords_valid[:, 0].long(), voxel_coords_valid[:, 1].long(), voxel_coords_valid[:, 2].long()
+        flat_idx = xi * (ny * nz) + yi * nz + zi  # [M]
 
-        weight_update = self.weight.reshape(-1)[
-            voxel_coords_valid_long[:, 0]
-            + voxel_coords_valid_long[:, 1] * self._voxel_dim[0]
-            + voxel_coords_valid_long[:, 2] * self._voxel_dim[0] * self._voxel_dim[1]
-        ] + obs_weight
+        # Vectorized running-average TSDF update
+        tsdf_flat = self.tsdf.reshape(-1)
+        weight_flat = self.weight.reshape(-1)
 
-        # Direct indexing instead of fancy indexing to avoid inplace operation issues
-        for i in range(len(voxel_coords_valid)):
-            x, y, z = voxel_coords_valid[i].long()
-            self.tsdf[x, y, z] = tsdf_update[i]
-            self.weight[x, y, z] = weight_update[i]
+        old_w = weight_flat[flat_idx]
+        old_tsdf = tsdf_flat[flat_idx]
+        new_w = old_w + obs_weight
+        new_tsdf = (old_tsdf * old_w + truncated_dist * obs_weight) / new_w
+
+        tsdf_flat.scatter_(0, flat_idx, new_tsdf)
+        weight_flat.scatter_(0, flat_idx, new_w)
 
     def _voxel_coordinates(
         self, device: torch.device, dtype: torch.dtype
