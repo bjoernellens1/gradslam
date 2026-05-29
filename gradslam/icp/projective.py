@@ -161,6 +161,39 @@ class ProjectiveICPTracker(torch.nn.Module):
             # model_vertex is constant within the level — compute outside inner loop
             model_vertex = self._depth_to_vertex(model_d, K, device, dtype)  # [H_l, W_l, 3]
 
+            # Compute photometric setup once per level (not per iteration):
+            # gray interpolation and Sobel gradients depend only on the pyramid level,
+            # not on the current pose estimate.
+            level_from_finest = (self.config.n_pyramid_levels - 1) - level
+            if use_photo and level_from_finest < self.config.photometric_levels:
+                from gradslam.icp.photometric_residual import (
+                    sobel_gradients,
+                    photometric_residuals_and_jacobian,
+                )
+                # Scale gray images to the current pyramid level using
+                # size= (not scale_factor=) to guarantee shape match with live_d
+                H_l, W_l = live_d.shape
+                if level_from_finest > 0:
+                    ref_gray_l = F.interpolate(
+                        ref_gray.unsqueeze(0).unsqueeze(0).float(),
+                        size=(H_l, W_l),
+                        mode="bilinear",
+                        align_corners=False,
+                    ).squeeze().to(dtype=dtype)
+                    live_gray_l = F.interpolate(
+                        live_gray.unsqueeze(0).unsqueeze(0).float(),
+                        size=(H_l, W_l),
+                        mode="bilinear",
+                        align_corners=False,
+                    ).squeeze().to(dtype=dtype)
+                else:
+                    ref_gray_l = ref_gray.to(dtype=dtype)
+                    live_gray_l = live_gray.to(dtype=dtype)
+                ref_dI_dx, ref_dI_dy = sobel_gradients(ref_gray_l)
+                photo_enabled_this_level = True
+            else:
+                photo_enabled_this_level = False
+
             # Run ICP iterations at this level
             for it in range(self.config.iterations[level]):
                 # Transform live vertices using current estimate
@@ -196,35 +229,9 @@ class ProjectiveICPTracker(torch.nn.Module):
                 A, b = self._apply_residual_weights(A, b, live_v)
 
                 # Optionally stack photometric residuals at the finest levels
-                # level is 0=coarsest, n_pyramid_levels-1=finest
-                level_from_finest = (self.config.n_pyramid_levels - 1) - level
-                if use_photo and level_from_finest < self.config.photometric_levels:
-                    from gradslam.icp.photometric_residual import (
-                        sobel_gradients,
-                        photometric_residuals_and_jacobian,
-                    )
-                    # Scale gray images to the current pyramid level using
-                    # size= (not scale_factor=) to guarantee shape match with live_d
-                    H_l, W_l = live_d.shape
-                    if level_from_finest > 0:
-                        ref_gray_l = F.interpolate(
-                            ref_gray.unsqueeze(0).unsqueeze(0).float(),
-                            size=(H_l, W_l),
-                            mode="bilinear",
-                            align_corners=False,
-                        ).squeeze().to(dtype=dtype)
-                        live_gray_l = F.interpolate(
-                            live_gray.unsqueeze(0).unsqueeze(0).float(),
-                            size=(H_l, W_l),
-                            mode="bilinear",
-                            align_corners=False,
-                        ).squeeze().to(dtype=dtype)
-                    else:
-                        ref_gray_l = ref_gray.to(dtype=dtype)
-                        live_gray_l = live_gray.to(dtype=dtype)
-
-                    ref_dI_dx, ref_dI_dy = sobel_gradients(ref_gray_l)
-
+                # (setup — ref_gray_l, live_gray_l, ref_dI_dx, ref_dI_dy — was
+                # already computed once per level before this inner loop)
+                if photo_enabled_this_level:
                     # Retrieve live vertices in the live frame (before transform)
                     # so we can sample live gray at the original pixel locations.
                     live_v_orig_flat = live_vertex.reshape(-1, 3)[valid]  # [N, 3]

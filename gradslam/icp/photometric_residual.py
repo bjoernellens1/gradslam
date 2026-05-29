@@ -69,10 +69,6 @@ def photometric_residuals_and_jacobian(
     v_int = v.long()
     in_bounds = (u_int >= 0) & (u_int < W) & (v_int >= 0) & (v_int < H)
 
-    if in_bounds.sum() < 1:
-        empty = torch.zeros(0, 6, device=device, dtype=dtype)
-        return empty, torch.zeros(0, 1, device=device, dtype=dtype), in_bounds
-
     u_safe = u_int.clamp(0, W - 1)
     v_safe = v_int.clamp(0, H - 1)
 
