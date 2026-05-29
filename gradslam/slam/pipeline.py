@@ -95,6 +95,8 @@ class RGBDTSDFSLAM(torch.nn.Module):
         local_map_candidates: int = 1,
         max_frame_translation: float = 0.12,
         max_frame_rotation_deg: float = 30.0,
+        candidate_disagreement_penalty: float = 1.0,
+        scale_veto_ratio: float = 3.0,
     ):
         """Initialize SLAM pipeline.
 
@@ -143,6 +145,12 @@ class RGBDTSDFSLAM(torch.nn.Module):
                 this many meters. Set <= 0 to disable.
             max_frame_rotation_deg: Reject frame-to-frame updates larger than
                 this many degrees. Set <= 0 to disable.
+            candidate_disagreement_penalty: Lambda that penalizes candidates
+                whose translation disagrees with the velocity prediction.
+                Set 0.0 to disable.
+            scale_veto_ratio: Veto the winning candidate if its translation
+                exceeds this ratio times the predicted translation and a more
+                consistent candidate exists. Set <= 0 to disable.
         """
         super().__init__()
         self.tsdf_config = tsdf_config or TSDFConfig()
@@ -189,6 +197,8 @@ class RGBDTSDFSLAM(torch.nn.Module):
             if max_frame_rotation_deg > 0
             else 0.0
         )
+        self.candidate_disagreement_penalty = float(candidate_disagreement_penalty)
+        self.scale_veto_ratio = float(scale_veto_ratio)
 
         self.tsdf: TSDFVolume | None = None
         self.T_world_camera: torch.Tensor | None = None
@@ -501,14 +511,19 @@ class RGBDTSDFSLAM(torch.nn.Module):
         live_gray = _to_gray(rgb) if rgb is not None else None
         predicted_pose = self._predict_pose()
 
+        predicted_rel = torch.linalg.inv(self.T_world_camera) @ predicted_pose
+        t_predicted = float(torch.norm(predicted_rel[:3, 3]).item())
+
         best_pose = predicted_pose
-        best_rel = torch.linalg.inv(self.T_world_camera) @ predicted_pose
+        best_rel = predicted_rel
         best_quality = {
             "num_valid": 0,
             "inlier_ratio": 0.0,
             "rmse": 0.0,
             "tracking_source": "prediction",
         }
+
+        all_evaluated: list[tuple[torch.Tensor, dict]] = []
 
         tried_refs: list[int] = []
         for ref in self._fast_tracking_candidates(predicted_pose):
@@ -539,7 +554,8 @@ class RGBDTSDFSLAM(torch.nn.Module):
                 quality["photometric_mean_abs"] = photo
                 if photo > self.photometric_max_diff:
                     quality["photometric_gate"] = False
-            if self._quality_score(quality) > self._quality_score(best_quality):
+            all_evaluated.append((candidate_pose, quality))
+            if self._quality_score(quality, t_predicted, self.candidate_disagreement_penalty) > self._quality_score(best_quality, t_predicted, self.candidate_disagreement_penalty):
                 best_pose = candidate_pose
                 best_rel = torch.linalg.inv(self.T_world_camera) @ best_pose
                 best_quality = quality
@@ -576,10 +592,23 @@ class RGBDTSDFSLAM(torch.nn.Module):
                     quality["photometric_mean_abs"] = photo
                     if photo > self.photometric_max_diff:
                         quality["photometric_gate"] = False
-                if self._quality_score(quality) > self._quality_score(best_quality):
+                all_evaluated.append((candidate_pose, quality))
+                if self._quality_score(quality, t_predicted, self.candidate_disagreement_penalty) > self._quality_score(best_quality, t_predicted, self.candidate_disagreement_penalty):
                     best_pose = candidate_pose
                     best_rel = torch.linalg.inv(self.T_world_camera) @ best_pose
                     best_quality = quality
+
+        # A2: scale-consistency veto — apply before PnP
+        if all_evaluated:
+            all_candidates_sorted = sorted(
+                all_evaluated,
+                key=lambda c: self._quality_score(c[1], t_predicted, self.candidate_disagreement_penalty),
+                reverse=True,
+            )
+            veto_result = self._scale_veto(all_candidates_sorted, t_predicted, self.scale_veto_ratio)
+            if veto_result is not None:
+                best_pose, best_quality = veto_result
+                best_rel = torch.linalg.inv(self.T_world_camera) @ best_pose
 
         pnp_pose = None
         if (
@@ -602,6 +631,11 @@ class RGBDTSDFSLAM(torch.nn.Module):
                 best_quality.update(pnp_quality)
                 best_quality["tracking_source"] = "feature_pnp"
                 self._annotate_motion_quality(best_pose, best_quality)
+
+        # Store t_disagreement_norm in best_quality after all candidate selection
+        if self.candidate_disagreement_penalty > 0.0 and t_predicted > 0.0:
+            t_c = float(best_quality.get("frame_translation", t_predicted))
+            best_quality["t_disagreement_norm"] = abs(t_c - t_predicted) / max(0.02, t_predicted + 0.02)
 
         lost = self._is_lost(best_quality)
         if lost:
@@ -815,8 +849,11 @@ class RGBDTSDFSLAM(torch.nn.Module):
         live_gray = _to_gray(rgb) if rgb is not None else None
         predicted_pose = self._predict_pose()
 
+        predicted_rel_hybrid = torch.linalg.inv(self.T_world_camera) @ predicted_pose
+        t_predicted_hybrid = float(torch.norm(predicted_rel_hybrid[:3, 3]).item())
+
         best_pose = predicted_pose
-        best_rel = torch.linalg.inv(self.T_world_camera) @ predicted_pose
+        best_rel = predicted_rel_hybrid
         best_quality = {
             "num_valid": 0,
             "inlier_ratio": 0.0,
@@ -851,7 +888,7 @@ class RGBDTSDFSLAM(torch.nn.Module):
                 quality["photometric_mean_abs"] = photo
                 if photo > self.photometric_max_diff:
                     quality["photometric_gate"] = False
-            if self._quality_score(quality) > self._quality_score(best_quality):
+            if self._quality_score(quality, t_predicted_hybrid, self.candidate_disagreement_penalty) > self._quality_score(best_quality, t_predicted_hybrid, self.candidate_disagreement_penalty):
                 best_pose = candidate_pose
                 best_rel = torch.linalg.inv(self.T_world_camera) @ best_pose
                 best_quality = quality
@@ -869,7 +906,7 @@ class RGBDTSDFSLAM(torch.nn.Module):
                 ctx=ctx,
                 ray_cam_unit=ray_cam_unit,
             )
-            if self._quality_score(tsdf_quality) > self._quality_score(best_quality):
+            if self._quality_score(tsdf_quality, t_predicted_hybrid, self.candidate_disagreement_penalty) > self._quality_score(best_quality, t_predicted_hybrid, self.candidate_disagreement_penalty):
                 best_pose, best_rel, best_quality = tsdf_pose, tsdf_rel, tsdf_quality
 
         lost = self._is_lost(best_quality)
@@ -1043,16 +1080,48 @@ class RGBDTSDFSLAM(torch.nn.Module):
         )
 
     @staticmethod
-    def _quality_score(quality: dict) -> tuple[float, float, float, float, float]:
+    def _quality_score(
+        quality: dict,
+        t_predicted: float = 0.0,
+        lambda_disagree: float = 0.0,
+    ) -> tuple[float, float, float, float, float]:
         photometric_ok = 1.0 if quality.get("photometric_gate", True) is not False else 0.0
         motion_ok = 1.0 if quality.get("motion_gate", True) is not False else 0.0
+        inlier_ratio = float(quality.get("inlier_ratio", 0.0))
+        if lambda_disagree > 0.0 and t_predicted > 0.0:
+            t_candidate = float(quality.get("frame_translation", t_predicted))
+            t_disagree = abs(t_candidate - t_predicted)
+            t_disagree_norm = t_disagree / max(0.02, t_predicted + 0.02)
+            inlier_ratio = inlier_ratio - lambda_disagree * t_disagree_norm
         return (
             motion_ok,
             photometric_ok,
-            float(quality.get("inlier_ratio", 0.0)),
+            inlier_ratio,
             float(quality.get("num_valid", 0)),
             -float(quality.get("rmse", 1e9)),
         )
+
+    @staticmethod
+    def _scale_veto(
+        candidates: list,
+        t_predicted: float,
+        scale_veto_ratio: float = 3.0,
+    ):
+        """If the top candidate has t > scale_veto_ratio * t_predicted and a more
+        consistent candidate exists, return the more consistent one instead."""
+        if not candidates or t_predicted <= 0.0 or scale_veto_ratio <= 0.0:
+            return None
+        # already sorted best-first
+        winner_pose, winner_quality = candidates[0]
+        t_winner = float(winner_quality.get("frame_translation", t_predicted))
+        if t_winner <= scale_veto_ratio * t_predicted:
+            return None  # winner is not over-scaled — no veto needed
+        winner_inlier = float(winner_quality.get("inlier_ratio", 0.0))
+        for pose, q in candidates[1:]:
+            t_cand = float(q.get("frame_translation", t_predicted))
+            if t_cand <= 1.5 * t_predicted and float(q.get("inlier_ratio", 0.0)) >= 0.7 * winner_inlier:
+                return pose, q
+        return None
 
     def _annotate_motion_quality(self, candidate_pose: torch.Tensor, quality: dict) -> None:
         assert self.T_world_camera is not None

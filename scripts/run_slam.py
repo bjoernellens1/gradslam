@@ -378,6 +378,10 @@ def build_parser():
                        help="DataLoader prefetch factor (only used when --num-workers > 0)")
         p.add_argument("--no-pin-memory", action="store_true",
                        help="Disable pinned memory in DataLoader")
+        p.add_argument("--candidate-disagreement-penalty", type=float, default=1.0,
+                       help="Lambda for penalizing candidate motion disagreement vs velocity prediction")
+        p.add_argument("--scale-veto-ratio", type=float, default=3.0,
+                       help="Veto winner if t > this ratio * t_predicted and a more consistent candidate exists")
 
     return parser
 
@@ -464,6 +468,8 @@ def run_slam(args, dataset, extractor, device):
         local_map_candidates=getattr(args, 'local_map_candidates', 1),
         max_frame_translation=getattr(args, 'max_frame_translation', 0.12),
         max_frame_rotation_deg=getattr(args, 'max_frame_rotation_deg', 30.0),
+        candidate_disagreement_penalty=getattr(args, 'candidate_disagreement_penalty', 1.0),
+        scale_veto_ratio=getattr(args, 'scale_veto_ratio', 3.0),
     ).to(device)
 
     # Apply torch.compile for faster execution if requested
@@ -546,6 +552,7 @@ def run_slam(args, dataset, extractor, device):
                 "frame_rotation_deg": q.get("frame_rotation_deg", -1.0),
                 "motion_gate": q.get("motion_gate", True),
                 "reference_frame_idx": q.get("reference_frame_idx", -1),
+                "t_disagreement_norm": q.get("t_disagreement_norm", -1.0),
                 "tracking_ms": track_ms,
                 "lost": result.lost,
             })
@@ -674,7 +681,7 @@ def save_results(output_dir: Path, poses_est, tracking_log, dataset_type,
         f.write(
             "idx num_valid inlier_ratio rmse source integrated photometric_mean_abs "
             "feature_inliers frame_translation frame_rotation_deg motion_gate "
-            "reference_frame_idx tracking_ms lost\n"
+            "reference_frame_idx t_disagreement_norm tracking_ms lost\n"
         )
         for r in tracking_log:
             f.write(
@@ -685,6 +692,7 @@ def save_results(output_dir: Path, poses_est, tracking_log, dataset_type,
                 f"{r.get('frame_rotation_deg', -1.0):.6f} "
                 f"{int(r.get('motion_gate', True))} "
                 f"{int(r.get('reference_frame_idx', -1)):6d} "
+                f"{r.get('t_disagreement_norm', -1.0):.6f} "
                 f"{r['tracking_ms']:.3f} {int(r['lost'])}\n"
             )
     print(f"✓ Tracking metrics → {metrics_file}")
