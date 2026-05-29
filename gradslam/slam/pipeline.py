@@ -97,6 +97,8 @@ class RGBDTSDFSLAM(torch.nn.Module):
         max_frame_rotation_deg: float = 30.0,
         candidate_disagreement_penalty: float = 1.0,
         scale_veto_ratio: float = 3.0,
+        max_velocity_translation: float = 0.18,
+        max_velocity_rotation: float = 0.30,
     ):
         """Initialize SLAM pipeline.
 
@@ -151,6 +153,11 @@ class RGBDTSDFSLAM(torch.nn.Module):
             scale_veto_ratio: Veto the winning candidate if its translation
                 exceeds this ratio times the predicted translation and a more
                 consistent candidate exists. Set <= 0 to disable.
+            max_velocity_translation: Maximum predicted translation (m) from
+                the constant-velocity model before falling back to the last
+                pose without a velocity prediction.
+            max_velocity_rotation: Maximum predicted rotation (rad) from the
+                constant-velocity model before falling back to the last pose.
         """
         super().__init__()
         self.tsdf_config = tsdf_config or TSDFConfig()
@@ -199,6 +206,8 @@ class RGBDTSDFSLAM(torch.nn.Module):
         )
         self.candidate_disagreement_penalty = float(candidate_disagreement_penalty)
         self.scale_veto_ratio = float(scale_veto_ratio)
+        self.max_velocity_translation = float(max_velocity_translation)  # default 0.18
+        self.max_velocity_rotation = float(max_velocity_rotation)        # default 0.30
 
         self.tsdf: TSDFVolume | None = None
         self.T_world_camera: torch.Tensor | None = None
@@ -1044,7 +1053,7 @@ class RGBDTSDFSLAM(torch.nn.Module):
         trace = torch.trace(self._last_T_prev_curr[:3, :3])
         cos_angle = ((trace - 1.0) * 0.5).clamp(-1.0, 1.0)
         angle = torch.acos(cos_angle)
-        if translation > 0.25 or angle > 0.35:
+        if translation > self.max_velocity_translation or angle > self.max_velocity_rotation:
             return self.T_world_camera.clone()
         return self.T_world_camera @ self._last_T_prev_curr
 

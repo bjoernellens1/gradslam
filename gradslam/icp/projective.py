@@ -26,6 +26,8 @@ class ProjectiveICPConfig:
         huber_delta: Huber loss threshold (for robust_loss="huber").
         tukey_delta: Tukey biweight cutoff (for robust_loss="tukey").
         depth_weighting: Down-weight geometric residuals at long range.
+        adaptive_depth_diff: When True, use depth-adaptive correspondence gate
+            (0.05 + 0.01 * mean_z) instead of constant max_depth_diff.
         convergence_xi_norm: Convergence threshold for the update norm.
         photometric_weight: Weight of photometric residuals relative to
             geometric residuals. Set to 0.0 to disable (default).
@@ -44,6 +46,7 @@ class ProjectiveICPConfig:
     huber_delta: float = 0.03
     tukey_delta: float = 0.05
     depth_weighting: bool = True
+    adaptive_depth_diff: bool = True       # use depth-adaptive threshold (0.05 + 0.01*z)
     convergence_xi_norm: float = 1e-4
     photometric_weight: float = 0.0        # 0 = disabled
     photometric_levels: int = 1            # apply only at finest N levels
@@ -153,7 +156,7 @@ class ProjectiveICPTracker(torch.nn.Module):
             model_n = model_normals[level]
             # scale factor: coarsest level has highest downsampling
             scale = 2 ** (self.config.n_pyramid_levels - 1 - level)
-            K = intrinsics / scale  # Scaled intrinsics for this level
+            K = intrinsics / scale  # K correctly scaled per level
 
             # model_vertex is constant within the level — compute outside inner loop
             model_vertex = self._depth_to_vertex(model_d, K, device, dtype)  # [H_l, W_l, 3]
@@ -461,7 +464,15 @@ class ProjectiveICPTracker(torch.nn.Module):
         valid_live = live_vertex[:, :, 2] > 0
         valid_model = (assoc_depth > 0) & in_bounds
         valid_angle = self._check_normal_angle(live_normal, assoc_normal)
-        valid_depth = torch.abs(live_vertex[:, :, 2] - assoc_depth) < self.config.max_depth_diff
+        if self.config.adaptive_depth_diff:
+            valid_z = live_vertex[:, :, 2]
+            mean_z = valid_z[valid_z > 0].mean()
+            if torch.isnan(mean_z):
+                mean_z = torch.tensor(1.0, device=valid_z.device, dtype=valid_z.dtype)
+            adaptive_thresh = 0.05 + 0.01 * mean_z
+            valid_depth = torch.abs(live_vertex[:, :, 2] - assoc_depth) < adaptive_thresh
+        else:
+            valid_depth = torch.abs(live_vertex[:, :, 2] - assoc_depth) < self.config.max_depth_diff
 
         valid = (valid_live & valid_model & valid_angle & valid_depth).reshape(-1)
 

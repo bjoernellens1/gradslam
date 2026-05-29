@@ -364,10 +364,14 @@ def build_parser():
                        help="Minimum inlier ratio before tracking is marked lost")
         p.add_argument("--borderline-inlier-ratio", type=float, default=0.08,
                        help="Try TSDF fallback when local tracking is below this inlier ratio")
-        p.add_argument("--robust-loss", choices=["none", "huber", "tukey"], default="none",
+        p.add_argument("--robust-loss", choices=["none", "huber", "tukey"], default="huber",
                        help="Robust loss used by projective ICP")
+        p.add_argument("--huber-delta", type=float, default=0.03,
+                       help="Huber delta for geometric residuals in projective ICP (meters)")
         p.add_argument("--max-depth-diff", type=float, default=0.14,
-                       help="Maximum projective correspondence depth difference in meters")
+                       help="Maximum projective correspondence depth difference in meters (used when --no-adaptive-depth-diff is set)")
+        p.add_argument("--no-adaptive-depth-diff", action="store_true",
+                       help="Disable adaptive depth difference threshold (use constant --max-depth-diff)")
         p.add_argument("--max-normal-angle-deg", type=float, default=75.0,
                        help="Maximum projective correspondence normal angle in degrees")
         p.add_argument("--no-depth-weighting", action="store_true",
@@ -388,6 +392,10 @@ def build_parser():
                        help="Apply photometric residuals at the finest N pyramid levels")
         p.add_argument("--no-photometric", action="store_true",
                        help="Disable photometric residuals entirely")
+        p.add_argument("--max-velocity-translation", type=float, default=0.18,
+                       help="Maximum predicted translation (m) before velocity model is rejected")
+        p.add_argument("--max-velocity-rotation", type=float, default=0.30,
+                       help="Maximum predicted rotation (rad) before velocity model is rejected")
 
     return parser
 
@@ -437,8 +445,10 @@ def run_slam(args, dataset, extractor, device):
             damping=tuple(1e-2 / (10 ** i) for i in range(len(args.icp_iters))),
             max_depth_diff=getattr(args, 'max_depth_diff', 0.14),
             max_normal_angle_deg=getattr(args, 'max_normal_angle_deg', 75.0),
-            robust_loss=getattr(args, 'robust_loss', 'none'),
+            robust_loss=getattr(args, 'robust_loss', 'huber'),
+            huber_delta=getattr(args, 'huber_delta', 0.03),
             depth_weighting=not getattr(args, 'no_depth_weighting', False),
+            adaptive_depth_diff=not getattr(args, 'no_adaptive_depth_diff', False),
             photometric_weight=_photo_weight,
             photometric_levels=_photo_levels,
         )
@@ -449,8 +459,10 @@ def run_slam(args, dataset, extractor, device):
             damping=(1e-2, 1e-3),
             max_depth_diff=getattr(args, 'max_depth_diff', 0.14),
             max_normal_angle_deg=getattr(args, 'max_normal_angle_deg', 75.0),
-            robust_loss=getattr(args, 'robust_loss', 'none'),
+            robust_loss=getattr(args, 'robust_loss', 'huber'),
+            huber_delta=getattr(args, 'huber_delta', 0.03),
             depth_weighting=not getattr(args, 'no_depth_weighting', False),
+            adaptive_depth_diff=not getattr(args, 'no_adaptive_depth_diff', False),
             photometric_weight=_photo_weight,
             photometric_levels=_photo_levels,
         )
@@ -458,8 +470,10 @@ def run_slam(args, dataset, extractor, device):
         icp_cfg = ProjectiveICPConfig(
             max_depth_diff=getattr(args, 'max_depth_diff', 0.14),
             max_normal_angle_deg=getattr(args, 'max_normal_angle_deg', 75.0),
-            robust_loss=getattr(args, 'robust_loss', 'none'),
+            robust_loss=getattr(args, 'robust_loss', 'huber'),
+            huber_delta=getattr(args, 'huber_delta', 0.03),
             depth_weighting=not getattr(args, 'no_depth_weighting', False),
+            adaptive_depth_diff=not getattr(args, 'no_adaptive_depth_diff', False),
             photometric_weight=_photo_weight,
             photometric_levels=_photo_levels,
         )
@@ -488,6 +502,8 @@ def run_slam(args, dataset, extractor, device):
         max_frame_rotation_deg=getattr(args, 'max_frame_rotation_deg', 30.0),
         candidate_disagreement_penalty=getattr(args, 'candidate_disagreement_penalty', 1.0),
         scale_veto_ratio=getattr(args, 'scale_veto_ratio', 3.0),
+        max_velocity_translation=getattr(args, 'max_velocity_translation', 0.18),
+        max_velocity_rotation=getattr(args, 'max_velocity_rotation', 0.30),
     ).to(device)
 
     # Apply torch.compile for faster execution if requested
