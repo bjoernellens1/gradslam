@@ -909,6 +909,10 @@ class RGBDTSDFSLAM(torch.nn.Module):
             if self._quality_score(tsdf_quality, t_predicted_hybrid, self.candidate_disagreement_penalty) > self._quality_score(best_quality, t_predicted_hybrid, self.candidate_disagreement_penalty):
                 best_pose, best_rel, best_quality = tsdf_pose, tsdf_rel, tsdf_quality
 
+        if self.candidate_disagreement_penalty > 0.0 and t_predicted_hybrid > 0.0:
+            t_c = float(best_quality.get("frame_translation", t_predicted_hybrid))
+            best_quality["t_disagreement_norm"] = abs(t_c - t_predicted_hybrid) / max(0.02, t_predicted_hybrid + 0.02)
+
         lost = self._is_lost(best_quality)
         if lost:
             self.lost = True
