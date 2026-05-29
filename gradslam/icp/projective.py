@@ -42,7 +42,7 @@ class ProjectiveICPConfig:
     damping: tuple[float, ...] = (1e-2, 1e-3, 1e-4)
     max_depth_diff: float = 0.10
     max_normal_angle_deg: float = 60.0
-    robust_loss: str = "none"
+    robust_loss: str = "huber"
     huber_delta: float = 0.03
     tukey_delta: float = 0.05
     depth_weighting: bool = True
