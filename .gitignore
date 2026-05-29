@@ -142,3 +142,7 @@ log/
 
 # Tutorials data
 ICL/outputs/
+
+outputs/
+data/realsense_eval/
+data/tum_freiburg2/
