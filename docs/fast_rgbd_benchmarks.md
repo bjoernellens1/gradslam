@@ -21,6 +21,9 @@ bugs that made earlier runs misleading:
 | `--tracking-mode` | `fast_rgbd` | Tracks against cached RGB-D references instead of TSDF raycasting. |
 | `--keyframe-tracking-interval` | `0` | Periodic keyframe matching was too slow in current kernels. |
 | `--feature-interval` | `0` | ORB/PnP did not improve checked runs. |
+| `--local-map-candidates` | `1` | Lightweight recovery mode tests one nearby keyframe only after a quality or motion gate trips. |
+| `--max-frame-translation` | `0.12` | Suppresses the worst over-scaled relative-motion failures while keeping fast/default TUM desk stable. |
+| `--max-frame-rotation-deg` | `30` | Rejects implausible single-frame rotations. |
 | `--max-depth-diff` | `0.14` | Best current TUM correspondence gate. |
 | `--max-normal-angle-deg` | `75` | Best current TUM normal gate. |
 
@@ -33,9 +36,33 @@ uses a growing global point map and is not a safe full-sequence ROCm runtime pat
 | Dataset / mode | Frames | Scale | Tracking FPS | End-to-end FPS | Lost | ATE RMSE | RPE1 trans | Notes |
 |---|---:|---:|---:|---:|---:|---:|---:|---|
 | TUM `freiburg1_desk`, corrected RGB-D stream | 300 | `0.5` | `41.9` | `26.6` | `1` | `0.1080 m` | `0.0093 m` | Just above the 10 cm gate. |
+| TUM `freiburg1_desk`, default motion gate `0.12` | 300 | `0.5` | `41.5` | `25.8` | `1` | `0.1080 m` | `0.0093 m` | No regression from the new default gate. |
 | TUM `freiburg2_large_no_loop`, corrected RGB-D stream | 300 | `0.5` | `44.6` | `29.2` | not accepted | `6.6418 m` | `0.1672 m` | No sparse-GT jump, but geometry/tracker still fails. |
 | TUM `freiburg2_large_no_loop`, official intrinsics | 300 | `0.5` | `44.3` | `28.9` | not accepted | `6.7556 m` | `0.1687 m` | Official intrinsics do not fix Freiburg2. |
+| TUM `freiburg2_large_no_loop`, heavy local-map gate `0.08`, 3 candidates | 300 | `0.5` | `10.3` | `9.0` | not accepted | `2.3014 m` | `0.0529 m` | Accuracy improves, but it is far below the FPS gate. |
+| TUM `freiburg2_large_no_loop`, adaptive local-map gate `0.12`, 1 candidate | 300 | `0.5` | `35.4` | `25.0` | `90` | `3.4597 m` | `0.0753 m` | Clears tracking FPS and halves RPE1, but ATE remains unusable. |
 | RealSense hallway, corrected extraction | 300 | `0.25` | `61.8` | `25.9` | `0` | `4.6883 m` | `0.1491 m` | Depth is now sane; tracking accuracy is still unusable. |
+| RealSense hallway, adaptive local-map gate `0.12`, 1 candidate | 300 | `0.25` | `57.1` | `25.8` | `46` | `1.7564 m` | `0.0750 m` | Large improvement, still not robust enough. |
+| Orbbec kitchen ICL export, adaptive local-map gate `0.12`, 1 candidate | 300 | `0.25` | `52.5` | `20.9` | `0` | n/a | n/a | Stable no-GT speed/stability check. |
+
+## Motion Diagnostics
+
+`scripts/diagnose_tracking_motion.py` compares estimated and GT relative motion
+from TUM-format trajectories and writes `motion_diagnostics.json` plus
+`relative_motion.csv`. On the broken Freiburg2 fast run it showed:
+
+| Diagnostic | Value |
+|---|---:|
+| Associated GT pairs | `230 / 300` |
+| Direct ATE RMSE | `6.6418 m` |
+| Direct RPE1 translation RMSE | `0.1672 m` |
+| Median relative translation scale ratio | `15.28x` |
+| First relative translation error above 10 cm | frame-pair `2 -> 3` |
+| Inverted trajectory ATE RMSE | `7.3179 m` |
+
+The failure is therefore not just a pose convention inversion. The current dense
+projective tracker can report good inlier ratios while producing badly
+over-scaled relative translation on some long/handheld scenes.
 
 ## VRAM Safety Findings
 
@@ -74,10 +101,33 @@ podman compose run --rm gradslam python scripts/run_slam.py normalized \
   --device cuda:0
 ```
 
+Adaptive local-map recovery:
+
+```bash
+podman compose run --rm gradslam python scripts/run_slam.py tum \
+  --dataset-root /workspace/data/tum_freiburg2/freiburg2_large_no_loop \
+  --sequence rgbd_dataset_freiburg2_large_no_loop \
+  --slam-backend local_map \
+  --max-frames 300 \
+  --device cuda:0
+```
+
+Relative-motion diagnostics:
+
+```bash
+podman compose run --rm gradslam python scripts/diagnose_tracking_motion.py \
+  --estimated /workspace/outputs/tum_fr2_large_no_loop_fast_rgbd_300_trackingpairs_container/estimated_poses.txt \
+  --gt /workspace/data/tum_freiburg2/freiburg2_large_no_loop/rgbd_dataset_freiburg2_large_no_loop/groundtruth.txt \
+  --tracking-metrics /workspace/outputs/tum_fr2_large_no_loop_fast_rgbd_300_trackingpairs_container/tracking_metrics.txt \
+  --output-dir /workspace/outputs/tum_fr2_large_no_loop_fast_rgbd_300_trackingpairs_container/diagnostics
+```
+
 ## Next Fix Direction
 
 The current fast tracker is now safe enough to benchmark, but not accurate
-enough beyond easy TUM desk. The next implementation step is a real local-map
-tracker: previous-frame tracking for normal frames, keyframe/local-map correction
-for weak frames, and a sliding keyframe pose graph for long sequences. Further
-gate tuning alone is unlikely to close the Freiburg2 or RealSense error gap.
+enough beyond easy TUM desk. Adaptive local-map recovery is a useful guardrail,
+not a complete fix: it lowers Freiburg2/RealSense RPE while preserving tracking
+FPS, but it does not solve long-horizon ATE. The next implementation step should
+be an actual local correction layer: candidate triggering from relative-motion
+diagnostics, per-keyframe pose correction, and a small sliding pose graph that can
+feed corrected keyframe poses back into tracking without blocking the frame loop.

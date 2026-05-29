@@ -327,10 +327,10 @@ def build_parser():
                        help="Mixed precision autocast mode for raycast+ICP")
         p.add_argument("--raycast-normal-mode", choices=["gradient", "image"], default="gradient",
                        help="Raycast normal mode: gradient (TSDF-based) or image (faster, depth-derived)")
-        p.add_argument("--slam-backend", choices=["rgbdtsdf", "fast_rgbd", "icpslam", "pointfusion"],
+        p.add_argument("--slam-backend", choices=["rgbdtsdf", "fast_rgbd", "local_map", "icpslam", "pointfusion"],
                        default="fast_rgbd",
                        help="SLAM backend: current RGBDTSDFSLAM fast path or upstream-style ICPSLAM/PointFusion")
-        p.add_argument("--tracking-mode", choices=["fast_rgbd", "hybrid", "tsdf"], default="fast_rgbd",
+        p.add_argument("--tracking-mode", choices=["fast_rgbd", "local_map", "hybrid", "tsdf"], default="fast_rgbd",
                        help="Tracking core: local RGB-D keyframe tracker or TSDF-only tracker")
         p.add_argument("--upstream-odom", choices=["gradicp", "icp"], default="gradicp",
                        help="Odometry provider for upstream-style ICPSLAM/PointFusion backends")
@@ -350,6 +350,12 @@ def build_parser():
                        help="Run low-rate ORB+PnP feature correction every N frames in fast_rgbd (0 = off)")
         p.add_argument("--keyframe-tracking-interval", type=int, default=0,
                        help="Add a local keyframe tracking candidate every N fast_rgbd frames (0 = off)")
+        p.add_argument("--local-map-candidates", type=int, default=1,
+                       help="Nearby keyframes tested every frame by --slam-backend local_map")
+        p.add_argument("--max-frame-translation", type=float, default=0.12,
+                       help="Reject frame-to-frame tracking updates above this translation in meters (<=0 disables)")
+        p.add_argument("--max-frame-rotation-deg", type=float, default=30.0,
+                       help="Reject frame-to-frame tracking updates above this rotation in degrees (<=0 disables)")
         p.add_argument("--tracking-warmup-frames", type=int, default=10,
                        help="Warmup frames excluded from reported tracking FPS")
         p.add_argument("--min-track-inliers", type=int, default=100,
@@ -405,6 +411,8 @@ def run_slam(args, dataset, extractor, device):
     tracking_mode = getattr(args, 'tracking_mode', 'fast_rgbd')
     if slam_backend == "rgbdtsdf":
         tracking_mode = "hybrid"
+    elif slam_backend == "local_map":
+        tracking_mode = "local_map"
     icp_cfg = None
     if getattr(args, 'icp_iters', None):
         icp_cfg = ProjectiveICPConfig(
@@ -416,7 +424,7 @@ def run_slam(args, dataset, extractor, device):
             robust_loss=getattr(args, 'robust_loss', 'none'),
             depth_weighting=not getattr(args, 'no_depth_weighting', False),
         )
-    elif tracking_mode == 'fast_rgbd':
+    elif tracking_mode in ('fast_rgbd', 'local_map'):
         icp_cfg = ProjectiveICPConfig(
             n_pyramid_levels=2,
             iterations=(5, 3),
@@ -447,12 +455,15 @@ def run_slam(args, dataset, extractor, device):
         tracking_mode=tracking_mode,
         max_keyframes=getattr(args, 'max_keyframes', 8),
         mapping_interval=getattr(args, 'mapping_interval', 5),
-        enable_mapping=getattr(args, 'enable_mapping', False) or tracking_mode != 'fast_rgbd',
+        enable_mapping=getattr(args, 'enable_mapping', False) or tracking_mode not in ('fast_rgbd', 'local_map'),
         feature_interval=getattr(args, 'feature_interval', 5),
         keyframe_tracking_interval=getattr(args, 'keyframe_tracking_interval', 10),
         min_track_inliers=getattr(args, 'min_track_inliers', 100),
         lost_inlier_ratio_thresh=getattr(args, 'lost_inlier_ratio', 0.02),
         borderline_inlier_ratio=getattr(args, 'borderline_inlier_ratio', 0.08),
+        local_map_candidates=getattr(args, 'local_map_candidates', 1),
+        max_frame_translation=getattr(args, 'max_frame_translation', 0.12),
+        max_frame_rotation_deg=getattr(args, 'max_frame_rotation_deg', 30.0),
     ).to(device)
 
     # Apply torch.compile for faster execution if requested
@@ -531,6 +542,10 @@ def run_slam(args, dataset, extractor, device):
                 "integrated": q.get("integrated", False),
                 "photometric_mean_abs": q.get("photometric_mean_abs", -1.0),
                 "feature_inliers": q.get("feature_inliers", 0),
+                "frame_translation": q.get("frame_translation", -1.0),
+                "frame_rotation_deg": q.get("frame_rotation_deg", -1.0),
+                "motion_gate": q.get("motion_gate", True),
+                "reference_frame_idx": q.get("reference_frame_idx", -1),
                 "tracking_ms": track_ms,
                 "lost": result.lost,
             })
@@ -656,12 +671,22 @@ def save_results(output_dir: Path, poses_est, tracking_log, dataset_type,
     # Save tracking metrics
     metrics_file = output_dir / "tracking_metrics.txt"
     with open(metrics_file, "w") as f:
-        f.write("idx num_valid inlier_ratio rmse source integrated photometric_mean_abs feature_inliers tracking_ms lost\n")
+        f.write(
+            "idx num_valid inlier_ratio rmse source integrated photometric_mean_abs "
+            "feature_inliers frame_translation frame_rotation_deg motion_gate "
+            "reference_frame_idx tracking_ms lost\n"
+        )
         for r in tracking_log:
-            f.write(f"{r['idx']:6d} {r['num_valid']:8d} {r['inlier_ratio']:.4f} "
-                    f"{r['rmse']:.6f} {r['source']} {int(r['integrated'])} "
-                    f"{r['photometric_mean_abs']:.6f} {r['feature_inliers']:4d} "
-                    f"{r['tracking_ms']:.3f} {int(r['lost'])}\n")
+            f.write(
+                f"{r['idx']:6d} {r['num_valid']:8d} {r['inlier_ratio']:.4f} "
+                f"{r['rmse']:.6f} {r['source']} {int(r['integrated'])} "
+                f"{r['photometric_mean_abs']:.6f} {r['feature_inliers']:4d} "
+                f"{r.get('frame_translation', -1.0):.6f} "
+                f"{r.get('frame_rotation_deg', -1.0):.6f} "
+                f"{int(r.get('motion_gate', True))} "
+                f"{int(r.get('reference_frame_idx', -1)):6d} "
+                f"{r['tracking_ms']:.3f} {int(r['lost'])}\n"
+            )
     print(f"✓ Tracking metrics → {metrics_file}")
 
     summary_file = output_dir / "tracking_summary.txt"

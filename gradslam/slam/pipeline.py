@@ -92,6 +92,9 @@ class RGBDTSDFSLAM(torch.nn.Module):
         lost_inlier_ratio_thresh: float = 0.02,
         borderline_inlier_ratio: float = 0.08,
         photometric_max_diff: float = 0.20,
+        local_map_candidates: int = 1,
+        max_frame_translation: float = 0.12,
+        max_frame_rotation_deg: float = 30.0,
     ):
         """Initialize SLAM pipeline.
 
@@ -134,6 +137,12 @@ class RGBDTSDFSLAM(torch.nn.Module):
                 attempted even if local tracking produced a pose.
             photometric_max_diff: Mean grayscale reprojection residual threshold
                 used for keyframe quality reporting.
+            local_map_candidates: Number of nearby keyframes tested every frame
+                by ``tracking_mode="local_map"``.
+            max_frame_translation: Reject frame-to-frame updates larger than
+                this many meters. Set <= 0 to disable.
+            max_frame_rotation_deg: Reject frame-to-frame updates larger than
+                this many degrees. Set <= 0 to disable.
         """
         super().__init__()
         self.tsdf_config = tsdf_config or TSDFConfig()
@@ -161,8 +170,8 @@ class RGBDTSDFSLAM(torch.nn.Module):
         # Change 4 — autocast dtype
         self.autocast_dtype = autocast_dtype
 
-        if tracking_mode not in ("fast_rgbd", "hybrid", "tsdf"):
-            raise ValueError("tracking_mode must be 'fast_rgbd', 'hybrid', or 'tsdf'")
+        if tracking_mode not in ("fast_rgbd", "local_map", "hybrid", "tsdf"):
+            raise ValueError("tracking_mode must be 'fast_rgbd', 'local_map', 'hybrid', or 'tsdf'")
         self.tracking_mode = tracking_mode
         self.max_keyframes = max_keyframes
         self.mapping_interval = max(1, mapping_interval)
@@ -173,6 +182,13 @@ class RGBDTSDFSLAM(torch.nn.Module):
         self.lost_inlier_ratio_thresh = lost_inlier_ratio_thresh
         self.borderline_inlier_ratio = borderline_inlier_ratio
         self.photometric_max_diff = photometric_max_diff
+        self.local_map_candidates = max(0, int(local_map_candidates))
+        self.max_frame_translation = float(max_frame_translation)
+        self.max_frame_rotation_rad = (
+            float(max_frame_rotation_deg) * torch.pi / 180.0
+            if max_frame_rotation_deg > 0
+            else 0.0
+        )
 
         self.tsdf: TSDFVolume | None = None
         self.T_world_camera: torch.Tensor | None = None
@@ -282,7 +298,7 @@ class RGBDTSDFSLAM(torch.nn.Module):
         else:
             ctx = nullcontext()
 
-        if self.tracking_mode == "fast_rgbd":
+        if self.tracking_mode in ("fast_rgbd", "local_map"):
             return self._process_frame_fast_rgbd(depth, rgb, K, ctx)
 
         if self.tracking_mode == "hybrid":
@@ -511,6 +527,7 @@ class RGBDTSDFSLAM(torch.nn.Module):
             quality = dict(quality)
             quality["tracking_source"] = "keyframe" if ref.is_keyframe else "previous"
             quality["reference_frame_idx"] = ref.frame_idx
+            self._annotate_motion_quality(candidate_pose, quality)
             if live_gray is not None and ref.gray is not None:
                 photo = self._photometric_reprojection_error(
                     live_depth=depth,
@@ -530,6 +547,7 @@ class RGBDTSDFSLAM(torch.nn.Module):
         if (
             best_quality.get("inlier_ratio", 0.0) < self.borderline_inlier_ratio
             or best_quality.get("num_valid", 0) < self.min_track_inliers
+            or best_quality.get("motion_gate", True) is False
         ):
             for ref in self._fast_recovery_candidates(predicted_pose, tried_refs):
                 init_T_ref_live = torch.linalg.inv(ref.T_world_camera) @ predicted_pose
@@ -546,6 +564,7 @@ class RGBDTSDFSLAM(torch.nn.Module):
                 quality = dict(quality)
                 quality["tracking_source"] = "recovery_keyframe"
                 quality["reference_frame_idx"] = ref.frame_idx
+                self._annotate_motion_quality(candidate_pose, quality)
                 if live_gray is not None and ref.gray is not None:
                     photo = self._photometric_reprojection_error(
                         live_depth=depth,
@@ -582,6 +601,7 @@ class RGBDTSDFSLAM(torch.nn.Module):
                 best_rel = torch.linalg.inv(self.T_world_camera) @ best_pose
                 best_quality.update(pnp_quality)
                 best_quality["tracking_source"] = "feature_pnp"
+                self._annotate_motion_quality(best_pose, best_quality)
 
         lost = self._is_lost(best_quality)
         if lost:
@@ -684,7 +704,8 @@ class RGBDTSDFSLAM(torch.nn.Module):
                 continue
             rel = torch.linalg.inv(ref.T_world_camera) @ predicted_pose
             scored.append((torch.norm(rel[:3, 3]).item(), ref))
-        return [ref for _, ref in sorted(scored, key=lambda item: item[0])[:3]]
+        limit = self.local_map_candidates if self.tracking_mode == "local_map" else 3
+        return [ref for _, ref in sorted(scored, key=lambda item: item[0])[:limit]]
 
     def _set_feature_keyframe(
         self,
@@ -818,6 +839,7 @@ class RGBDTSDFSLAM(torch.nn.Module):
             quality = dict(quality)
             quality["tracking_source"] = "keyframe" if ref.is_keyframe else "previous"
             quality["reference_frame_idx"] = ref.frame_idx
+            self._annotate_motion_quality(candidate_pose, quality)
             if live_gray is not None and ref.gray is not None:
                 photo = self._photometric_reprojection_error(
                     live_depth=depth,
@@ -1017,17 +1039,40 @@ class RGBDTSDFSLAM(torch.nn.Module):
         return (
             quality.get("num_valid", 0) < self.min_track_inliers
             or quality.get("inlier_ratio", 0.0) < self.lost_inlier_ratio_thresh
+            or quality.get("motion_gate", True) is False
         )
 
     @staticmethod
-    def _quality_score(quality: dict) -> tuple[float, float, float, float]:
+    def _quality_score(quality: dict) -> tuple[float, float, float, float, float]:
         photometric_ok = 1.0 if quality.get("photometric_gate", True) is not False else 0.0
+        motion_ok = 1.0 if quality.get("motion_gate", True) is not False else 0.0
         return (
+            motion_ok,
             photometric_ok,
             float(quality.get("inlier_ratio", 0.0)),
             float(quality.get("num_valid", 0)),
             -float(quality.get("rmse", 1e9)),
         )
+
+    def _annotate_motion_quality(self, candidate_pose: torch.Tensor, quality: dict) -> None:
+        assert self.T_world_camera is not None
+        rel = torch.linalg.inv(self.T_world_camera) @ candidate_pose
+        translation = torch.norm(rel[:3, 3])
+        trace = torch.trace(rel[:3, :3])
+        cos_angle = ((trace - 1.0) * 0.5).clamp(-1.0, 1.0)
+        angle = torch.acos(cos_angle)
+        quality["frame_translation"] = float(translation.item())
+        quality["frame_rotation_deg"] = float((angle * 180.0 / torch.pi).item())
+        translation_ok = (
+            self.max_frame_translation <= 0.0
+            or quality["frame_translation"] <= self.max_frame_translation
+        )
+        rotation_ok = (
+            self.max_frame_rotation_rad <= 0.0
+            or float(angle.item()) <= self.max_frame_rotation_rad
+        )
+        if not (translation_ok and rotation_ok):
+            quality["motion_gate"] = False
 
     def _photometric_reprojection_error(
         self,
