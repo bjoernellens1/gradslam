@@ -396,6 +396,10 @@ def build_parser():
                        help="Maximum predicted translation (m) before velocity model is rejected")
         p.add_argument("--max-velocity-rotation", type=float, default=0.30,
                        help="Maximum predicted rotation (rad) before velocity model is rejected")
+        p.add_argument("--pose-graph", choices=["off", "on"], default="off",
+                       help="Enable sliding-window pose graph optimization after keyframe insertion")
+        p.add_argument("--pose-graph-window", type=int, default=8,
+                       help="Sliding-window pose graph window size (number of keyframes)")
 
     return parser
 
@@ -504,6 +508,8 @@ def run_slam(args, dataset, extractor, device):
         scale_veto_ratio=getattr(args, 'scale_veto_ratio', 3.0),
         max_velocity_translation=getattr(args, 'max_velocity_translation', 0.18),
         max_velocity_rotation=getattr(args, 'max_velocity_rotation', 0.30),
+        pose_graph_enabled=getattr(args, 'pose_graph', 'off') == 'on',
+        pose_graph_window=getattr(args, 'pose_graph_window', 8),
     ).to(device)
 
     # Apply torch.compile for faster execution if requested

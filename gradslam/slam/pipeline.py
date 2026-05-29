@@ -11,6 +11,7 @@ import torch.nn.functional as F
 from ..icp.projective import ProjectiveICPConfig, ProjectiveICPTracker
 from ..mapping.tsdf import TSDFConfig, TSDFVolume
 from ..rendering.tsdf_raycast import RenderedFrame, raycast_tsdf
+from .pose_graph import SlidingWindowPoseGraph
 
 
 @dataclass
@@ -99,6 +100,8 @@ class RGBDTSDFSLAM(torch.nn.Module):
         scale_veto_ratio: float = 3.0,
         max_velocity_translation: float = 0.18,
         max_velocity_rotation: float = 0.30,
+        pose_graph_enabled: bool = False,
+        pose_graph_window: int = 8,
     ):
         """Initialize SLAM pipeline.
 
@@ -158,6 +161,12 @@ class RGBDTSDFSLAM(torch.nn.Module):
                 pose without a velocity prediction.
             max_velocity_rotation: Maximum predicted rotation (rad) from the
                 constant-velocity model before falling back to the last pose.
+            pose_graph_enabled: Enable sliding-window pose graph optimizer.
+                When ``True``, after each keyframe insertion a Gauss-Newton
+                optimizer corrects the last ``pose_graph_window`` keyframes.
+                Defaults to ``False`` (opt-in).
+            pose_graph_window: Window size (number of keyframes) for the
+                sliding-window pose graph.
         """
         super().__init__()
         self.tsdf_config = tsdf_config or TSDFConfig()
@@ -209,6 +218,14 @@ class RGBDTSDFSLAM(torch.nn.Module):
         self.max_velocity_translation = float(max_velocity_translation)  # default 0.18
         self.max_velocity_rotation = float(max_velocity_rotation)        # default 0.30
 
+        # Sliding-window pose graph (opt-in)
+        self.pose_graph_enabled = pose_graph_enabled
+        self._pose_graph: SlidingWindowPoseGraph | None = (
+            SlidingWindowPoseGraph(window_size=pose_graph_window)
+            if pose_graph_enabled
+            else None
+        )
+
         self.tsdf: TSDFVolume | None = None
         self.T_world_camera: torch.Tensor | None = None
         self.frame_count: int = 0
@@ -242,6 +259,11 @@ class RGBDTSDFSLAM(torch.nn.Module):
         self._keyframe_depth_cpu = None
         self._keyframe_K_cpu = None
         self._keyframe_pose_cpu = None
+        # Reset pose graph (if enabled, re-create to clear accumulated state)
+        if self._pose_graph is not None:
+            self._pose_graph = SlidingWindowPoseGraph(
+                window_size=self._pose_graph.window_size
+            )
 
     @torch.no_grad()
     def process_frame(self, frame: RGBDFrame) -> TrackingResult:
@@ -704,6 +726,41 @@ class RGBDTSDFSLAM(torch.nn.Module):
             if len(self.keyframes) > self.max_keyframes:
                 self.keyframes = self.keyframes[-self.max_keyframes :]
             self._set_feature_keyframe(rgb, depth, K, self.T_world_camera)
+
+            # Sliding-window pose graph correction (opt-in via pose_graph_enabled)
+            if self._pose_graph is not None:
+                inlier_w = float(best_quality.get("inlier_ratio", 0.5))
+                rmse_w = 1.0 / max(float(best_quality.get("rmse", 0.01)), 1e-4)
+                w = inlier_w * min(rmse_w, 100.0)
+                # Pass best_rel as the independent ICP measurement so the
+                # optimizer has information to correct drift with.
+                self._pose_graph.add_keyframe(
+                    self.T_world_camera,
+                    T_rel_measured=best_rel,
+                    weight=w,
+                )
+                if self._pose_graph.num_keyframes >= 2:
+                    corrected = self._pose_graph.get_corrected_poses()
+                    # Update matching keyframes in self.keyframes
+                    n_graph = len(corrected)
+                    n_kf = len(self.keyframes)
+                    for j, new_pose in enumerate(corrected):
+                        kf_idx = n_kf - n_graph + j
+                        if 0 <= kf_idx < n_kf:
+                            self.keyframes[kf_idx].T_world_camera = new_pose
+                    # Update current camera pose from last corrected pose
+                    if corrected:
+                        self.T_world_camera = corrected[-1].clone()
+                    # Rebuild _last_reference so next frame tracks corrected geometry
+                    self._last_reference = self._make_reference(
+                        depth=depth,
+                        K=K,
+                        T_world_camera=self.T_world_camera,
+                        frame_idx=self.frame_count,
+                        rgb=rgb,
+                        normal=live_normal,
+                        is_keyframe=True,
+                    )
 
         best_quality["integrated"] = integrate_frame
         self.frame_count += 1
