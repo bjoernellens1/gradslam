@@ -220,6 +220,7 @@
         <span class="n">width</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">640</span><span class="p">,</span>
         <span class="n">channels_first</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
         <span class="n">normalize_color</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">intrinsics_mode</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;registered&quot;</span><span class="p">,</span>
         <span class="o">*</span><span class="p">,</span>
         <span class="n">return_depth</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
         <span class="n">return_intrinsics</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
@@ -237,6 +238,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">width_downsample_ratio</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">width</span><span class="p">)</span> <span class="o">/</span> <span class="mi">640</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">channels_first</span> <span class="o">=</span> <span class="n">channels_first</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">normalize_color</span> <span class="o">=</span> <span class="n">normalize_color</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">intrinsics_mode</span> <span class="o">=</span> <span class="n">intrinsics_mode</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">return_depth</span> <span class="o">=</span> <span class="n">return_depth</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">return_intrinsics</span> <span class="o">=</span> <span class="n">return_intrinsics</span>
@@ -423,10 +425,14 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">framenames</span> <span class="o">=</span> <span class="n">framenames</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">timestamps</span> <span class="o">=</span> <span class="n">timestamps</span>
 
-        <span class="c1"># Camera intrinsics matrix for TUM dataset</span>
-        <span class="n">intrinsics</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span>
-            <span class="p">[[</span><span class="mf">525.0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mf">319.5</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mf">525.0</span><span class="p">,</span> <span class="mf">239.5</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]]</span>
-        <span class="p">)</span><span class="o">.</span><span class="n">float</span><span class="p">()</span>
+        <span class="c1"># Camera intrinsics matrix for TUM dataset. The default keeps the</span>
+        <span class="c1"># registered RGB-D benchmark convention. Official per-camera values are</span>
+        <span class="c1"># useful as an ablation on sequences whose geometry does not fit the</span>
+        <span class="c1"># registered convention.</span>
+        <span class="n">intrinsics</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_intrinsics_for_sequence</span><span class="p">(</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">sequence_paths</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span>
+            <span class="n">intrinsics_mode</span><span class="o">=</span><span class="n">intrinsics_mode</span><span class="p">,</span>
+        <span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">intrinsics</span> <span class="o">=</span> <span class="n">datautils</span><span class="o">.</span><span class="n">scale_intrinsics</span><span class="p">(</span>
             <span class="n">intrinsics</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">height_downsample_ratio</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">width_downsample_ratio</span>
         <span class="p">)</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
@@ -440,6 +446,27 @@
 <span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Returns the length of the dataset. &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_sequences</span></div>
 
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_intrinsics_for_sequence</span><span class="p">(</span><span class="n">sequence_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">intrinsics_mode</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">intrinsics_mode</span> <span class="o">==</span> <span class="s2">&quot;registered&quot;</span><span class="p">:</span>
+            <span class="n">fx</span><span class="p">,</span> <span class="n">fy</span><span class="p">,</span> <span class="n">cx</span><span class="p">,</span> <span class="n">cy</span> <span class="o">=</span> <span class="mf">525.0</span><span class="p">,</span> <span class="mf">525.0</span><span class="p">,</span> <span class="mf">319.5</span><span class="p">,</span> <span class="mf">239.5</span>
+        <span class="k">elif</span> <span class="n">intrinsics_mode</span> <span class="o">==</span> <span class="s2">&quot;official&quot;</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s2">&quot;freiburg1&quot;</span> <span class="ow">in</span> <span class="n">sequence_name</span><span class="p">:</span>
+                <span class="n">fx</span><span class="p">,</span> <span class="n">fy</span><span class="p">,</span> <span class="n">cx</span><span class="p">,</span> <span class="n">cy</span> <span class="o">=</span> <span class="mf">517.3</span><span class="p">,</span> <span class="mf">516.5</span><span class="p">,</span> <span class="mf">318.6</span><span class="p">,</span> <span class="mf">255.3</span>
+            <span class="k">elif</span> <span class="s2">&quot;freiburg2&quot;</span> <span class="ow">in</span> <span class="n">sequence_name</span><span class="p">:</span>
+                <span class="n">fx</span><span class="p">,</span> <span class="n">fy</span><span class="p">,</span> <span class="n">cx</span><span class="p">,</span> <span class="n">cy</span> <span class="o">=</span> <span class="mf">520.9</span><span class="p">,</span> <span class="mf">521.0</span><span class="p">,</span> <span class="mf">325.1</span><span class="p">,</span> <span class="mf">249.7</span>
+            <span class="k">elif</span> <span class="s2">&quot;freiburg3&quot;</span> <span class="ow">in</span> <span class="n">sequence_name</span><span class="p">:</span>
+                <span class="n">fx</span><span class="p">,</span> <span class="n">fy</span><span class="p">,</span> <span class="n">cx</span><span class="p">,</span> <span class="n">cy</span> <span class="o">=</span> <span class="mf">535.4</span><span class="p">,</span> <span class="mf">539.2</span><span class="p">,</span> <span class="mf">320.1</span><span class="p">,</span> <span class="mf">247.6</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">fx</span><span class="p">,</span> <span class="n">fy</span><span class="p">,</span> <span class="n">cx</span><span class="p">,</span> <span class="n">cy</span> <span class="o">=</span> <span class="mf">525.0</span><span class="p">,</span> <span class="mf">525.0</span><span class="p">,</span> <span class="mf">319.5</span><span class="p">,</span> <span class="mf">239.5</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;intrinsics_mode must be &#39;registered&#39; or &#39;official&#39;, got </span><span class="si">{</span><span class="n">intrinsics_mode</span><span class="si">!r}</span><span class="s2">&quot;</span>
+            <span class="p">)</span>
+        <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span>
+            <span class="p">[[</span><span class="n">fx</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">cx</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="n">fy</span><span class="p">,</span> <span class="n">cy</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]]</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">float</span><span class="p">()</span>
 
 <div class="viewcode-block" id="TUM.__getitem__">
 <a class="viewcode-back" href="../../../modules/datasets.html#gradslam.datasets.TUM.__getitem__">[docs]</a>

@@ -97,6 +97,7 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span>
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">torch.nn.functional</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">F</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">..geometry.se3utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">se3_exp</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">.residuals</span><span class="w"> </span><span class="kn">import</span> <span class="n">point_to_plane_projective</span>
@@ -111,21 +112,39 @@
 
 <span class="sd">    Attributes:</span>
 <span class="sd">        n_pyramid_levels: Number of pyramid levels (coarse to fine).</span>
-<span class="sd">        iterations: Iterations per level, e.g., (10, 5, 4).</span>
+<span class="sd">        iterations: Iterations per level, e.g., (6, 3, 2).</span>
 <span class="sd">        damping: Damping per level, e.g., (1e-2, 1e-3, 1e-4).</span>
 <span class="sd">        max_depth_diff: Max depth difference for correspondence.</span>
 <span class="sd">        max_normal_angle_deg: Max angle between normals (degrees).</span>
-<span class="sd">        robust_loss: Robust loss function (&quot;huber&quot; or &quot;none&quot;).</span>
+<span class="sd">        robust_loss: Robust loss function (&quot;huber&quot;, &quot;tukey&quot;, or &quot;none&quot;).</span>
 <span class="sd">        huber_delta: Huber loss threshold (for robust_loss=&quot;huber&quot;).</span>
+<span class="sd">        tukey_delta: Tukey biweight cutoff (for robust_loss=&quot;tukey&quot;).</span>
+<span class="sd">        depth_weighting: Down-weight geometric residuals at long range.</span>
+<span class="sd">        adaptive_depth_diff: When True, use depth-adaptive correspondence gate</span>
+<span class="sd">            (0.05 + 0.01 * mean_z) instead of constant max_depth_diff.</span>
+<span class="sd">        convergence_xi_norm: Convergence threshold for the update norm.</span>
+<span class="sd">        photometric_weight: Weight of photometric residuals relative to</span>
+<span class="sd">            geometric residuals. Set to 0.0 to disable (default).</span>
+<span class="sd">        photometric_levels: Number of finest pyramid levels where</span>
+<span class="sd">            photometric residuals are applied.</span>
+<span class="sd">        photometric_huber_delta: Huber delta for photometric residual</span>
+<span class="sd">            robust weighting.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="n">n_pyramid_levels</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3</span>
-    <span class="n">iterations</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">4</span><span class="p">)</span>
+    <span class="n">iterations</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mi">6</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
     <span class="n">damping</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mf">1e-2</span><span class="p">,</span> <span class="mf">1e-3</span><span class="p">,</span> <span class="mf">1e-4</span><span class="p">)</span>
     <span class="n">max_depth_diff</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.10</span>
     <span class="n">max_normal_angle_deg</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">60.0</span>
-    <span class="n">robust_loss</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;none&quot;</span>
-    <span class="n">huber_delta</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.03</span></div>
+    <span class="n">robust_loss</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;huber&quot;</span>
+    <span class="n">huber_delta</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.03</span>
+    <span class="n">tukey_delta</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.05</span>
+    <span class="n">depth_weighting</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="n">adaptive_depth_diff</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>       <span class="c1"># use depth-adaptive threshold (0.05 + 0.01*z)</span>
+    <span class="n">convergence_xi_norm</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-4</span>
+    <span class="n">photometric_weight</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span>        <span class="c1"># 0 = disabled</span>
+    <span class="n">photometric_levels</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span>            <span class="c1"># apply only at finest N levels</span>
+    <span class="n">photometric_huber_delta</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.02</span>  <span class="c1"># Huber delta for photometric residuals</span></div>
 
 
 
@@ -151,6 +170,9 @@
         <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">iterations</span><span class="p">)</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">n_pyramid_levels</span>
         <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">damping</span><span class="p">)</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">n_pyramid_levels</span>
 
+        <span class="c1"># Cache for pixel meshgrids, keyed by (H, W, device, dtype)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_pixel_grid_cache</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">tuple</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+
 <div class="viewcode-block" id="ProjectiveICPTracker.forward">
 <a class="viewcode-back" href="../../../modules/icp.html#gradslam.icp.ProjectiveICPTracker.forward">[docs]</a>
     <span class="nd">@torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">()</span>
@@ -162,6 +184,8 @@
         <span class="n">model_normal</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
         <span class="n">intrinsics</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
         <span class="n">init_T_model_live</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">live_gray</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">ref_gray</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="nb">dict</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Compute rigid transform from live frame to model.</span>
 
@@ -172,6 +196,10 @@
 <span class="sd">            model_normal: Model rendered normals, shape [H, W, 3].</span>
 <span class="sd">            intrinsics: Camera intrinsics [3, 3] (K matrix).</span>
 <span class="sd">            init_T_model_live: Initial guess (4x4 SE(3)). If None, uses identity.</span>
+<span class="sd">            live_gray: Live grayscale image [H, W] in [0, 1], optional.</span>
+<span class="sd">                When provided together with ref_gray and photometric_weight &gt; 0,</span>
+<span class="sd">                photometric residuals are stacked with geometric residuals.</span>
+<span class="sd">            ref_gray: Reference grayscale image [H, W] in [0, 1], optional.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            Tuple of:</span>
@@ -183,6 +211,7 @@
 <span class="sd">            - live_normal, model_normal: [H, W, 3]</span>
 <span class="sd">            - intrinsics: [3, 3]</span>
 <span class="sd">            - init_T_model_live: [4, 4] or None</span>
+<span class="sd">            - live_gray, ref_gray: [H, W] or None</span>
 <span class="sd">            - T_model_live: [4, 4]</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">device</span> <span class="o">=</span> <span class="n">live_depth</span><span class="o">.</span><span class="n">device</span>
@@ -200,16 +229,24 @@
         <span class="n">model_depths</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_pyramid</span><span class="p">(</span><span class="n">model_depth</span><span class="p">)</span>
         <span class="n">model_normals</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_pyramid</span><span class="p">(</span><span class="n">model_normal</span><span class="p">,</span> <span class="n">is_normal</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
-        <span class="c1"># Coarse-to-fine ICP: iterate from coarsest (index 0) to finest (index n-1)</span>
-        <span class="n">quality_metrics</span> <span class="o">=</span> <span class="p">{</span>
-            <span class="s2">&quot;num_valid&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
-            <span class="s2">&quot;inlier_ratio&quot;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">,</span>
-            <span class="s2">&quot;rmse&quot;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">,</span>
-            <span class="s2">&quot;mean_abs_residual&quot;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">,</span>
-            <span class="s2">&quot;update_norm&quot;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">,</span>
-            <span class="s2">&quot;converged&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
-        <span class="p">}</span>
+        <span class="c1"># total_pixels is constant (finest level = original resolution)</span>
+        <span class="n">total_pixels</span> <span class="o">=</span> <span class="n">live_depth</span><span class="o">.</span><span class="n">numel</span><span class="p">()</span>
 
+        <span class="c1"># Check whether photometric residuals are enabled</span>
+        <span class="n">use_photo</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">photometric_weight</span> <span class="o">&gt;</span> <span class="mf">0.0</span>
+            <span class="ow">and</span> <span class="n">live_gray</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+            <span class="ow">and</span> <span class="n">ref_gray</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+        <span class="p">)</span>
+
+        <span class="c1"># GPU-resident metric tensors — initialized before both loops so that</span>
+        <span class="c1"># an early break on a coarser level doesn&#39;t reset state.</span>
+        <span class="n">last_n_valid_gpu</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">long</span><span class="p">)</span>
+        <span class="n">last_rmse_sq_gpu</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span>
+        <span class="n">last_mean_abs_gpu</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span>
+        <span class="n">last_xi_norm_sq_gpu</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span>
+
+        <span class="c1"># Coarse-to-fine ICP: iterate from coarsest (index 0) to finest (index n-1)</span>
         <span class="k">for</span> <span class="n">level</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">n_pyramid_levels</span><span class="p">):</span>
             <span class="c1"># pyramid[0] = coarsest (most downsampled), pyramid[-1] = finest</span>
             <span class="n">live_d</span> <span class="o">=</span> <span class="n">live_depths</span><span class="p">[</span><span class="n">level</span><span class="p">]</span>   <span class="c1"># [H_l, W_l]</span>
@@ -218,26 +255,65 @@
             <span class="n">model_n</span> <span class="o">=</span> <span class="n">model_normals</span><span class="p">[</span><span class="n">level</span><span class="p">]</span>
             <span class="c1"># scale factor: coarsest level has highest downsampling</span>
             <span class="n">scale</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">**</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">n_pyramid_levels</span> <span class="o">-</span> <span class="mi">1</span> <span class="o">-</span> <span class="n">level</span><span class="p">)</span>
-            <span class="n">K</span> <span class="o">=</span> <span class="n">intrinsics</span> <span class="o">/</span> <span class="n">scale</span>  <span class="c1"># Scaled intrinsics for this level</span>
+            <span class="n">K</span> <span class="o">=</span> <span class="n">intrinsics</span> <span class="o">/</span> <span class="n">scale</span>  <span class="c1"># K correctly scaled per level</span>
+
+            <span class="c1"># model_vertex is constant within the level — compute outside inner loop</span>
+            <span class="n">model_vertex</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_depth_to_vertex</span><span class="p">(</span><span class="n">model_d</span><span class="p">,</span> <span class="n">K</span><span class="p">,</span> <span class="n">device</span><span class="p">,</span> <span class="n">dtype</span><span class="p">)</span>  <span class="c1"># [H_l, W_l, 3]</span>
+
+            <span class="c1"># Compute photometric setup once per level (not per iteration):</span>
+            <span class="c1"># gray interpolation and Sobel gradients depend only on the pyramid level,</span>
+            <span class="c1"># not on the current pose estimate.</span>
+            <span class="n">level_from_finest</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">n_pyramid_levels</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">-</span> <span class="n">level</span>
+            <span class="k">if</span> <span class="n">use_photo</span> <span class="ow">and</span> <span class="n">level_from_finest</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">photometric_levels</span><span class="p">:</span>
+                <span class="kn">from</span><span class="w"> </span><span class="nn">gradslam.icp.photometric_residual</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+                    <span class="n">sobel_gradients</span><span class="p">,</span>
+                    <span class="n">photometric_residuals_and_jacobian</span><span class="p">,</span>
+                <span class="p">)</span>
+                <span class="c1"># Scale gray images to the current pyramid level using</span>
+                <span class="c1"># size= (not scale_factor=) to guarantee shape match with live_d</span>
+                <span class="n">H_l</span><span class="p">,</span> <span class="n">W_l</span> <span class="o">=</span> <span class="n">live_d</span><span class="o">.</span><span class="n">shape</span>
+                <span class="k">if</span> <span class="n">level_from_finest</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="n">ref_gray_l</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">interpolate</span><span class="p">(</span>
+                        <span class="n">ref_gray</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">float</span><span class="p">(),</span>
+                        <span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="n">H_l</span><span class="p">,</span> <span class="n">W_l</span><span class="p">),</span>
+                        <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;bilinear&quot;</span><span class="p">,</span>
+                        <span class="n">align_corners</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                    <span class="p">)</span><span class="o">.</span><span class="n">squeeze</span><span class="p">()</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span>
+                    <span class="n">live_gray_l</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">interpolate</span><span class="p">(</span>
+                        <span class="n">live_gray</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">float</span><span class="p">(),</span>
+                        <span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="n">H_l</span><span class="p">,</span> <span class="n">W_l</span><span class="p">),</span>
+                        <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;bilinear&quot;</span><span class="p">,</span>
+                        <span class="n">align_corners</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                    <span class="p">)</span><span class="o">.</span><span class="n">squeeze</span><span class="p">()</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">ref_gray_l</span> <span class="o">=</span> <span class="n">ref_gray</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span>
+                    <span class="n">live_gray_l</span> <span class="o">=</span> <span class="n">live_gray</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span>
+                <span class="n">ref_dI_dx</span><span class="p">,</span> <span class="n">ref_dI_dy</span> <span class="o">=</span> <span class="n">sobel_gradients</span><span class="p">(</span><span class="n">ref_gray_l</span><span class="p">)</span>
+                <span class="n">photo_enabled_this_level</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">photo_enabled_this_level</span> <span class="o">=</span> <span class="kc">False</span>
 
             <span class="c1"># Run ICP iterations at this level</span>
             <span class="k">for</span> <span class="n">it</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">iterations</span><span class="p">[</span><span class="n">level</span><span class="p">]):</span>
                 <span class="c1"># Transform live vertices using current estimate</span>
                 <span class="n">live_vertex</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_depth_to_vertex</span><span class="p">(</span><span class="n">live_d</span><span class="p">,</span> <span class="n">K</span><span class="p">,</span> <span class="n">device</span><span class="p">,</span> <span class="n">dtype</span><span class="p">)</span>  <span class="c1"># [H_l, W_l, 3]</span>
                 <span class="n">live_vertex_model</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_transform_points</span><span class="p">(</span><span class="n">live_vertex</span><span class="p">,</span> <span class="n">T_model_live</span><span class="p">)</span>
+                <span class="n">live_n_model</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_transform_normals</span><span class="p">(</span><span class="n">live_n</span><span class="p">,</span> <span class="n">T_model_live</span><span class="p">)</span>
 
                 <span class="c1"># Find correspondences via projective lookup</span>
-                <span class="n">model_vertex</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_depth_to_vertex</span><span class="p">(</span><span class="n">model_d</span><span class="p">,</span> <span class="n">K</span><span class="p">,</span> <span class="n">device</span><span class="p">,</span> <span class="n">dtype</span><span class="p">)</span>
                 <span class="n">assoc_vertex</span><span class="p">,</span> <span class="n">assoc_normal</span><span class="p">,</span> <span class="n">valid</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_find_correspondences</span><span class="p">(</span>
                     <span class="n">live_vertex_model</span><span class="p">,</span>
-                    <span class="n">live_n</span><span class="p">,</span>
+                    <span class="n">live_n_model</span><span class="p">,</span>
                     <span class="n">model_vertex</span><span class="p">,</span>
                     <span class="n">model_n</span><span class="p">,</span>
                     <span class="n">model_d</span><span class="p">,</span>
                     <span class="n">K</span><span class="o">=</span><span class="n">K</span><span class="p">,</span>
                 <span class="p">)</span>
 
-                <span class="k">if</span> <span class="n">valid</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">&lt;</span> <span class="mi">10</span><span class="p">:</span>
+                <span class="c1"># Single .item() sync here is acceptable — prevents NaN in solve_lm_6x6</span>
+                <span class="c1"># on nearly-empty tensors.</span>
+                <span class="n">n_valid_gpu</span> <span class="o">=</span> <span class="n">valid</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+                <span class="k">if</span> <span class="n">n_valid_gpu</span> <span class="o">&lt;</span> <span class="mi">10</span><span class="p">:</span>
                     <span class="k">break</span>  <span class="c1"># Too few correspondences</span>
 
                 <span class="c1"># Extract valid points (valid is [H*W], flatten spatial dims first)</span>
@@ -249,25 +325,83 @@
                 <span class="c1"># Compute residuals and Jacobian</span>
                 <span class="n">A</span><span class="p">,</span> <span class="n">b</span> <span class="o">=</span> <span class="n">point_to_plane_projective</span><span class="p">(</span><span class="n">live_v</span><span class="p">,</span> <span class="n">model_n_valid</span><span class="p">,</span> <span class="n">model_v</span><span class="p">)</span>
 
-                <span class="c1"># Solve for update: normal eqs are (A^T A) δξ = -A^T r</span>
+                <span class="n">A</span><span class="p">,</span> <span class="n">b</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_apply_residual_weights</span><span class="p">(</span><span class="n">A</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">live_v</span><span class="p">)</span>
+
+                <span class="c1"># Optionally stack photometric residuals at the finest levels</span>
+                <span class="c1"># (setup — ref_gray_l, live_gray_l, ref_dI_dx, ref_dI_dy — was</span>
+                <span class="c1"># already computed once per level before this inner loop)</span>
+                <span class="k">if</span> <span class="n">photo_enabled_this_level</span><span class="p">:</span>
+                    <span class="c1"># Retrieve live vertices in the live frame (before transform)</span>
+                    <span class="c1"># so we can sample live gray at the original pixel locations.</span>
+                    <span class="n">live_v_orig_flat</span> <span class="o">=</span> <span class="n">live_vertex</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">)[</span><span class="n">valid</span><span class="p">]</span>  <span class="c1"># [N, 3]</span>
+                    <span class="n">live_z_orig</span> <span class="o">=</span> <span class="n">live_v_orig_flat</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">clamp</span><span class="p">(</span><span class="nb">min</span><span class="o">=</span><span class="mf">1e-6</span><span class="p">)</span>
+                    <span class="n">live_px_u</span> <span class="o">=</span> <span class="p">(</span>
+                        <span class="n">live_v_orig_flat</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">K</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">/</span> <span class="n">live_z_orig</span> <span class="o">+</span> <span class="n">K</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span>
+                    <span class="p">)</span><span class="o">.</span><span class="n">long</span><span class="p">()</span><span class="o">.</span><span class="n">clamp</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">W_l</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+                    <span class="n">live_px_v</span> <span class="o">=</span> <span class="p">(</span>
+                        <span class="n">live_v_orig_flat</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">K</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">/</span> <span class="n">live_z_orig</span> <span class="o">+</span> <span class="n">K</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span>
+                    <span class="p">)</span><span class="o">.</span><span class="n">long</span><span class="p">()</span><span class="o">.</span><span class="n">clamp</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">H_l</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+                    <span class="n">live_gray_pixels</span> <span class="o">=</span> <span class="n">live_gray_l</span><span class="p">[</span><span class="n">live_px_v</span><span class="p">,</span> <span class="n">live_px_u</span><span class="p">]</span>  <span class="c1"># [N]</span>
+
+                    <span class="c1"># live_v: live vertices already transformed to ref frame [N, 3]</span>
+                    <span class="n">J_photo</span><span class="p">,</span> <span class="n">r_photo</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">photometric_residuals_and_jacobian</span><span class="p">(</span>
+                        <span class="n">live_v</span><span class="p">,</span> <span class="n">live_gray_pixels</span><span class="p">,</span> <span class="n">ref_gray_l</span><span class="p">,</span>
+                        <span class="n">ref_dI_dx</span><span class="p">,</span> <span class="n">ref_dI_dy</span><span class="p">,</span> <span class="n">K</span><span class="p">,</span>
+                    <span class="p">)</span>
+
+                    <span class="k">if</span> <span class="n">J_photo</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                        <span class="c1"># Huber weighting on photometric residuals</span>
+                        <span class="n">r_abs</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">r_photo</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">])</span>
+                        <span class="n">delta_p</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">photometric_huber_delta</span>
+                        <span class="n">huber_w</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span>
+                            <span class="n">r_abs</span> <span class="o">&lt;=</span> <span class="n">delta_p</span><span class="p">,</span>
+                            <span class="n">torch</span><span class="o">.</span><span class="n">ones_like</span><span class="p">(</span><span class="n">r_abs</span><span class="p">),</span>
+                            <span class="n">delta_p</span> <span class="o">/</span> <span class="n">r_abs</span><span class="o">.</span><span class="n">clamp</span><span class="p">(</span><span class="nb">min</span><span class="o">=</span><span class="mf">1e-12</span><span class="p">),</span>
+                        <span class="p">)</span>
+                        <span class="n">w_photo</span> <span class="o">=</span> <span class="p">(</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">photometric_weight</span> <span class="o">*</span> <span class="n">huber_w</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+                        <span class="p">)</span>
+                        <span class="c1"># Stack weighted photometric rows onto geometric system</span>
+                        <span class="n">A</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">A</span><span class="p">,</span> <span class="n">J_photo</span> <span class="o">*</span> <span class="n">w_photo</span><span class="p">],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+                        <span class="n">b</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">b</span><span class="p">,</span> <span class="n">r_photo</span> <span class="o">*</span> <span class="n">w_photo</span><span class="p">],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+                <span class="c1"># Solve for update: normal eqs are (A^T A) delta_xi = -A^T r</span>
                 <span class="n">damp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">damping</span><span class="p">[</span><span class="n">level</span><span class="p">]</span>
                 <span class="n">xi</span> <span class="o">=</span> <span class="n">solve_lm_6x6</span><span class="p">(</span><span class="n">A</span><span class="p">,</span> <span class="o">-</span><span class="n">b</span><span class="p">,</span> <span class="n">damp</span><span class="o">=</span><span class="n">damp</span><span class="p">)</span>  <span class="c1"># [6, 1]</span>
 
-                <span class="c1"># Compute quality metrics</span>
+                <span class="c1"># Update GPU-resident metrics (no .item() calls inside the loop)</span>
                 <span class="n">residual</span> <span class="o">=</span> <span class="n">b</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span>  <span class="c1"># [N]</span>
-                <span class="n">rmse</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">residual</span><span class="o">**</span><span class="mi">2</span><span class="p">))</span><span class="o">.</span><span class="n">item</span><span class="p">()</span>
-                <span class="n">quality_metrics</span> <span class="o">=</span> <span class="p">{</span>
-                    <span class="s2">&quot;num_valid&quot;</span><span class="p">:</span> <span class="n">valid</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span><span class="o">.</span><span class="n">item</span><span class="p">(),</span>
-                    <span class="s2">&quot;inlier_ratio&quot;</span><span class="p">:</span> <span class="p">(</span><span class="n">valid</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span><span class="o">.</span><span class="n">item</span><span class="p">()</span> <span class="o">/</span> <span class="n">valid</span><span class="o">.</span><span class="n">numel</span><span class="p">()),</span>
-                    <span class="s2">&quot;rmse&quot;</span><span class="p">:</span> <span class="n">rmse</span><span class="p">,</span>
-                    <span class="s2">&quot;mean_abs_residual&quot;</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">residual</span><span class="p">))</span><span class="o">.</span><span class="n">item</span><span class="p">(),</span>
-                    <span class="s2">&quot;update_norm&quot;</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">xi</span><span class="p">)</span><span class="o">.</span><span class="n">item</span><span class="p">(),</span>
-                    <span class="s2">&quot;converged&quot;</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">xi</span><span class="p">)</span><span class="o">.</span><span class="n">item</span><span class="p">()</span> <span class="o">&lt;</span> <span class="mf">1e-6</span><span class="p">,</span>
-                <span class="p">}</span>
+                <span class="n">last_n_valid_gpu</span> <span class="o">=</span> <span class="n">n_valid_gpu</span>
+                <span class="n">last_rmse_sq_gpu</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">residual</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span>
+                <span class="n">last_mean_abs_gpu</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">residual</span><span class="p">))</span>
+
+                <span class="c1"># Capture xi norm BEFORE applying convergence mask so reported</span>
+                <span class="c1"># update_norm reflects the true update, not a zeroed value.</span>
+                <span class="n">xi_norm_sq</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">xi</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span>
+                <span class="n">last_xi_norm_sq_gpu</span> <span class="o">=</span> <span class="n">xi_norm_sq</span>
+
+                <span class="c1"># Suppress update for already-converged frames via tensor mask</span>
+                <span class="c1"># (avoids an if/break that would re-introduce a GPU-CPU sync)</span>
+                <span class="n">converge_mask</span> <span class="o">=</span> <span class="p">(</span><span class="n">xi_norm_sq</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">convergence_xi_norm</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">xi</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+                <span class="n">xi</span> <span class="o">=</span> <span class="n">xi</span> <span class="o">*</span> <span class="n">converge_mask</span>
 
                 <span class="c1"># Apply update (left-multiply SE(3) exponential)</span>
                 <span class="n">dT</span> <span class="o">=</span> <span class="n">se3_exp</span><span class="p">(</span><span class="n">xi</span><span class="o">.</span><span class="n">squeeze</span><span class="p">())</span>  <span class="c1"># [4, 4]</span>
                 <span class="n">T_model_live</span> <span class="o">=</span> <span class="n">dT</span> <span class="o">@</span> <span class="n">T_model_live</span>
+
+        <span class="c1"># Single batch of .item() calls after all loops</span>
+        <span class="n">n_valid</span> <span class="o">=</span> <span class="n">last_n_valid_gpu</span><span class="o">.</span><span class="n">item</span><span class="p">()</span>
+        <span class="n">rmse</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">last_rmse_sq_gpu</span><span class="o">.</span><span class="n">item</span><span class="p">()</span> <span class="o">**</span> <span class="mf">0.5</span><span class="p">)</span>
+        <span class="n">mean_abs</span> <span class="o">=</span> <span class="n">last_mean_abs_gpu</span><span class="o">.</span><span class="n">item</span><span class="p">()</span>
+        <span class="n">xi_norm</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">last_xi_norm_sq_gpu</span><span class="o">.</span><span class="n">item</span><span class="p">()</span> <span class="o">**</span> <span class="mf">0.5</span><span class="p">)</span>
+        <span class="n">quality_metrics</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;num_valid&quot;</span><span class="p">:</span> <span class="n">n_valid</span><span class="p">,</span>
+            <span class="s2">&quot;inlier_ratio&quot;</span><span class="p">:</span> <span class="n">n_valid</span> <span class="o">/</span> <span class="n">total_pixels</span><span class="p">,</span>
+            <span class="s2">&quot;rmse&quot;</span><span class="p">:</span> <span class="n">rmse</span><span class="p">,</span>
+            <span class="s2">&quot;mean_abs_residual&quot;</span><span class="p">:</span> <span class="n">mean_abs</span><span class="p">,</span>
+            <span class="s2">&quot;update_norm&quot;</span><span class="p">:</span> <span class="n">xi_norm</span><span class="p">,</span>
+            <span class="s2">&quot;converged&quot;</span><span class="p">:</span> <span class="n">xi_norm</span> <span class="o">&lt;</span> <span class="mf">1e-6</span><span class="p">,</span>
+        <span class="p">}</span>
 
         <span class="k">return</span> <span class="n">T_model_live</span><span class="p">,</span> <span class="n">quality_metrics</span></div>
 
@@ -303,11 +437,17 @@
         <span class="c1"># Reverse so index 0 = coarsest (most downsampled)</span>
         <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="nb">reversed</span><span class="p">(</span><span class="n">levels</span><span class="p">))</span>
 
-    <span class="nd">@staticmethod</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">_depth_to_vertex</span><span class="p">(</span>
-        <span class="n">depth</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">K</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">device</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">device</span><span class="p">,</span> <span class="n">dtype</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">dtype</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">depth</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">K</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">device</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">device</span><span class="p">,</span>
+        <span class="n">dtype</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Convert depth map to vertex map (camera coordinates).</span>
+
+<span class="sd">        Pixel meshgrids are cached per (H, W, device, dtype) to avoid</span>
+<span class="sd">        redundant allocations across ICP iterations.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            depth: Depth image [H, W].</span>
@@ -322,10 +462,16 @@
         <span class="n">fx</span><span class="p">,</span> <span class="n">fy</span> <span class="o">=</span> <span class="n">K</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">K</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span>
         <span class="n">cx</span><span class="p">,</span> <span class="n">cy</span> <span class="o">=</span> <span class="n">K</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">],</span> <span class="n">K</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span>
 
-        <span class="c1"># Pixel coordinates</span>
-        <span class="n">u</span><span class="p">,</span> <span class="n">v</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">meshgrid</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">W</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">),</span> <span class="n">torch</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">H</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">),</span>
-                              <span class="n">indexing</span><span class="o">=</span><span class="s2">&quot;xy&quot;</span><span class="p">)</span>
-        <span class="n">u</span><span class="p">,</span> <span class="n">v</span> <span class="o">=</span> <span class="n">u</span><span class="o">.</span><span class="n">float</span><span class="p">(),</span> <span class="n">v</span><span class="o">.</span><span class="n">float</span><span class="p">()</span>
+        <span class="n">cache_key</span> <span class="o">=</span> <span class="p">(</span><span class="n">H</span><span class="p">,</span> <span class="n">W</span><span class="p">,</span> <span class="n">device</span><span class="p">,</span> <span class="n">dtype</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">cache_key</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pixel_grid_cache</span><span class="p">:</span>
+            <span class="n">u</span><span class="p">,</span> <span class="n">v</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">meshgrid</span><span class="p">(</span>
+                <span class="n">torch</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">W</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">),</span>
+                <span class="n">torch</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">H</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">),</span>
+                <span class="n">indexing</span><span class="o">=</span><span class="s2">&quot;xy&quot;</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_pixel_grid_cache</span><span class="p">[</span><span class="n">cache_key</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">u</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">),</span> <span class="n">v</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">))</span>
+
+        <span class="n">u</span><span class="p">,</span> <span class="n">v</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pixel_grid_cache</span><span class="p">[</span><span class="n">cache_key</span><span class="p">]</span>
 
         <span class="c1"># Back-project</span>
         <span class="n">x</span> <span class="o">=</span> <span class="p">(</span><span class="n">u</span> <span class="o">-</span> <span class="n">cx</span><span class="p">)</span> <span class="o">*</span> <span class="n">depth</span> <span class="o">/</span> <span class="n">fx</span>
@@ -359,6 +505,13 @@
             <span class="n">points_t</span> <span class="o">=</span> <span class="n">points_t</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">H</span><span class="p">,</span> <span class="n">W</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="n">points_t</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_transform_normals</span><span class="p">(</span><span class="n">normals</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">T</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Rotate normal vectors by the SE(3) rotation block.&quot;&quot;&quot;</span>
+        <span class="n">R</span> <span class="o">=</span> <span class="n">T</span><span class="p">[:</span><span class="mi">3</span><span class="p">,</span> <span class="p">:</span><span class="mi">3</span><span class="p">]</span>
+        <span class="n">normals_t</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">matmul</span><span class="p">(</span><span class="n">normals</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span> <span class="n">R</span><span class="o">.</span><span class="n">t</span><span class="p">())</span>
+        <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">functional</span><span class="o">.</span><span class="n">normalize</span><span class="p">(</span><span class="n">normals_t</span><span class="o">.</span><span class="n">reshape_as</span><span class="p">(</span><span class="n">normals</span><span class="p">),</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_find_correspondences</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
@@ -418,14 +571,58 @@
         <span class="n">valid_live</span> <span class="o">=</span> <span class="n">live_vertex</span><span class="p">[:,</span> <span class="p">:,</span> <span class="mi">2</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">0</span>
         <span class="n">valid_model</span> <span class="o">=</span> <span class="p">(</span><span class="n">assoc_depth</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span> <span class="o">&amp;</span> <span class="n">in_bounds</span>
         <span class="n">valid_angle</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_check_normal_angle</span><span class="p">(</span><span class="n">live_normal</span><span class="p">,</span> <span class="n">assoc_normal</span><span class="p">)</span>
-        <span class="n">valid_depth</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">live_vertex</span><span class="p">[:,</span> <span class="p">:,</span> <span class="mi">2</span><span class="p">]</span> <span class="o">-</span> <span class="n">assoc_depth</span><span class="p">)</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">max_depth_diff</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">adaptive_depth_diff</span><span class="p">:</span>
+            <span class="n">valid_z</span> <span class="o">=</span> <span class="n">live_vertex</span><span class="p">[:,</span> <span class="p">:,</span> <span class="mi">2</span><span class="p">]</span>
+            <span class="n">mean_z</span> <span class="o">=</span> <span class="n">valid_z</span><span class="p">[</span><span class="n">valid_z</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">torch</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">mean_z</span><span class="p">):</span>
+                <span class="n">mean_z</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">valid_z</span><span class="o">.</span><span class="n">device</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">valid_z</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+            <span class="n">adaptive_thresh</span> <span class="o">=</span> <span class="mf">0.05</span> <span class="o">+</span> <span class="mf">0.01</span> <span class="o">*</span> <span class="n">mean_z</span>
+            <span class="n">valid_depth</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">live_vertex</span><span class="p">[:,</span> <span class="p">:,</span> <span class="mi">2</span><span class="p">]</span> <span class="o">-</span> <span class="n">assoc_depth</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">adaptive_thresh</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">valid_depth</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">live_vertex</span><span class="p">[:,</span> <span class="p">:,</span> <span class="mi">2</span><span class="p">]</span> <span class="o">-</span> <span class="n">assoc_depth</span><span class="p">)</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">max_depth_diff</span>
 
         <span class="n">valid</span> <span class="o">=</span> <span class="p">(</span><span class="n">valid_live</span> <span class="o">&amp;</span> <span class="n">valid_model</span> <span class="o">&amp;</span> <span class="n">valid_angle</span> <span class="o">&amp;</span> <span class="n">valid_depth</span><span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="n">assoc_vertex</span><span class="p">,</span> <span class="n">assoc_normal</span><span class="p">,</span> <span class="n">valid</span>
 
-    <span class="nd">@staticmethod</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">_check_normal_angle</span><span class="p">(</span><span class="n">n1</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">n2</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_apply_residual_weights</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">A</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">b</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">live_vertex</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Apply robust and depth-uncertainty weights before solving.&quot;&quot;&quot;</span>
+        <span class="n">weights</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">ones_like</span><span class="p">(</span><span class="n">b</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">])</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">depth_weighting</span><span class="p">:</span>
+            <span class="n">z</span> <span class="o">=</span> <span class="n">live_vertex</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">clamp</span><span class="p">(</span><span class="nb">min</span><span class="o">=</span><span class="mf">1e-3</span><span class="p">)</span>
+            <span class="n">weights</span> <span class="o">=</span> <span class="n">weights</span> <span class="o">/</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">+</span> <span class="n">z</span> <span class="o">*</span> <span class="n">z</span><span class="p">)</span>
+
+        <span class="n">residual_abs</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">b</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">])</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">robust_loss</span> <span class="o">==</span> <span class="s2">&quot;huber&quot;</span><span class="p">:</span>
+            <span class="n">delta</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">as_tensor</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">huber_delta</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">b</span><span class="o">.</span><span class="n">device</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">b</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+            <span class="n">robust</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span>
+                <span class="n">residual_abs</span> <span class="o">&lt;=</span> <span class="n">delta</span><span class="p">,</span>
+                <span class="n">torch</span><span class="o">.</span><span class="n">ones_like</span><span class="p">(</span><span class="n">residual_abs</span><span class="p">),</span>
+                <span class="n">delta</span> <span class="o">/</span> <span class="n">residual_abs</span><span class="o">.</span><span class="n">clamp</span><span class="p">(</span><span class="nb">min</span><span class="o">=</span><span class="mf">1e-12</span><span class="p">),</span>
+            <span class="p">)</span>
+            <span class="n">weights</span> <span class="o">=</span> <span class="n">weights</span> <span class="o">*</span> <span class="n">robust</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">robust_loss</span> <span class="o">==</span> <span class="s2">&quot;tukey&quot;</span><span class="p">:</span>
+            <span class="n">delta</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">as_tensor</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">tukey_delta</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">b</span><span class="o">.</span><span class="n">device</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">b</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+            <span class="n">r</span> <span class="o">=</span> <span class="n">residual_abs</span> <span class="o">/</span> <span class="n">delta</span><span class="o">.</span><span class="n">clamp</span><span class="p">(</span><span class="nb">min</span><span class="o">=</span><span class="mf">1e-12</span><span class="p">)</span>
+            <span class="n">robust</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span>
+                <span class="n">r</span> <span class="o">&lt;</span> <span class="mf">1.0</span><span class="p">,</span>
+                <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">r</span> <span class="o">*</span> <span class="n">r</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span><span class="p">,</span>
+                <span class="n">torch</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">r</span><span class="p">),</span>
+            <span class="p">)</span>
+            <span class="n">weights</span> <span class="o">=</span> <span class="n">weights</span> <span class="o">*</span> <span class="n">robust</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">robust_loss</span> <span class="o">!=</span> <span class="s2">&quot;none&quot;</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown robust_loss: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">robust_loss</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="n">sqrt_w</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">weights</span><span class="o">.</span><span class="n">clamp</span><span class="p">(</span><span class="nb">min</span><span class="o">=</span><span class="mf">1e-12</span><span class="p">))</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">A</span> <span class="o">*</span> <span class="n">sqrt_w</span><span class="p">,</span> <span class="n">b</span> <span class="o">*</span> <span class="n">sqrt_w</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_check_normal_angle</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n1</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">n2</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Check if normal angle is below threshold.</span>
 
 <span class="sd">        Args:</span>
@@ -439,7 +636,7 @@
         <span class="n">dot</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">clamp</span><span class="p">(</span><span class="n">dot</span><span class="p">,</span> <span class="o">-</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span>
         <span class="n">angle</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">acos</span><span class="p">(</span><span class="n">dot</span><span class="p">)</span>  <span class="c1"># radians</span>
         <span class="n">angle_deg</span> <span class="o">=</span> <span class="n">angle</span> <span class="o">*</span> <span class="mf">180.0</span> <span class="o">/</span> <span class="mf">3.14159265359</span>
-        <span class="k">return</span> <span class="n">angle_deg</span> <span class="o">&lt;</span> <span class="mf">60.0</span></div>
+        <span class="k">return</span> <span class="n">angle_deg</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">max_normal_angle_deg</span></div>
 
 </pre></div>
 

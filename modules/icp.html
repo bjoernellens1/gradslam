@@ -73,8 +73,17 @@
 <li class="toctree-l3"><a class="reference internal" href="#gradslam.icp.ProjectiveICPConfig.max_normal_angle_deg"><code class="docutils literal notranslate"><span class="pre">ProjectiveICPConfig.max_normal_angle_deg</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#gradslam.icp.ProjectiveICPConfig.robust_loss"><code class="docutils literal notranslate"><span class="pre">ProjectiveICPConfig.robust_loss</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#gradslam.icp.ProjectiveICPConfig.huber_delta"><code class="docutils literal notranslate"><span class="pre">ProjectiveICPConfig.huber_delta</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#gradslam.icp.ProjectiveICPConfig.tukey_delta"><code class="docutils literal notranslate"><span class="pre">ProjectiveICPConfig.tukey_delta</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#gradslam.icp.ProjectiveICPConfig.depth_weighting"><code class="docutils literal notranslate"><span class="pre">ProjectiveICPConfig.depth_weighting</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#gradslam.icp.ProjectiveICPConfig.adaptive_depth_diff"><code class="docutils literal notranslate"><span class="pre">ProjectiveICPConfig.adaptive_depth_diff</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#gradslam.icp.ProjectiveICPConfig.convergence_xi_norm"><code class="docutils literal notranslate"><span class="pre">ProjectiveICPConfig.convergence_xi_norm</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#gradslam.icp.ProjectiveICPConfig.photometric_weight"><code class="docutils literal notranslate"><span class="pre">ProjectiveICPConfig.photometric_weight</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#gradslam.icp.ProjectiveICPConfig.photometric_levels"><code class="docutils literal notranslate"><span class="pre">ProjectiveICPConfig.photometric_levels</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#gradslam.icp.ProjectiveICPConfig.photometric_huber_delta"><code class="docutils literal notranslate"><span class="pre">ProjectiveICPConfig.photometric_huber_delta</span></code></a></li>
 </ul>
 </li>
+<li class="toctree-l2"><a class="reference internal" href="#gradslam.icp.sobel_gradients"><code class="docutils literal notranslate"><span class="pre">sobel_gradients()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#gradslam.icp.photometric_residuals_and_jacobian"><code class="docutils literal notranslate"><span class="pre">photometric_residuals_and_jacobian()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="#module-gradslam.icp.projective">Projective ICP</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#gradslam.icp.projective.ProjectiveICPConfig"><code class="docutils literal notranslate"><span class="pre">ProjectiveICPConfig</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#gradslam.icp.projective.ProjectiveICPConfig.n_pyramid_levels"><code class="docutils literal notranslate"><span class="pre">ProjectiveICPConfig.n_pyramid_levels</span></code></a></li>
@@ -84,6 +93,13 @@
 <li class="toctree-l4"><a class="reference internal" href="#gradslam.icp.projective.ProjectiveICPConfig.max_normal_angle_deg"><code class="docutils literal notranslate"><span class="pre">ProjectiveICPConfig.max_normal_angle_deg</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#gradslam.icp.projective.ProjectiveICPConfig.robust_loss"><code class="docutils literal notranslate"><span class="pre">ProjectiveICPConfig.robust_loss</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#gradslam.icp.projective.ProjectiveICPConfig.huber_delta"><code class="docutils literal notranslate"><span class="pre">ProjectiveICPConfig.huber_delta</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.icp.projective.ProjectiveICPConfig.tukey_delta"><code class="docutils literal notranslate"><span class="pre">ProjectiveICPConfig.tukey_delta</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.icp.projective.ProjectiveICPConfig.depth_weighting"><code class="docutils literal notranslate"><span class="pre">ProjectiveICPConfig.depth_weighting</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.icp.projective.ProjectiveICPConfig.adaptive_depth_diff"><code class="docutils literal notranslate"><span class="pre">ProjectiveICPConfig.adaptive_depth_diff</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.icp.projective.ProjectiveICPConfig.convergence_xi_norm"><code class="docutils literal notranslate"><span class="pre">ProjectiveICPConfig.convergence_xi_norm</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.icp.projective.ProjectiveICPConfig.photometric_weight"><code class="docutils literal notranslate"><span class="pre">ProjectiveICPConfig.photometric_weight</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.icp.projective.ProjectiveICPConfig.photometric_levels"><code class="docutils literal notranslate"><span class="pre">ProjectiveICPConfig.photometric_levels</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gradslam.icp.projective.ProjectiveICPConfig.photometric_huber_delta"><code class="docutils literal notranslate"><span class="pre">ProjectiveICPConfig.photometric_huber_delta</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="#gradslam.icp.projective.ProjectiveICPTracker"><code class="docutils literal notranslate"><span class="pre">ProjectiveICPTracker</span></code></a><ul>
@@ -219,7 +235,7 @@ level to align live depth with rendered model depth.</p>
 </dl>
 <dl class="py method">
 <dt class="sig sig-object py" id="gradslam.icp.ProjectiveICPTracker.forward">
-<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">live_depth</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">live_normal</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model_depth</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model_normal</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">intrinsics</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">init_T_model_live</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/icp/projective.html#ProjectiveICPTracker.forward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.icp.ProjectiveICPTracker.forward" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">live_depth</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">live_normal</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model_depth</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model_normal</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">intrinsics</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">init_T_model_live</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">live_gray</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ref_gray</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/icp/projective.html#ProjectiveICPTracker.forward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.icp.ProjectiveICPTracker.forward" title="Link to this definition"></a></dt>
 <dd><p>Compute rigid transform from live frame to model.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -230,6 +246,10 @@ level to align live depth with rendered model depth.</p>
 <li><p><strong>model_normal</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>Tensor</em></a>) – Model rendered normals, shape [H, W, 3].</p></li>
 <li><p><strong>intrinsics</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>Tensor</em></a>) – Camera intrinsics [3, 3] (K matrix).</p></li>
 <li><p><strong>init_T_model_live</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>Tensor</em></a><em> | </em><em>None</em>) – Initial guess (4x4 SE(3)). If None, uses identity.</p></li>
+<li><p><strong>live_gray</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>Tensor</em></a><em> | </em><em>None</em>) – Live grayscale image [H, W] in [0, 1], optional.
+When provided together with ref_gray and photometric_weight &gt; 0,
+photometric residuals are stacked with geometric residuals.</p></li>
+<li><p><strong>ref_gray</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>Tensor</em></a><em> | </em><em>None</em>) – Reference grayscale image [H, W] in [0, 1], optional.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
@@ -249,6 +269,7 @@ level to align live depth with rendered model depth.</p>
 <li><p>live_normal, model_normal: [H, W, 3]</p></li>
 <li><p>intrinsics: [3, 3]</p></li>
 <li><p>init_T_model_live: [4, 4] or None</p></li>
+<li><p>live_gray, ref_gray: [H, W] or None</p></li>
 <li><p>T_model_live: [4, 4]</p></li>
 </ul>
 </dd>
@@ -259,19 +280,30 @@ level to align live depth with rendered model depth.</p>
 
 <dl class="py class">
 <dt class="sig sig-object py" id="gradslam.icp.ProjectiveICPConfig">
-<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">ProjectiveICPConfig</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">n_pyramid_levels</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">iterations</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(10,</span> <span class="pre">5,</span> <span class="pre">4)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">damping</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(0.01,</span> <span class="pre">0.001,</span> <span class="pre">0.0001)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_depth_diff</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_normal_angle_deg</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">60.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">robust_loss</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'none'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">huber_delta</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.03</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/icp/projective.html#ProjectiveICPConfig"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.icp.ProjectiveICPConfig" title="Link to this definition"></a></dt>
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">ProjectiveICPConfig</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">n_pyramid_levels</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">iterations</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(6,</span> <span class="pre">3,</span> <span class="pre">2)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">damping</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(0.01,</span> <span class="pre">0.001,</span> <span class="pre">0.0001)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_depth_diff</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_normal_angle_deg</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">60.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">robust_loss</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'huber'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">huber_delta</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.03</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tukey_delta</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.05</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">depth_weighting</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">adaptive_depth_diff</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">convergence_xi_norm</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0001</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">photometric_weight</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">photometric_levels</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">photometric_huber_delta</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.02</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/icp/projective.html#ProjectiveICPConfig"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.icp.ProjectiveICPConfig" title="Link to this definition"></a></dt>
 <dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
 <p>Configuration for projective ICP tracker.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Variables<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>n_pyramid_levels</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Number of pyramid levels (coarse to fine).</p></li>
-<li><p><strong>iterations</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)"><em>tuple</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><em>...</em><em>]</em>) – Iterations per level, e.g., (10, 5, 4).</p></li>
+<li><p><strong>iterations</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)"><em>tuple</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><em>...</em><em>]</em>) – Iterations per level, e.g., (6, 3, 2).</p></li>
 <li><p><strong>damping</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)"><em>tuple</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em>, </em><em>...</em><em>]</em>) – Damping per level, e.g., (1e-2, 1e-3, 1e-4).</p></li>
 <li><p><strong>max_depth_diff</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Max depth difference for correspondence.</p></li>
 <li><p><strong>max_normal_angle_deg</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Max angle between normals (degrees).</p></li>
-<li><p><strong>robust_loss</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Robust loss function (“huber” or “none”).</p></li>
+<li><p><strong>robust_loss</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Robust loss function (“huber”, “tukey”, or “none”).</p></li>
 <li><p><strong>huber_delta</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Huber loss threshold (for robust_loss=”huber”).</p></li>
+<li><p><strong>tukey_delta</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Tukey biweight cutoff (for robust_loss=”tukey”).</p></li>
+<li><p><strong>depth_weighting</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – Down-weight geometric residuals at long range.</p></li>
+<li><p><strong>adaptive_depth_diff</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – When True, use depth-adaptive correspondence gate
+(0.05 + 0.01 * mean_z) instead of constant max_depth_diff.</p></li>
+<li><p><strong>convergence_xi_norm</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Convergence threshold for the update norm.</p></li>
+<li><p><strong>photometric_weight</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Weight of photometric residuals relative to
+geometric residuals. Set to 0.0 to disable (default).</p></li>
+<li><p><strong>photometric_levels</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Number of finest pyramid levels where
+photometric residuals are applied.</p></li>
+<li><p><strong>photometric_huber_delta</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Huber delta for photometric residual
+robust weighting.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Parameters<span class="colon">:</span></dt>
@@ -283,6 +315,13 @@ level to align live depth with rendered model depth.</p>
 <li><p><strong>max_normal_angle_deg</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>)</p></li>
 <li><p><strong>robust_loss</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
 <li><p><strong>huber_delta</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>)</p></li>
+<li><p><strong>tukey_delta</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>)</p></li>
+<li><p><strong>depth_weighting</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>)</p></li>
+<li><p><strong>adaptive_depth_diff</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>)</p></li>
+<li><p><strong>convergence_xi_norm</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>)</p></li>
+<li><p><strong>photometric_weight</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>)</p></li>
+<li><p><strong>photometric_levels</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>)</p></li>
+<li><p><strong>photometric_huber_delta</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>)</p></li>
 </ul>
 </dd>
 </dl>
@@ -293,7 +332,7 @@ level to align live depth with rendered model depth.</p>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="gradslam.icp.ProjectiveICPConfig.iterations">
-<span class="sig-name descname"><span class="pre">iterations</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)"><span class="pre">tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">(10,</span> <span class="pre">5,</span> <span class="pre">4)</span></span><a class="headerlink" href="#gradslam.icp.ProjectiveICPConfig.iterations" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">iterations</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)"><span class="pre">tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">(6,</span> <span class="pre">3,</span> <span class="pre">2)</span></span><a class="headerlink" href="#gradslam.icp.ProjectiveICPConfig.iterations" title="Link to this definition"></a></dt>
 <dd></dd></dl>
 
 <dl class="py attribute">
@@ -313,7 +352,7 @@ level to align live depth with rendered model depth.</p>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="gradslam.icp.ProjectiveICPConfig.robust_loss">
-<span class="sig-name descname"><span class="pre">robust_loss</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'none'</span></span><a class="headerlink" href="#gradslam.icp.ProjectiveICPConfig.robust_loss" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">robust_loss</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'huber'</span></span><a class="headerlink" href="#gradslam.icp.ProjectiveICPConfig.robust_loss" title="Link to this definition"></a></dt>
 <dd></dd></dl>
 
 <dl class="py attribute">
@@ -321,6 +360,83 @@ level to align live depth with rendered model depth.</p>
 <span class="sig-name descname"><span class="pre">huber_delta</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0.03</span></span><a class="headerlink" href="#gradslam.icp.ProjectiveICPConfig.huber_delta" title="Link to this definition"></a></dt>
 <dd></dd></dl>
 
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gradslam.icp.ProjectiveICPConfig.tukey_delta">
+<span class="sig-name descname"><span class="pre">tukey_delta</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0.05</span></span><a class="headerlink" href="#gradslam.icp.ProjectiveICPConfig.tukey_delta" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gradslam.icp.ProjectiveICPConfig.depth_weighting">
+<span class="sig-name descname"><span class="pre">depth_weighting</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><span class="pre">bool</span></a></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">True</span></span><a class="headerlink" href="#gradslam.icp.ProjectiveICPConfig.depth_weighting" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gradslam.icp.ProjectiveICPConfig.adaptive_depth_diff">
+<span class="sig-name descname"><span class="pre">adaptive_depth_diff</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><span class="pre">bool</span></a></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">True</span></span><a class="headerlink" href="#gradslam.icp.ProjectiveICPConfig.adaptive_depth_diff" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gradslam.icp.ProjectiveICPConfig.convergence_xi_norm">
+<span class="sig-name descname"><span class="pre">convergence_xi_norm</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0.0001</span></span><a class="headerlink" href="#gradslam.icp.ProjectiveICPConfig.convergence_xi_norm" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gradslam.icp.ProjectiveICPConfig.photometric_weight">
+<span class="sig-name descname"><span class="pre">photometric_weight</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0.0</span></span><a class="headerlink" href="#gradslam.icp.ProjectiveICPConfig.photometric_weight" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gradslam.icp.ProjectiveICPConfig.photometric_levels">
+<span class="sig-name descname"><span class="pre">photometric_levels</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">1</span></span><a class="headerlink" href="#gradslam.icp.ProjectiveICPConfig.photometric_levels" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gradslam.icp.ProjectiveICPConfig.photometric_huber_delta">
+<span class="sig-name descname"><span class="pre">photometric_huber_delta</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0.02</span></span><a class="headerlink" href="#gradslam.icp.ProjectiveICPConfig.photometric_huber_delta" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="gradslam.icp.sobel_gradients">
+<span class="sig-name descname"><span class="pre">sobel_gradients</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">gray</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/icp/photometric_residual.html#sobel_gradients"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.icp.sobel_gradients" title="Link to this definition"></a></dt>
+<dd><p>Compute Sobel image gradients.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>gray</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>Tensor</em></a>) – Grayscale image [H, W], values in [0, 1].</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Gradient images [H, W] each.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>(dI_dx, dI_dy)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="gradslam.icp.photometric_residuals_and_jacobian">
+<span class="sig-name descname"><span class="pre">photometric_residuals_and_jacobian</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">live_vertex</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">live_gray_pixels</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ref_gray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ref_dI_dx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ref_dI_dy</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">K</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/icp/photometric_residual.html#photometric_residuals_and_jacobian"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.icp.photometric_residuals_and_jacobian" title="Link to this definition"></a></dt>
+<dd><p>Compute photometric residuals and 6-DOF Jacobians for valid correspondences.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>live_vertex</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>Tensor</em></a>) – Live vertices in ref frame [N, 3] (already transformed).</p></li>
+<li><p><strong>live_gray_pixels</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>Tensor</em></a>) – Intensity of live pixels at correspondence locations [N].</p></li>
+<li><p><strong>ref_gray</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>Tensor</em></a>) – Reference grayscale image [H, W].</p></li>
+<li><p><strong>ref_dI_dx</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>Tensor</em></a>) – Reference x-gradient [H, W].</p></li>
+<li><p><strong>ref_dI_dy</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>Tensor</em></a>) – Reference y-gradient [H, W].</p></li>
+<li><p><strong>K</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>Tensor</em></a>) – Scaled camera intrinsics [3, 3].</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Jacobian [M, 6], residual [M, 1], valid [N] bool.
+M &lt;= N (only valid projected correspondences).</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>(A_photo, b_photo, valid_mask)</p>
+</dd>
+</dl>
 </dd></dl>
 
 <section id="module-gradslam.icp.projective">
@@ -328,19 +444,30 @@ level to align live depth with rendered model depth.</p>
 <p>Projective ICP tracker for RGB-D SLAM (KinectFusion-style).</p>
 <dl class="py class">
 <dt class="sig sig-object py" id="gradslam.icp.projective.ProjectiveICPConfig">
-<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">ProjectiveICPConfig</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">n_pyramid_levels</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">iterations</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(10,</span> <span class="pre">5,</span> <span class="pre">4)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">damping</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(0.01,</span> <span class="pre">0.001,</span> <span class="pre">0.0001)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_depth_diff</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_normal_angle_deg</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">60.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">robust_loss</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'none'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">huber_delta</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.03</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/icp/projective.html#ProjectiveICPConfig"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.icp.projective.ProjectiveICPConfig" title="Link to this definition"></a></dt>
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">ProjectiveICPConfig</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">n_pyramid_levels</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">iterations</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(6,</span> <span class="pre">3,</span> <span class="pre">2)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">damping</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(0.01,</span> <span class="pre">0.001,</span> <span class="pre">0.0001)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_depth_diff</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_normal_angle_deg</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">60.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">robust_loss</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'huber'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">huber_delta</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.03</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tukey_delta</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.05</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">depth_weighting</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">adaptive_depth_diff</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">convergence_xi_norm</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0001</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">photometric_weight</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">photometric_levels</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">photometric_huber_delta</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.02</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/icp/projective.html#ProjectiveICPConfig"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.icp.projective.ProjectiveICPConfig" title="Link to this definition"></a></dt>
 <dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
 <p>Configuration for projective ICP tracker.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Variables<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>n_pyramid_levels</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Number of pyramid levels (coarse to fine).</p></li>
-<li><p><strong>iterations</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)"><em>tuple</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><em>...</em><em>]</em>) – Iterations per level, e.g., (10, 5, 4).</p></li>
+<li><p><strong>iterations</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)"><em>tuple</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><em>...</em><em>]</em>) – Iterations per level, e.g., (6, 3, 2).</p></li>
 <li><p><strong>damping</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)"><em>tuple</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em>, </em><em>...</em><em>]</em>) – Damping per level, e.g., (1e-2, 1e-3, 1e-4).</p></li>
 <li><p><strong>max_depth_diff</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Max depth difference for correspondence.</p></li>
 <li><p><strong>max_normal_angle_deg</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Max angle between normals (degrees).</p></li>
-<li><p><strong>robust_loss</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Robust loss function (“huber” or “none”).</p></li>
+<li><p><strong>robust_loss</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Robust loss function (“huber”, “tukey”, or “none”).</p></li>
 <li><p><strong>huber_delta</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Huber loss threshold (for robust_loss=”huber”).</p></li>
+<li><p><strong>tukey_delta</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Tukey biweight cutoff (for robust_loss=”tukey”).</p></li>
+<li><p><strong>depth_weighting</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – Down-weight geometric residuals at long range.</p></li>
+<li><p><strong>adaptive_depth_diff</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – When True, use depth-adaptive correspondence gate
+(0.05 + 0.01 * mean_z) instead of constant max_depth_diff.</p></li>
+<li><p><strong>convergence_xi_norm</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Convergence threshold for the update norm.</p></li>
+<li><p><strong>photometric_weight</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Weight of photometric residuals relative to
+geometric residuals. Set to 0.0 to disable (default).</p></li>
+<li><p><strong>photometric_levels</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Number of finest pyramid levels where
+photometric residuals are applied.</p></li>
+<li><p><strong>photometric_huber_delta</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Huber delta for photometric residual
+robust weighting.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Parameters<span class="colon">:</span></dt>
@@ -352,6 +479,13 @@ level to align live depth with rendered model depth.</p>
 <li><p><strong>max_normal_angle_deg</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>)</p></li>
 <li><p><strong>robust_loss</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
 <li><p><strong>huber_delta</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>)</p></li>
+<li><p><strong>tukey_delta</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>)</p></li>
+<li><p><strong>depth_weighting</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>)</p></li>
+<li><p><strong>adaptive_depth_diff</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>)</p></li>
+<li><p><strong>convergence_xi_norm</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>)</p></li>
+<li><p><strong>photometric_weight</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>)</p></li>
+<li><p><strong>photometric_levels</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>)</p></li>
+<li><p><strong>photometric_huber_delta</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>)</p></li>
 </ul>
 </dd>
 </dl>
@@ -362,7 +496,7 @@ level to align live depth with rendered model depth.</p>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="gradslam.icp.projective.ProjectiveICPConfig.iterations">
-<span class="sig-name descname"><span class="pre">iterations</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)"><span class="pre">tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">(10,</span> <span class="pre">5,</span> <span class="pre">4)</span></span><a class="headerlink" href="#gradslam.icp.projective.ProjectiveICPConfig.iterations" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">iterations</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)"><span class="pre">tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">(6,</span> <span class="pre">3,</span> <span class="pre">2)</span></span><a class="headerlink" href="#gradslam.icp.projective.ProjectiveICPConfig.iterations" title="Link to this definition"></a></dt>
 <dd></dd></dl>
 
 <dl class="py attribute">
@@ -382,12 +516,47 @@ level to align live depth with rendered model depth.</p>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="gradslam.icp.projective.ProjectiveICPConfig.robust_loss">
-<span class="sig-name descname"><span class="pre">robust_loss</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'none'</span></span><a class="headerlink" href="#gradslam.icp.projective.ProjectiveICPConfig.robust_loss" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">robust_loss</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'huber'</span></span><a class="headerlink" href="#gradslam.icp.projective.ProjectiveICPConfig.robust_loss" title="Link to this definition"></a></dt>
 <dd></dd></dl>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="gradslam.icp.projective.ProjectiveICPConfig.huber_delta">
 <span class="sig-name descname"><span class="pre">huber_delta</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0.03</span></span><a class="headerlink" href="#gradslam.icp.projective.ProjectiveICPConfig.huber_delta" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gradslam.icp.projective.ProjectiveICPConfig.tukey_delta">
+<span class="sig-name descname"><span class="pre">tukey_delta</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0.05</span></span><a class="headerlink" href="#gradslam.icp.projective.ProjectiveICPConfig.tukey_delta" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gradslam.icp.projective.ProjectiveICPConfig.depth_weighting">
+<span class="sig-name descname"><span class="pre">depth_weighting</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><span class="pre">bool</span></a></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">True</span></span><a class="headerlink" href="#gradslam.icp.projective.ProjectiveICPConfig.depth_weighting" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gradslam.icp.projective.ProjectiveICPConfig.adaptive_depth_diff">
+<span class="sig-name descname"><span class="pre">adaptive_depth_diff</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><span class="pre">bool</span></a></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">True</span></span><a class="headerlink" href="#gradslam.icp.projective.ProjectiveICPConfig.adaptive_depth_diff" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gradslam.icp.projective.ProjectiveICPConfig.convergence_xi_norm">
+<span class="sig-name descname"><span class="pre">convergence_xi_norm</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0.0001</span></span><a class="headerlink" href="#gradslam.icp.projective.ProjectiveICPConfig.convergence_xi_norm" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gradslam.icp.projective.ProjectiveICPConfig.photometric_weight">
+<span class="sig-name descname"><span class="pre">photometric_weight</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0.0</span></span><a class="headerlink" href="#gradslam.icp.projective.ProjectiveICPConfig.photometric_weight" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gradslam.icp.projective.ProjectiveICPConfig.photometric_levels">
+<span class="sig-name descname"><span class="pre">photometric_levels</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">1</span></span><a class="headerlink" href="#gradslam.icp.projective.ProjectiveICPConfig.photometric_levels" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="gradslam.icp.projective.ProjectiveICPConfig.photometric_huber_delta">
+<span class="sig-name descname"><span class="pre">photometric_huber_delta</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0.02</span></span><a class="headerlink" href="#gradslam.icp.projective.ProjectiveICPConfig.photometric_huber_delta" title="Link to this definition"></a></dt>
 <dd></dd></dl>
 
 </dd></dl>
@@ -406,7 +575,7 @@ level to align live depth with rendered model depth.</p>
 </dl>
 <dl class="py method">
 <dt class="sig sig-object py" id="gradslam.icp.projective.ProjectiveICPTracker.forward">
-<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">live_depth</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">live_normal</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model_depth</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model_normal</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">intrinsics</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">init_T_model_live</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/icp/projective.html#ProjectiveICPTracker.forward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.icp.projective.ProjectiveICPTracker.forward" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">live_depth</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">live_normal</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model_depth</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model_normal</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">intrinsics</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">init_T_model_live</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">live_gray</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ref_gray</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/icp/projective.html#ProjectiveICPTracker.forward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.icp.projective.ProjectiveICPTracker.forward" title="Link to this definition"></a></dt>
 <dd><p>Compute rigid transform from live frame to model.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -417,6 +586,10 @@ level to align live depth with rendered model depth.</p>
 <li><p><strong>model_normal</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>Tensor</em></a>) – Model rendered normals, shape [H, W, 3].</p></li>
 <li><p><strong>intrinsics</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>Tensor</em></a>) – Camera intrinsics [3, 3] (K matrix).</p></li>
 <li><p><strong>init_T_model_live</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>Tensor</em></a><em> | </em><em>None</em>) – Initial guess (4x4 SE(3)). If None, uses identity.</p></li>
+<li><p><strong>live_gray</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>Tensor</em></a><em> | </em><em>None</em>) – Live grayscale image [H, W] in [0, 1], optional.
+When provided together with ref_gray and photometric_weight &gt; 0,
+photometric residuals are stacked with geometric residuals.</p></li>
+<li><p><strong>ref_gray</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><em>Tensor</em></a><em> | </em><em>None</em>) – Reference grayscale image [H, W] in [0, 1], optional.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
@@ -436,6 +609,7 @@ level to align live depth with rendered model depth.</p>
 <li><p>live_normal, model_normal: [H, W, 3]</p></li>
 <li><p>intrinsics: [3, 3]</p></li>
 <li><p>init_T_model_live: [4, 4] or None</p></li>
+<li><p>live_gray, ref_gray: [H, W] or None</p></li>
 <li><p>T_model_live: [4, 4]</p></li>
 </ul>
 </dd>
