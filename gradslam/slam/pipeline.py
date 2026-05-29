@@ -1024,6 +1024,41 @@ class RGBDTSDFSLAM(torch.nn.Module):
             if len(self.keyframes) > self.max_keyframes:
                 self.keyframes = self.keyframes[-self.max_keyframes :]
 
+            # Sliding-window pose graph correction (opt-in via pose_graph_enabled)
+            if self._pose_graph is not None:
+                inlier_w = float(best_quality.get("inlier_ratio", 0.5))
+                rmse_w = 1.0 / max(float(best_quality.get("rmse", 0.01)), 1e-4)
+                w = inlier_w * min(rmse_w, 100.0)
+                # Pass best_rel as the independent ICP measurement so the
+                # optimizer has information to correct drift with.
+                self._pose_graph.add_keyframe(
+                    self.T_world_camera,
+                    T_rel_measured=best_rel,
+                    weight=w,
+                )
+                if self._pose_graph.num_keyframes >= 2:
+                    corrected = self._pose_graph.get_corrected_poses()
+                    # Update matching keyframes in self.keyframes
+                    n_graph = len(corrected)
+                    n_kf = len(self.keyframes)
+                    for j, new_pose in enumerate(corrected):
+                        kf_idx = n_kf - n_graph + j
+                        if 0 <= kf_idx < n_kf:
+                            self.keyframes[kf_idx].T_world_camera = new_pose
+                    # Update current camera pose from last corrected pose
+                    if corrected:
+                        self.T_world_camera = corrected[-1].clone()
+                    # Rebuild _last_reference so next frame tracks corrected geometry
+                    self._last_reference = self._make_reference(
+                        depth=depth,
+                        K=K,
+                        T_world_camera=self.T_world_camera,
+                        frame_idx=self.frame_count,
+                        rgb=rgb,
+                        normal=live_normal,
+                        is_keyframe=True,
+                    )
+
         best_quality["integrated"] = integrate_frame
         self.frame_count += 1
         return TrackingResult(
