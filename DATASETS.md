@@ -122,6 +122,13 @@ usable directly for SLAM evaluation.
 
 ---
 
+## Fast RGB-D Benchmark Notes
+
+The current ROCm fast-tracking defaults and 300-frame benchmark results are
+summarized in [docs/fast_rgbd_benchmarks.md](docs/fast_rgbd_benchmarks.md).
+
+---
+
 ## Performance Reference (ROCm, Radeon 8060S)
 
 | Dataset | Frames | Resolution | Speed |

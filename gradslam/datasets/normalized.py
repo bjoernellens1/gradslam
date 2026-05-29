@@ -13,6 +13,8 @@ Expected directory layout::
       camera_info.json    # fx,fy,cx,cy,width,height,depth_factor,...
       groundtruth_tum.txt # optional: timestamp tx ty tz qx qy qz qw (space-sep)
       <name>_rtabmap_odom_tum.csv  # optional: same fields with CSV header
+      best_pseudo_gt_tum.csv       # optional sibling pseudo-GT from the ROS2 pipeline
+      candidate_best_unreliable_tum.csv  # optional sibling fallback pseudo-GT
 
 This is the canonical output of the pseudo_gt_pipeline.py normalizer.
 """
@@ -159,7 +161,6 @@ class NormalizedRGBD(data.Dataset):
             [names], [timestamps].
         """
         import cv2
-        import imageio.v2 as imageio
 
         s = self._starts[idx]
         step = self.dilation + 1
@@ -175,11 +176,17 @@ class NormalizedRGBD(data.Dataset):
             timestamps.append(ts)
 
             # Color
-            color = np.array(imageio.imread(str(rgb_path)), dtype=np.float32)
-            if color.ndim == 2:
-                color = np.stack([color] * 3, axis=-1)
-            elif color.shape[2] == 4:
-                color = color[:, :, :3]
+            _img = cv2.imread(str(rgb_path))
+            if _img is None:
+                # fallback to imageio
+                import imageio.v2 as imageio
+                color = np.array(imageio.imread(str(rgb_path)), dtype=np.float32)
+                if color.ndim == 2:
+                    color = np.stack([color] * 3, axis=-1)
+                elif color.shape[2] == 4:
+                    color = color[:, :, :3]
+            else:
+                color = cv2.cvtColor(_img, cv2.COLOR_BGR2RGB).astype(np.float32)
             if self.normalize_color:
                 color = color / 255.0
             if self.channels_first:
@@ -188,8 +195,14 @@ class NormalizedRGBD(data.Dataset):
 
             # Depth
             if self.return_depth:
-                depth = np.array(imageio.imread(str(dep_path)), dtype=np.float32)
-                depth = depth / self.depth_factor
+                _dep = cv2.imread(str(dep_path), cv2.IMREAD_ANYDEPTH | cv2.IMREAD_UNCHANGED)
+                if _dep is None:
+                    # fallback to imageio
+                    import imageio.v2 as imageio
+                    _dep_arr = np.array(imageio.imread(str(dep_path)), dtype=np.float32)
+                else:
+                    _dep_arr = np.ascontiguousarray(_dep).astype(np.float32)
+                depth = _dep_arr / self.depth_factor
                 depth = depth[:, :, np.newaxis]
                 if self.channels_first:
                     depth = depth.transpose(2, 0, 1)
@@ -250,10 +263,18 @@ class NormalizedRGBD(data.Dataset):
             p = Path(gt_file)
             return p if p.exists() else None
 
-        # Auto-detect: prefer groundtruth_tum.txt, then any *_tum.csv / *_tum.txt
+        # Auto-detect canonical pseudo-GT sidecars first, then local GT files.
+        # The ROS2 handheld pipeline often persists the normalized dataset in
+        # <output>/dataset/ while writing best_pseudo_gt_tum.csv next to it.
         candidates = [
+            self.capture_dir / "best_pseudo_gt_tum.csv",
+            self.capture_dir / "candidate_best_unreliable_tum.csv",
+            self.capture_dir.parent / "best_pseudo_gt_tum.csv",
+            self.capture_dir.parent / "candidate_best_unreliable_tum.csv",
             self.capture_dir / "groundtruth_tum.txt",
             self.capture_dir / "groundtruth.txt",
+            self.capture_dir.parent / "groundtruth_tum.txt",
+            self.capture_dir.parent / "groundtruth.txt",
         ]
         for p in candidates:
             if p.exists():

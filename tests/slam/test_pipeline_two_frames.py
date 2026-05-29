@@ -94,3 +94,58 @@ def test_no_grad_in_forward(slam, intrinsics_4x4):
     slam.process_frame(frame)
     result = slam.process_frame(frame)
     assert not result.T_world_camera.requires_grad
+
+
+def test_hybrid_tracker_uses_local_reference(intrinsics_4x4):
+    tsdf_cfg = TSDFConfig(voxel_size=0.02)
+    icp_cfg = ProjectiveICPConfig(
+        n_pyramid_levels=2,
+        iterations=(5, 5),
+        damping=(1e-2, 1e-3),
+        robust_loss="huber",
+    )
+    slam = RGBDTSDFSLAM(
+        tsdf_config=tsdf_cfg,
+        icp_config=icp_cfg,
+        voxel_dim=(32, 32, 32),
+        volume_origin=(-0.32, -0.32, 0.0),
+        near=0.1,
+        far=1.5,
+        tracking_mode="hybrid",
+        mapping_interval=10,
+    )
+
+    depth = _make_depth(z=0.5)
+    rgb = torch.ones(48, 64, 3)
+    frame = RGBDFrame(rgb=rgb, depth=depth, intrinsics=intrinsics_4x4)
+    slam.process_frame(frame)
+    result = slam.process_frame(frame)
+
+    assert result.quality["tracking_source"] in {"previous", "keyframe"}
+    assert result.lost is False
+    assert result.quality["integrated"] is False
+
+
+def test_tsdf_tracking_mode_still_available(intrinsics_4x4):
+    tsdf_cfg = TSDFConfig(voxel_size=0.02)
+    icp_cfg = ProjectiveICPConfig(
+        n_pyramid_levels=2,
+        iterations=(5, 5),
+        damping=(1e-2, 1e-3),
+    )
+    slam = RGBDTSDFSLAM(
+        tsdf_config=tsdf_cfg,
+        icp_config=icp_cfg,
+        voxel_dim=(32, 32, 32),
+        volume_origin=(-0.32, -0.32, 0.0),
+        near=0.1,
+        far=1.5,
+        tracking_mode="tsdf",
+    )
+
+    depth = _make_depth()
+    frame = RGBDFrame(rgb=None, depth=depth, intrinsics=intrinsics_4x4)
+    slam.process_frame(frame)
+    result = slam.process_frame(frame)
+
+    assert result.quality["tracking_source"] == "tsdf"

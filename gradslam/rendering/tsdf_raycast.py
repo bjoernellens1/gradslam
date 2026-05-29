@@ -35,6 +35,8 @@ def raycast_tsdf(
     near: float = 0.1,
     far: float = 5.0,
     n_samples: int = 128,
+    normal_mode: str = "gradient",
+    precomputed_ray_cam_unit: torch.Tensor | None = None,
 ) -> RenderedFrame:
     """Raycast a TSDF volume to render depth and normals.
 
@@ -51,6 +53,17 @@ def raycast_tsdf(
         near: Near plane distance in meters.
         far: Far plane distance in meters.
         n_samples: Samples along each ray.
+        normal_mode: How to compute surface normals. ``"gradient"`` (default)
+            computes normals via 6 TSDF finite-difference ``grid_sample`` calls.
+            ``"image"`` skips normal computation entirely and returns a
+            zero-filled normal map; the caller is responsible for deriving
+            normals from the depth image instead (faster).
+        precomputed_ray_cam_unit: Optional pre-cached ray directions in camera
+            frame [H*W, 3], already unit-normalised. When provided, the per-
+            pixel ray grid is not recomputed from scratch (only depends on
+            intrinsics, not on pose), saving the meshgrid and normalise step.
+            When ``None`` (default), ray directions are computed from
+            ``intrinsics``, ``height``, and ``width`` as usual.
 
     Returns:
         RenderedFrame with depth, normals, and mask.
@@ -68,15 +81,23 @@ def raycast_tsdf(
     cx, cy = intrinsics[0, 2].to(dtype), intrinsics[1, 2].to(dtype)
 
     # Ray directions in camera frame → world frame [H*W, 3]
-    u = torch.arange(width, device=device, dtype=dtype)
-    v = torch.arange(height, device=device, dtype=dtype)
-    vv, uu = torch.meshgrid(v, u, indexing="ij")   # [H, W] each
-    ray_cam = torch.stack(
-        [(uu - cx) / fx, (vv - cy) / fy, torch.ones_like(uu)], dim=-1
-    )  # [H, W, 3], unnormalized
-    ray_cam_flat = ray_cam.reshape(-1, 3)            # [N, 3]
-    ray_world = ray_cam_flat @ R_cw.t()             # [N, 3]
-    ray_world = F.normalize(ray_world, dim=-1)       # [N, 3]
+    if precomputed_ray_cam_unit is not None:
+        # Use caller-supplied unit ray directions (camera frame), skipping the
+        # meshgrid construction.  The tensor is already normalised in camera
+        # space; we still re-normalise after rotation for numerical safety.
+        ray_cam_flat = precomputed_ray_cam_unit  # [N, 3], already unit-normalized in camera frame
+        ray_world = ray_cam_flat @ R_cw.t()     # rotate to world frame [N, 3]
+        ray_world = F.normalize(ray_world, dim=-1)  # re-normalize after rotation (numerical safety)
+    else:
+        u = torch.arange(width, device=device, dtype=dtype)
+        v = torch.arange(height, device=device, dtype=dtype)
+        vv, uu = torch.meshgrid(v, u, indexing="ij")   # [H, W] each
+        ray_cam = torch.stack(
+            [(uu - cx) / fx, (vv - cy) / fy, torch.ones_like(uu)], dim=-1
+        )  # [H, W, 3], unnormalized
+        ray_cam_flat = ray_cam.reshape(-1, 3)            # [N, 3]
+        ray_world = ray_cam_flat @ R_cw.t()             # [N, 3]
+        ray_world = F.normalize(ray_world, dim=-1)       # [N, 3]
 
     # Sample depths along rays [n_samples]
     t_vals = torch.linspace(near, far, n_samples, device=device, dtype=dtype)
@@ -131,32 +152,47 @@ def raycast_tsdf(
     denom = (s0 - s1).abs().clamp(min=1e-6)
     t_surface = t0 + (t1 - t0) * s0.abs() / denom  # linear interp
 
-    depth_flat = torch.where(has_crossing, t_surface, torch.zeros_like(t_surface))  # [N]
+    # Convert ray-parameter (distance along unit ray) to z-depth (camera-frame z-coordinate).
+    # z_depth = t * cos(θ) = t * ray_cam_unit_z, where θ is the angle from the optical axis.
+    # This makes rendered depth compatible with the RGB-D sensor convention (z-depth).
+    if precomputed_ray_cam_unit is not None:
+        ray_cam_unit_z = precomputed_ray_cam_unit[:, 2]
+    else:
+        # ray_cam_flat is unnormalized [(u-cx)/fx, (v-cy)/fy, 1]; unit-z = 1/|ray_cam_flat|
+        ray_cam_unit_z = 1.0 / ray_cam_flat.norm(dim=-1)
+    depth_flat = torch.where(has_crossing, t_surface * ray_cam_unit_z, torch.zeros_like(t_surface))  # [N]
 
-    # Normals: TSDF gradient at surface position
-    surf_pts = t_w[None, :] + depth_flat[:, None] * ray_world  # [N, 3]
-    surf_vox = (surf_pts - tsdf_origin[None, :]) / voxel_size  # [N, 3]
-    eps = 1.0  # 1 voxel step for gradient
+    # Normals
+    if normal_mode == "gradient":
+        # Normals: TSDF gradient at surface position (6 grid_sample calls).
+        # Use t_surface (ray parameter) × unit ray direction — not depth_flat — for correct 3D position.
+        surf_pts = t_w[None, :] + t_surface[:, None] * ray_world  # [N, 3]
+        surf_vox = (surf_pts - tsdf_origin[None, :]) / voxel_size  # [N, 3]
+        eps = 1.0  # 1 voxel step for gradient
 
-    def sample_at(offsets):
-        """Sample tsdf at surf_vox + offsets (offsets: [3])."""
-        pts = surf_vox + offsets.to(device=device, dtype=dtype)[None, :]
-        pts_n = (2.0 * pts / vol_size[None, :] - 1.0).unsqueeze(0).unsqueeze(2).unsqueeze(3)
-        out = F.grid_sample(tsdf_for_gs, pts_n, mode="bilinear", align_corners=True, padding_mode="border")
-        return out.squeeze()  # [N]
+        def sample_at(offsets):
+            """Sample tsdf at surf_vox + offsets (offsets: [3])."""
+            pts = surf_vox + offsets.to(device=device, dtype=dtype)[None, :]
+            pts_n = (2.0 * pts / vol_size[None, :] - 1.0).unsqueeze(0).unsqueeze(2).unsqueeze(3)
+            out = F.grid_sample(tsdf_for_gs, pts_n, mode="bilinear", align_corners=True, padding_mode="border")
+            return out.squeeze()  # [N]
 
-    gx = sample_at(torch.tensor([eps, 0, 0])) - sample_at(torch.tensor([-eps, 0, 0]))
-    gy = sample_at(torch.tensor([0, eps, 0])) - sample_at(torch.tensor([0, -eps, 0]))
-    gz = sample_at(torch.tensor([0, 0, eps])) - sample_at(torch.tensor([0, 0, -eps]))
+        gx = sample_at(torch.tensor([eps, 0, 0])) - sample_at(torch.tensor([-eps, 0, 0]))
+        gy = sample_at(torch.tensor([0, eps, 0])) - sample_at(torch.tensor([0, -eps, 0]))
+        gz = sample_at(torch.tensor([0, 0, eps])) - sample_at(torch.tensor([0, 0, -eps]))
 
-    grad = torch.stack([gx, gy, gz], dim=-1)  # [N, 3] in world space
-    grad_cam = grad @ R_cw  # rotate to camera frame [N, 3]
-    normal_flat = F.normalize(grad_cam, dim=-1)  # [N, 3]
-    # Flip normals facing away from camera
-    flip = (normal_flat[:, 2] > 0).float() * 2 - 1
-    normal_flat = normal_flat * flip[:, None]
-    normal_flat = torch.where(has_crossing[:, None].expand_as(normal_flat), normal_flat,
-                              torch.zeros_like(normal_flat))
+        grad = torch.stack([gx, gy, gz], dim=-1)  # [N, 3] in world space
+        grad_cam = grad @ R_cw  # rotate to camera frame [N, 3]
+        normal_flat = F.normalize(grad_cam, dim=-1)  # [N, 3]
+        # Flip normals facing away from camera
+        flip = (normal_flat[:, 2] > 0).float() * 2 - 1
+        normal_flat = normal_flat * flip[:, None]
+        normal_flat = torch.where(has_crossing[:, None].expand_as(normal_flat), normal_flat,
+                                  torch.zeros_like(normal_flat))
+    else:
+        # normal_mode == "image": skip normals computation entirely.
+        # The pipeline will derive normals from the depth map instead (faster).
+        normal_flat = torch.zeros(N, 3, device=device, dtype=dtype)
 
     depth_map = depth_flat.reshape(height, width)
     normal_map = normal_flat.reshape(height, width, 3)

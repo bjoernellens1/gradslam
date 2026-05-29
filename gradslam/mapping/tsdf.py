@@ -54,10 +54,17 @@ class TSDFVolume(torch.nn.Module):
 
         self.register_buffer("_voxel_dim", voxel_dim)
         self.register_buffer("_origin", origin)
+
+        # Cache grid dims as Python ints to avoid .cpu().numpy() in hot path
+        self._nx = int(voxel_dim[0])
+        self._ny = int(voxel_dim[1])
+        self._nz = int(voxel_dim[2])
+        self._ny_nz = self._ny * self._nz
+
         self.register_buffer(
             "tsdf",
             torch.ones(
-                voxel_dim[0], voxel_dim[1], voxel_dim[2],
+                self._nx, self._ny, self._nz,
                 device=self.device,
                 dtype=self.config.dtype,
             ),
@@ -65,11 +72,25 @@ class TSDFVolume(torch.nn.Module):
         self.register_buffer(
             "weight",
             torch.zeros(
-                voxel_dim[0], voxel_dim[1], voxel_dim[2],
+                self._nx, self._ny, self._nz,
                 device=self.device,
                 dtype=torch.float32,
             ),
         )
+
+        # Pre-compute and cache voxel coordinate grid — avoids 16.7M-element
+        # reallocation every frame. Also pre-compute world coords (origin + scale).
+        coords = self._build_voxel_coords(self.device, self.config.dtype)
+        self.register_buffer("_cached_voxel_coords", coords)
+        world = coords * self.config.voxel_size + self._origin
+        self.register_buffer("_cached_voxel_world", world)
+
+    def _build_voxel_coords(self, device: torch.device, dtype: torch.dtype) -> torch.Tensor:
+        x = torch.arange(self._nx, device=device, dtype=dtype)
+        y = torch.arange(self._ny, device=device, dtype=dtype)
+        z = torch.arange(self._nz, device=device, dtype=dtype)
+        coords = torch.stack(torch.meshgrid(x, y, z, indexing="ij"), dim=-1)
+        return coords.reshape(-1, 3)
 
     @torch.no_grad()
     def integrate(
@@ -98,10 +119,9 @@ class TSDFVolume(torch.nn.Module):
         R = T_camera_world[:3, :3]
         t = T_camera_world[:3, 3]
 
-        # Voxel centers in world coordinates
-        voxel_dim_float = self._voxel_dim.float()
-        voxel_coords = self._voxel_coordinates(device, dtype)  # [N, 3]
-        voxel_world = voxel_coords * self.config.voxel_size + self._origin
+        # Use cached world-space voxel centers
+        voxel_coords = self._cached_voxel_coords   # [N, 3]
+        voxel_world = self._cached_voxel_world      # [N, 3]
 
         # Transform to camera frame
         voxel_camera = torch.matmul(voxel_world, R.t()) + t  # [N, 3]
@@ -148,10 +168,11 @@ class TSDFVolume(torch.nn.Module):
         trunc = self.config.truncation_margin_voxels * self.config.voxel_size
         truncated_dist = torch.clamp(signed_dist, -trunc, trunc)
 
-        # Linearize 3D voxel coordinates to flat indices (row-major / C order)
-        nx, ny, nz = self._voxel_dim[0], self._voxel_dim[1], self._voxel_dim[2]
-        xi, yi, zi = voxel_coords_valid[:, 0].long(), voxel_coords_valid[:, 1].long(), voxel_coords_valid[:, 2].long()
-        flat_idx = xi * (ny * nz) + yi * nz + zi  # [M]
+        # Linearize 3D voxel coords to flat indices — use Python-int strides
+        xi = voxel_coords_valid[:, 0].long()
+        yi = voxel_coords_valid[:, 1].long()
+        zi = voxel_coords_valid[:, 2].long()
+        flat_idx = xi * self._ny_nz + yi * self._nz + zi  # [M]
 
         # Vectorized running-average TSDF update
         tsdf_flat = self.tsdf.reshape(-1)
@@ -168,14 +189,5 @@ class TSDFVolume(torch.nn.Module):
     def _voxel_coordinates(
         self, device: torch.device, dtype: torch.dtype
     ) -> torch.Tensor:
-        """Generate all voxel coordinates.
-
-        Returns:
-            [N, 3] voxel coordinates where N = nx*ny*nz.
-        """
-        nx, ny, nz = self._voxel_dim.cpu().numpy()
-        x = torch.arange(nx, device=device, dtype=dtype)
-        y = torch.arange(ny, device=device, dtype=dtype)
-        z = torch.arange(nz, device=device, dtype=dtype)
-        coords = torch.stack(torch.meshgrid(x, y, z, indexing="ij"), dim=-1)
-        return coords.reshape(-1, 3)
+        """Return cached voxel coordinates [N, 3]."""
+        return self._cached_voxel_coords
