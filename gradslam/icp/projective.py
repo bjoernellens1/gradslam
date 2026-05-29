@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import torch
+import torch.nn.functional as F
 
 from ..geometry.se3utils import se3_exp
 from .residuals import point_to_plane_projective
@@ -26,6 +27,12 @@ class ProjectiveICPConfig:
         tukey_delta: Tukey biweight cutoff (for robust_loss="tukey").
         depth_weighting: Down-weight geometric residuals at long range.
         convergence_xi_norm: Convergence threshold for the update norm.
+        photometric_weight: Weight of photometric residuals relative to
+            geometric residuals. Set to 0.0 to disable (default).
+        photometric_levels: Number of finest pyramid levels where
+            photometric residuals are applied.
+        photometric_huber_delta: Huber delta for photometric residual
+            robust weighting.
     """
 
     n_pyramid_levels: int = 3
@@ -38,6 +45,9 @@ class ProjectiveICPConfig:
     tukey_delta: float = 0.05
     depth_weighting: bool = True
     convergence_xi_norm: float = 1e-4
+    photometric_weight: float = 0.0        # 0 = disabled
+    photometric_levels: int = 1            # apply only at finest N levels
+    photometric_huber_delta: float = 0.02  # Huber delta for photometric residuals
 
 
 class ProjectiveICPTracker(torch.nn.Module):
@@ -72,6 +82,8 @@ class ProjectiveICPTracker(torch.nn.Module):
         model_normal: torch.Tensor,
         intrinsics: torch.Tensor,
         init_T_model_live: torch.Tensor | None = None,
+        live_gray: torch.Tensor | None = None,
+        ref_gray: torch.Tensor | None = None,
     ) -> tuple[torch.Tensor, dict]:
         """Compute rigid transform from live frame to model.
 
@@ -82,6 +94,10 @@ class ProjectiveICPTracker(torch.nn.Module):
             model_normal: Model rendered normals, shape [H, W, 3].
             intrinsics: Camera intrinsics [3, 3] (K matrix).
             init_T_model_live: Initial guess (4x4 SE(3)). If None, uses identity.
+            live_gray: Live grayscale image [H, W] in [0, 1], optional.
+                When provided together with ref_gray and photometric_weight > 0,
+                photometric residuals are stacked with geometric residuals.
+            ref_gray: Reference grayscale image [H, W] in [0, 1], optional.
 
         Returns:
             Tuple of:
@@ -93,6 +109,7 @@ class ProjectiveICPTracker(torch.nn.Module):
             - live_normal, model_normal: [H, W, 3]
             - intrinsics: [3, 3]
             - init_T_model_live: [4, 4] or None
+            - live_gray, ref_gray: [H, W] or None
             - T_model_live: [4, 4]
         """
         device = live_depth.device
@@ -112,6 +129,13 @@ class ProjectiveICPTracker(torch.nn.Module):
 
         # total_pixels is constant (finest level = original resolution)
         total_pixels = live_depth.numel()
+
+        # Check whether photometric residuals are enabled
+        use_photo = (
+            self.config.photometric_weight > 0.0
+            and live_gray is not None
+            and ref_gray is not None
+        )
 
         # GPU-resident metric tensors — initialized before both loops so that
         # an early break on a coarser level doesn't reset state.
@@ -167,6 +191,70 @@ class ProjectiveICPTracker(torch.nn.Module):
                 A, b = point_to_plane_projective(live_v, model_n_valid, model_v)
 
                 A, b = self._apply_residual_weights(A, b, live_v)
+
+                # Optionally stack photometric residuals at the finest levels
+                # level is 0=coarsest, n_pyramid_levels-1=finest
+                level_from_finest = (self.config.n_pyramid_levels - 1) - level
+                if use_photo and level_from_finest < self.config.photometric_levels:
+                    from gradslam.icp.photometric_residual import (
+                        sobel_gradients,
+                        photometric_residuals_and_jacobian,
+                    )
+                    # Scale gray images to the current pyramid level using
+                    # size= (not scale_factor=) to guarantee shape match with live_d
+                    H_l, W_l = live_d.shape
+                    if level_from_finest > 0:
+                        ref_gray_l = F.interpolate(
+                            ref_gray.unsqueeze(0).unsqueeze(0).float(),
+                            size=(H_l, W_l),
+                            mode="bilinear",
+                            align_corners=False,
+                        ).squeeze().to(dtype=dtype)
+                        live_gray_l = F.interpolate(
+                            live_gray.unsqueeze(0).unsqueeze(0).float(),
+                            size=(H_l, W_l),
+                            mode="bilinear",
+                            align_corners=False,
+                        ).squeeze().to(dtype=dtype)
+                    else:
+                        ref_gray_l = ref_gray.to(dtype=dtype)
+                        live_gray_l = live_gray.to(dtype=dtype)
+
+                    ref_dI_dx, ref_dI_dy = sobel_gradients(ref_gray_l)
+
+                    # Retrieve live vertices in the live frame (before transform)
+                    # so we can sample live gray at the original pixel locations.
+                    live_v_orig_flat = live_vertex.reshape(-1, 3)[valid]  # [N, 3]
+                    live_z_orig = live_v_orig_flat[:, 2].clamp(min=1e-6)
+                    live_px_u = (
+                        live_v_orig_flat[:, 0] * K[0, 0] / live_z_orig + K[0, 2]
+                    ).long().clamp(0, W_l - 1)
+                    live_px_v = (
+                        live_v_orig_flat[:, 1] * K[1, 1] / live_z_orig + K[1, 2]
+                    ).long().clamp(0, H_l - 1)
+                    live_gray_pixels = live_gray_l[live_px_v, live_px_u]  # [N]
+
+                    # live_v: live vertices already transformed to ref frame [N, 3]
+                    J_photo, r_photo, _ = photometric_residuals_and_jacobian(
+                        live_v, live_gray_pixels, ref_gray_l,
+                        ref_dI_dx, ref_dI_dy, K,
+                    )
+
+                    if J_photo.shape[0] > 0:
+                        # Huber weighting on photometric residuals
+                        r_abs = torch.abs(r_photo[:, 0])
+                        delta_p = self.config.photometric_huber_delta
+                        huber_w = torch.where(
+                            r_abs <= delta_p,
+                            torch.ones_like(r_abs),
+                            delta_p / r_abs.clamp(min=1e-12),
+                        )
+                        w_photo = (
+                            self.config.photometric_weight * huber_w.unsqueeze(-1)
+                        )
+                        # Stack weighted photometric rows onto geometric system
+                        A = torch.cat([A, J_photo * w_photo], dim=0)
+                        b = torch.cat([b, r_photo * w_photo], dim=0)
 
                 # Solve for update: normal eqs are (A^T A) delta_xi = -A^T r
                 damp = self.config.damping[level]

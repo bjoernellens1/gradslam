@@ -537,6 +537,8 @@ class RGBDTSDFSLAM(torch.nn.Module):
                     model_normal=ref.normal,
                     intrinsics=K,
                     init_T_model_live=init_T_ref_live,
+                    live_gray=live_gray,
+                    ref_gray=ref.gray,
                 )
             candidate_pose = ref.T_world_camera @ T_ref_live
             quality = dict(quality)
@@ -575,6 +577,8 @@ class RGBDTSDFSLAM(torch.nn.Module):
                         model_normal=ref.normal,
                         intrinsics=K,
                         init_T_model_live=init_T_ref_live,
+                        live_gray=live_gray,
+                        ref_gray=ref.gray,
                     )
                 candidate_pose = ref.T_world_camera @ T_ref_live
                 quality = dict(quality)
@@ -871,6 +875,8 @@ class RGBDTSDFSLAM(torch.nn.Module):
                     model_normal=ref.normal,
                     intrinsics=K,
                     init_T_model_live=init_T_ref_live,
+                    live_gray=live_gray,
+                    ref_gray=ref.gray,
                 )
             candidate_pose = ref.T_world_camera @ T_ref_live
             quality = dict(quality)

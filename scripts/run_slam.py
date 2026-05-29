@@ -382,6 +382,12 @@ def build_parser():
                        help="Lambda for penalizing candidate motion disagreement vs velocity prediction")
         p.add_argument("--scale-veto-ratio", type=float, default=3.0,
                        help="Veto winner if t > this ratio * t_predicted and a more consistent candidate exists")
+        p.add_argument("--photometric-weight", type=float, default=0.25,
+                       help="Weight of photometric vs geometric residuals (0 = disabled)")
+        p.add_argument("--photometric-levels", type=int, default=1,
+                       help="Apply photometric residuals at the finest N pyramid levels")
+        p.add_argument("--no-photometric", action="store_true",
+                       help="Disable photometric residuals entirely")
 
     return parser
 
@@ -417,6 +423,12 @@ def run_slam(args, dataset, extractor, device):
         tracking_mode = "hybrid"
     elif slam_backend == "local_map":
         tracking_mode = "local_map"
+    _photo_weight = (
+        0.0 if getattr(args, 'no_photometric', False)
+        else getattr(args, 'photometric_weight', 0.25)
+    )
+    _photo_levels = getattr(args, 'photometric_levels', 1)
+
     icp_cfg = None
     if getattr(args, 'icp_iters', None):
         icp_cfg = ProjectiveICPConfig(
@@ -427,6 +439,8 @@ def run_slam(args, dataset, extractor, device):
             max_normal_angle_deg=getattr(args, 'max_normal_angle_deg', 75.0),
             robust_loss=getattr(args, 'robust_loss', 'none'),
             depth_weighting=not getattr(args, 'no_depth_weighting', False),
+            photometric_weight=_photo_weight,
+            photometric_levels=_photo_levels,
         )
     elif tracking_mode in ('fast_rgbd', 'local_map'):
         icp_cfg = ProjectiveICPConfig(
@@ -437,6 +451,8 @@ def run_slam(args, dataset, extractor, device):
             max_normal_angle_deg=getattr(args, 'max_normal_angle_deg', 75.0),
             robust_loss=getattr(args, 'robust_loss', 'none'),
             depth_weighting=not getattr(args, 'no_depth_weighting', False),
+            photometric_weight=_photo_weight,
+            photometric_levels=_photo_levels,
         )
     else:
         icp_cfg = ProjectiveICPConfig(
@@ -444,6 +460,8 @@ def run_slam(args, dataset, extractor, device):
             max_normal_angle_deg=getattr(args, 'max_normal_angle_deg', 75.0),
             robust_loss=getattr(args, 'robust_loss', 'none'),
             depth_weighting=not getattr(args, 'no_depth_weighting', False),
+            photometric_weight=_photo_weight,
+            photometric_levels=_photo_levels,
         )
 
     autocast_dtype = None if getattr(args, 'autocast', 'off') == 'off' else args.autocast
