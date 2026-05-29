@@ -910,8 +910,11 @@ class RGBDTSDFSLAM(torch.nn.Module):
                 best_pose, best_rel, best_quality = tsdf_pose, tsdf_rel, tsdf_quality
 
         if self.candidate_disagreement_penalty > 0.0 and t_predicted_hybrid > 0.0:
-            t_c = float(best_quality.get("frame_translation", t_predicted_hybrid))
-            best_quality["t_disagreement_norm"] = abs(t_c - t_predicted_hybrid) / max(0.02, t_predicted_hybrid + 0.02)
+            if "frame_translation" in best_quality:
+                t_c = float(best_quality["frame_translation"])
+                best_quality["t_disagreement_norm"] = abs(t_c - t_predicted_hybrid) / max(0.02, t_predicted_hybrid + 0.02)
+            else:
+                best_quality["t_disagreement_norm"] = -1.0
 
         lost = self._is_lost(best_quality)
         if lost:
@@ -1122,6 +1125,8 @@ class RGBDTSDFSLAM(torch.nn.Module):
             return None  # winner is not over-scaled — no veto needed
         winner_inlier = float(winner_quality.get("inlier_ratio", 0.0))
         for pose, q in candidates[1:]:
+            if q.get("motion_gate", True) is False:
+                continue
             t_cand = float(q.get("frame_translation", t_predicted))
             if t_cand <= 1.5 * t_predicted and float(q.get("inlier_ratio", 0.0)) >= 0.7 * winner_inlier:
                 return pose, q
