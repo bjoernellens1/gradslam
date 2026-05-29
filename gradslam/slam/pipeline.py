@@ -585,8 +585,9 @@ class RGBDTSDFSLAM(torch.nn.Module):
 
         lost = self._is_lost(best_quality)
         if lost:
-            # Keep the reference stream live. Otherwise a single weak frame
-            # leaves all following frames trying to match stale geometry.
+            # Keep a transient reference so the next frame does not match stale
+            # geometry, but do not train the velocity model, insert a keyframe,
+            # or integrate a weak pose into the map.
             self.T_world_camera = predicted_pose
             self._last_reference = self._make_reference(
                 depth=depth,
@@ -597,6 +598,7 @@ class RGBDTSDFSLAM(torch.nn.Module):
                 normal=live_normal,
                 is_keyframe=False,
             )
+            self._last_T_prev_curr = None
             self.lost = True
             self.frame_count += 1
             return TrackingResult(
@@ -965,6 +967,12 @@ class RGBDTSDFSLAM(torch.nn.Module):
     def _predict_pose(self) -> torch.Tensor:
         assert self.T_world_camera is not None
         if self._last_T_prev_curr is None:
+            return self.T_world_camera.clone()
+        translation = torch.norm(self._last_T_prev_curr[:3, 3])
+        trace = torch.trace(self._last_T_prev_curr[:3, :3])
+        cos_angle = ((trace - 1.0) * 0.5).clamp(-1.0, 1.0)
+        angle = torch.acos(cos_angle)
+        if translation > 0.25 or angle > 0.35:
             return self.T_world_camera.clone()
         return self.T_world_camera @ self._last_T_prev_curr
 

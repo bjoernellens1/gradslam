@@ -31,6 +31,6 @@ COPY scripts ./scripts
 COPY docs ./docs
 
 RUN python -m pip install --upgrade pip setuptools wheel \
-    && python -m pip install -e ".[optim,mesh,vis,docs,dev]"
+    && python -m pip install -e ".[optim,mesh,vis,realsense,docs,dev]"
 
 CMD ["bash"]

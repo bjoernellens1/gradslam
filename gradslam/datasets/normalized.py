@@ -131,10 +131,12 @@ class NormalizedRGBD(data.Dataset):
         self.intrinsics = K.unsqueeze(0)  # [1, 4, 4]
 
         # Load GT poses if available
+        self.gt_file: Optional[Path] = None
         self._pose_by_ts: dict[float, np.ndarray] = {}
         if self.load_poses:
             gt_path = self._resolve_gt_file(gt_file)
             if gt_path is not None:
+                self.gt_file = gt_path
                 self._pose_by_ts = _load_gt_file(gt_path)
             elif return_pose or return_transform:
                 import warnings
@@ -271,16 +273,18 @@ class NormalizedRGBD(data.Dataset):
             self.capture_dir / "candidate_best_unreliable_tum.csv",
             self.capture_dir.parent / "best_pseudo_gt_tum.csv",
             self.capture_dir.parent / "candidate_best_unreliable_tum.csv",
-            self.capture_dir / "groundtruth_tum.txt",
-            self.capture_dir / "groundtruth.txt",
             self.capture_dir.parent / "groundtruth_tum.txt",
             self.capture_dir.parent / "groundtruth.txt",
+            self.capture_dir / "groundtruth_tum.txt",
+            self.capture_dir / "groundtruth.txt",
         ]
         for p in candidates:
             if p.exists():
                 return p
         # Try CSV variants
         for p in sorted(self.capture_dir.glob("*_tum.csv")):
+            return p
+        for p in sorted(self.capture_dir.parent.glob("*_tum.csv")):
             return p
         return None
 
@@ -305,6 +309,10 @@ def _load_gt_file(path: Path) -> dict[float, np.ndarray]:
             ts = float(vals[0])
             t = np.array([float(v) for v in vals[1:4]])
             q = np.array([float(v) for v in vals[4:8]])  # qx qy qz qw
+            if not np.all(np.isfinite(t)) or not np.all(np.isfinite(q)):
+                continue
+            if np.linalg.norm(q) < 1e-8:
+                continue
             R = Rotation.from_quat(q).as_matrix()
             T = np.eye(4)
             T[:3, :3] = R

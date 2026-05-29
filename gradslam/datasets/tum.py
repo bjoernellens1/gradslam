@@ -126,6 +126,7 @@ class TUM(data.Dataset):
         width: int = 640,
         channels_first: bool = False,
         normalize_color: bool = False,
+        intrinsics_mode: str = "registered",
         *,
         return_depth: bool = True,
         return_intrinsics: bool = True,
@@ -143,6 +144,7 @@ class TUM(data.Dataset):
         self.width_downsample_ratio = float(width) / 640
         self.channels_first = channels_first
         self.normalize_color = normalize_color
+        self.intrinsics_mode = intrinsics_mode
 
         self.return_depth = return_depth
         self.return_intrinsics = return_intrinsics
@@ -329,10 +331,14 @@ class TUM(data.Dataset):
         self.framenames = framenames
         self.timestamps = timestamps
 
-        # Camera intrinsics matrix for TUM dataset
-        intrinsics = torch.tensor(
-            [[525.0, 0, 319.5, 0], [0, 525.0, 239.5, 0], [0, 0, 1, 0], [0, 0, 0, 1]]
-        ).float()
+        # Camera intrinsics matrix for TUM dataset. The default keeps the
+        # registered RGB-D benchmark convention. Official per-camera values are
+        # useful as an ablation on sequences whose geometry does not fit the
+        # registered convention.
+        intrinsics = self._intrinsics_for_sequence(
+            os.path.basename(sequence_paths[0]),
+            intrinsics_mode=intrinsics_mode,
+        )
         self.intrinsics = datautils.scale_intrinsics(
             intrinsics, self.height_downsample_ratio, self.width_downsample_ratio
         ).unsqueeze(0)
@@ -343,6 +349,27 @@ class TUM(data.Dataset):
     def __len__(self):
         r"""Returns the length of the dataset. """
         return self.num_sequences
+
+    @staticmethod
+    def _intrinsics_for_sequence(sequence_name: str, intrinsics_mode: str) -> torch.Tensor:
+        if intrinsics_mode == "registered":
+            fx, fy, cx, cy = 525.0, 525.0, 319.5, 239.5
+        elif intrinsics_mode == "official":
+            if "freiburg1" in sequence_name:
+                fx, fy, cx, cy = 517.3, 516.5, 318.6, 255.3
+            elif "freiburg2" in sequence_name:
+                fx, fy, cx, cy = 520.9, 521.0, 325.1, 249.7
+            elif "freiburg3" in sequence_name:
+                fx, fy, cx, cy = 535.4, 539.2, 320.1, 247.6
+            else:
+                fx, fy, cx, cy = 525.0, 525.0, 319.5, 239.5
+        else:
+            raise ValueError(
+                f"intrinsics_mode must be 'registered' or 'official', got {intrinsics_mode!r}"
+            )
+        return torch.tensor(
+            [[fx, 0, cx, 0], [0, fy, cy, 0], [0, 0, 1, 0], [0, 0, 0, 1]]
+        ).float()
 
     def __getitem__(self, idx: int):
         """Return the data for the TUM sequence at `idx`."""

@@ -79,3 +79,19 @@ def test_normalized_rgbd_prefers_parent_pseudo_gt_over_local_groundtruth(
     sample = dataset[0]
     pose = sample[3][0].numpy()
     assert np.allclose(pose[:3, 3], np.array([1.0, 2.0, 3.0], dtype=np.float32))
+
+
+def test_normalized_rgbd_skips_invalid_zero_quaternion_gt(tmp_path: Path) -> None:
+    capture_dir = _write_minimal_normalized_capture(tmp_path)
+    (tmp_path / "best_pseudo_gt_tum.csv").write_text(
+        "timestamp,tx,ty,tz,qx,qy,qz,qw\n"
+        "0.0,9.0,9.0,9.0,0.0,0.0,0.0,0.0\n"
+        "0.0,1.0,2.0,3.0,0.0,0.0,0.0,1.0\n",
+        encoding="utf-8",
+    )
+
+    dataset = NormalizedRGBD(str(capture_dir), seqlen=1, stride=1)
+
+    sample = dataset[0]
+    pose = sample[3][0].numpy()
+    assert np.allclose(pose[:3, 3], np.array([1.0, 2.0, 3.0], dtype=np.float32))

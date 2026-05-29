@@ -56,6 +56,7 @@ optim = ["pypose>=0.9.5"]
 mesh = ["scikit-image>=0.23", "trimesh>=4.0"]
 vis = ["matplotlib>=3.8", "plotly>=5.20"]
 open3d = ["open3d>=0.19"]
+realsense = ["pyrealsense2>=2.57"]
 docs = ["sphinx>=7.0", "sphinx-rtd-theme>=2.0", "nbsphinx>=0.9.3", "ipython>=8.0"]
 dev = [
     "pytest>=8.2",

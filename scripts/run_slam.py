@@ -26,6 +26,7 @@ Usage examples:
 from __future__ import annotations
 
 import argparse
+import signal
 import time
 from pathlib import Path
 
@@ -47,6 +48,20 @@ from gradslam.evaluation import (
 )
 from gradslam.slam import RGBDTSDFSLAM
 from gradslam.slam.pipeline import RGBDFrame
+
+_STOP_REQUESTED = False
+
+
+def _request_stop(signum, _frame):
+    global _STOP_REQUESTED
+    _STOP_REQUESTED = True
+    print(f"\nReceived signal {signum}; finishing the current frame and saving partial results.")
+
+
+def _cleanup_accelerator(device: torch.device) -> None:
+    if device.type == "cuda" and torch.cuda.is_available():
+        torch.cuda.synchronize(device)
+        torch.cuda.empty_cache()
 
 
 # ---------------------------------------------------------------------------
@@ -91,6 +106,9 @@ def load_tum_dataset(args):
         seqlen=1,
         dilation=0,
         stride=args.stride,
+        return_pose=False,
+        return_transform=False,
+        intrinsics_mode=getattr(args, "tum_intrinsics", "registered"),
     )
     # GT pose file
     gt_file = Path(basedir) / seq_name / "groundtruth.txt"
@@ -129,19 +147,11 @@ def load_normalized_dataset(args):
         seqlen=1,
         stride=args.stride,
         gt_file=args.gt_file if hasattr(args, "gt_file") else None,
+        return_pose=False,
+        return_transform=False,
     )
-    gt_file = getattr(args, "gt_file", None)
-    if gt_file is None:
-        # Try auto-detected
-        for name in ("groundtruth_tum.txt", "groundtruth.txt"):
-            p = Path(args.capture_dir) / name
-            if p.exists():
-                gt_file = str(p)
-                break
-        if gt_file is None:
-            for p in sorted(Path(args.capture_dir).glob("*_tum.csv")):
-                gt_file = str(p)
-                break
+    gt_file = str(dataset._resolve_gt_file(getattr(args, "gt_file", None)) or "")
+    gt_file = gt_file or None
     return dataset, gt_file, "normalized"
 
 
@@ -154,19 +164,20 @@ def extract_frame_tum(sample, device):
     colors = sample[0][0].to(device, non_blocking=True)     # (H, W, 3)
     depths = sample[1][0].to(device, non_blocking=True)     # (H, W, 1)
     intrinsics = sample[2][0].to(device, non_blocking=True) # (4, 4) or (3,3)
-    gt_pose = sample[3][0].numpy() if len(sample) > 3 else None
+    gt_pose = None
     ts = None
-    if len(sample) > 6:
-        ts_str = sample[6]
+    if len(sample) > 4:
+        ts_str = sample[-1]
         try:
             parts = str(ts_str).split()
             # Format: "rgb <ts> depth <ts> pose <ts>". The estimated pose is
-            # depth-driven, so use the associated GT pose timestamp when
-            # present, then depth timestamp, and RGB timestamp as fallback.
-            if "pose" in parts:
-                ts = float(parts[parts.index("pose") + 1])
-            elif "depth" in parts:
+            # depth-driven, so use depth timestamp first; GT pose timestamps
+            # are only for evaluation association and must not sparse-sample
+            # the tracking stream.
+            if "depth" in parts:
                 ts = float(parts[parts.index("depth") + 1])
+            elif "pose" in parts and parts[parts.index("pose") + 1] != "None":
+                ts = float(parts[parts.index("pose") + 1])
             elif len(parts) >= 2:
                 ts = float(parts[1])
         except Exception:
@@ -199,18 +210,33 @@ def extract_frame_generic(sample, device):
         depths = depths.squeeze(-1)
     intrinsics = sample[2][0].to(device, non_blocking=True) if len(sample) > 2 else None
 
-    # Try to extract GT pose if present and is a tensor
     gt_pose = None
+    ts = None
     if len(sample) > 3:
-        # Check if sample[3] is a pose tensor (has .numpy() method)
-        try:
-            if hasattr(sample[3][0], 'numpy'):
-                gt_pose = sample[3][0].numpy()
-        except (IndexError, AttributeError, TypeError):
-            # sample[3] is not a pose tensor (e.g., transforms or names)
-            pass
+        tail = sample[-1]
+        if isinstance(tail, (list, tuple)) and tail:
+            try:
+                ts = float(tail[0])
+            except (TypeError, ValueError):
+                ts = None
+        else:
+            try:
+                ts = float(tail)
+            except (TypeError, ValueError):
+                ts = None
 
-    return colors, depths, intrinsics, gt_pose, None
+    return colors, depths, intrinsics, gt_pose, ts
+
+
+def _timestamp_gap_stats(tracking_log: list[dict]) -> dict[str, float | int]:
+    ts = [float(r["ts"]) for r in tracking_log if r.get("ts") is not None]
+    if len(ts) < 2:
+        return {"max_frame_gap_s": 0.0, "frame_gaps_over_0_2s": 0}
+    gaps = [b - a for a, b in zip(ts, ts[1:])]
+    return {
+        "max_frame_gap_s": float(max(gaps)),
+        "frame_gaps_over_0_2s": int(sum(g > 0.2 for g in gaps)),
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -250,6 +276,8 @@ def build_parser():
     p_tum = sub.add_parser("tum", help="TUM RGB-D dataset")
     p_tum.add_argument("--dataset-root", default="/workspace/datasets/public/TUM/tum_rgbd")
     p_tum.add_argument("--sequence", default="freiburg1_desk")
+    p_tum.add_argument("--tum-intrinsics", choices=["registered", "official"], default="registered",
+                       help="TUM intrinsics convention: registered benchmark default or official camera calibration")
 
     # --- Replica ---
     p_rep = sub.add_parser("replica", help="Replica NICE-SLAM dataset")
@@ -271,15 +299,15 @@ def build_parser():
     # --- Common ---
     # Per-dataset volume defaults: (voxel_size, dim, origin)
     _VOL_DEFAULTS = {
-        "tum":        (0.02, [256, 256, 256], [-2.0, -2.0, 0.0]),
+        "tum":        (0.02, [256, 256, 256], [-2.0, -2.0, 0.0], 0.5, 400_000),
         # Replica has 90° HFOV, up to 5m depth → need ~12m wide volume
-        "replica":    (0.03, [384, 256, 384], [-5.8, -3.8, 0.0]),
-        "scannet":    (0.02, [256, 256, 256], [-2.0, -2.0, 0.0]),
-        "normalized": (0.02, [256, 256, 256], [-2.0, -2.0, 0.0]),
+        "replica":    (0.03, [384, 256, 384], [-5.8, -3.8, 0.0], 0.5, 400_000),
+        "scannet":    (0.02, [256, 256, 256], [-2.0, -2.0, 0.0], 0.5, 400_000),
+        "normalized": (0.02, [256, 256, 256], [-2.0, -2.0, 0.0], 0.25, 100_000),
     }
 
     for p, name in ((p_tum, "tum"), (p_rep, "replica"), (p_sn, "scannet"), (p_norm, "normalized")):
-        vs, vd, vo = _VOL_DEFAULTS[name]
+        vs, vd, vo, ps, max_pixels = _VOL_DEFAULTS[name]
         p.add_argument("--stride", type=int, default=1)
         p.add_argument("--max-frames", type=int, default=None)
         p.add_argument("--device", type=str, default=None)
@@ -291,14 +319,27 @@ def build_parser():
         p.add_argument("--compile", action="store_true", help="Use torch.compile for faster execution")
         p.add_argument("--icp-iters", type=int, nargs="+", default=None,
                        metavar="N", help="ICP iterations per pyramid level (e.g. 6 3 2)")
-        p.add_argument("--process-scale", type=float, default=0.5,
+        p.add_argument("--process-scale", type=float, default=ps,
                        help="Downsample factor applied to depth + intrinsics before SLAM (0.5 = half-res)")
+        p.add_argument("--max-processed-pixels", type=int, default=max_pixels,
+                       help="Refuse workloads above H*W*process_scale^2 pixels (0 disables guard)")
         p.add_argument("--autocast", choices=["off", "bf16", "fp16"], default="off",
                        help="Mixed precision autocast mode for raycast+ICP")
         p.add_argument("--raycast-normal-mode", choices=["gradient", "image"], default="gradient",
                        help="Raycast normal mode: gradient (TSDF-based) or image (faster, depth-derived)")
+        p.add_argument("--slam-backend", choices=["rgbdtsdf", "fast_rgbd", "icpslam", "pointfusion"],
+                       default="fast_rgbd",
+                       help="SLAM backend: current RGBDTSDFSLAM fast path or upstream-style ICPSLAM/PointFusion")
         p.add_argument("--tracking-mode", choices=["fast_rgbd", "hybrid", "tsdf"], default="fast_rgbd",
                        help="Tracking core: local RGB-D keyframe tracker or TSDF-only tracker")
+        p.add_argument("--upstream-odom", choices=["gradicp", "icp"], default="gradicp",
+                       help="Odometry provider for upstream-style ICPSLAM/PointFusion backends")
+        p.add_argument("--upstream-dsratio", type=int, default=4,
+                       help="Downsampling ratio for upstream-style ICPSLAM/PointFusion")
+        p.add_argument("--upstream-iters", type=int, default=20,
+                       help="ICP iterations for upstream-style ICPSLAM/PointFusion")
+        p.add_argument("--allow-slow-upstream", action="store_true",
+                       help="Allow ICPSLAM/PointFusion diagnostics beyond the protected frame cap")
         p.add_argument("--enable-mapping", action="store_true",
                        help="Enable TSDF mapping/integration for fast_rgbd mode")
         p.add_argument("--max-keyframes", type=int, default=8,
@@ -335,13 +376,35 @@ def build_parser():
     return parser
 
 
+def _validate_workload(args, dataset) -> None:
+    scale = float(getattr(args, "process_scale", 1.0))
+    max_pixels = int(getattr(args, "max_processed_pixels", 0) or 0)
+    height = int(getattr(dataset, "height", 0) or 0)
+    width = int(getattr(dataset, "width", 0) or 0)
+    if max_pixels <= 0 or height <= 0 or width <= 0:
+        return
+    processed_pixels = int(height * width * scale * scale)
+    if processed_pixels > max_pixels:
+        raise RuntimeError(
+            f"Refusing workload {processed_pixels} processed pixels/frame "
+            f"({width}x{height} at process_scale={scale}) above guard {max_pixels}. "
+            "Lower --process-scale or pass --max-processed-pixels 0 to override."
+        )
+
+
 def run_slam(args, dataset, extractor, device):
+    slam_backend = getattr(args, "slam_backend", "fast_rgbd")
+    if slam_backend in ("icpslam", "pointfusion"):
+        return run_upstream_slam(args, dataset, extractor, device, slam_backend)
+
     from gradslam.mapping.tsdf import TSDFConfig
     from gradslam.icp.projective import ProjectiveICPConfig
 
     tsdf_cfg = TSDFConfig(voxel_size=args.voxel_size)
 
     tracking_mode = getattr(args, 'tracking_mode', 'fast_rgbd')
+    if slam_backend == "rgbdtsdf":
+        tracking_mode = "hybrid"
     icp_cfg = None
     if getattr(args, 'icp_iters', None):
         icp_cfg = ProjectiveICPConfig(
@@ -429,6 +492,8 @@ def run_slam(args, dataset, extractor, device):
     start_time = time.time()
     with torch.no_grad():
         for idx, sample in tqdm(data_iter, total=n_frames, desc="SLAM"):
+            if _STOP_REQUESTED:
+                break
             colors, depths, intrinsics, gt_pose, ts = extractor(sample, device)
 
             if depths is None or intrinsics is None:
@@ -477,6 +542,97 @@ def run_slam(args, dataset, extractor, device):
     return poses_est, gt_poses_by_ts, tracking_log, elapsed, fps, tracking_fps
 
 
+def run_upstream_slam(args, dataset, extractor, device, backend: str):
+    from gradslam.slam import ICPSLAM, PointFusion
+    from gradslam.structures.pointclouds import Pointclouds
+    from gradslam.structures.rgbdimages import RGBDImages
+
+    n_frames = min(args.max_frames or len(dataset), len(dataset))
+    protected_cap = 30
+    if n_frames > protected_cap and not getattr(args, "allow_slow_upstream", False):
+        raise RuntimeError(
+            f"{backend} is an upstream accuracy diagnostic with a growing point map; "
+            f"refusing {n_frames} frames without --allow-slow-upstream. "
+            f"Use --max-frames {protected_cap} for a bounded comparison."
+        )
+
+    if backend == "icpslam":
+        slam = ICPSLAM(
+            odom=args.upstream_odom,
+            dsratio=args.upstream_dsratio,
+            numiters=args.upstream_iters,
+            device=device,
+        )
+    else:
+        slam = PointFusion(
+            odom=args.upstream_odom,
+            dsratio=args.upstream_dsratio,
+            numiters=args.upstream_iters,
+            device=device,
+        )
+
+    pointclouds = Pointclouds(device=device)
+    prev_frame = None
+    poses_est = []
+    tracking_log = []
+    tracking_times_ms = []
+    warmup_frames = getattr(args, "tracking_warmup_frames", 10)
+    current_pose = torch.eye(4, device=device, dtype=torch.float32).view(1, 1, 4, 4)
+
+    data_iter = ((idx, dataset[idx]) for idx in range(n_frames))
+    start_time = time.time()
+    with torch.no_grad():
+        for idx, sample in tqdm(data_iter, total=n_frames, desc=backend):
+            if _STOP_REQUESTED:
+                break
+            colors, depths, intrinsics, _gt_pose, ts = extractor(sample, device)
+            if depths is None or intrinsics is None:
+                continue
+            rgb = colors.unsqueeze(0).unsqueeze(0).float()
+            depth = depths.unsqueeze(0).unsqueeze(0).unsqueeze(-1).float()
+            K = intrinsics.unsqueeze(0).unsqueeze(0).float()
+            frame = RGBDImages(rgb, depth, K, current_pose.clone(), device=device)
+
+            use_cuda_events = device.type == "cuda" and torch.cuda.is_available()
+            if use_cuda_events:
+                start_evt = torch.cuda.Event(enable_timing=True)
+                end_evt = torch.cuda.Event(enable_timing=True)
+                start_evt.record()
+            else:
+                start_wall = time.perf_counter()
+            pointclouds, pose = slam.step(pointclouds, frame, prev_frame, inplace=True)
+            if use_cuda_events:
+                end_evt.record()
+                torch.cuda.synchronize(device)
+                track_ms = start_evt.elapsed_time(end_evt)
+            else:
+                track_ms = (time.perf_counter() - start_wall) * 1000.0
+
+            current_pose = pose.detach()
+            prev_frame = frame
+            prev_frame.poses = current_pose
+            poses_est.append(current_pose[0, 0].detach().cpu().numpy())
+            tracking_times_ms.append(track_ms)
+            tracking_log.append({
+                "idx": idx, "ts": ts,
+                "num_valid": 0,
+                "inlier_ratio": 0.0,
+                "rmse": 0.0,
+                "source": backend,
+                "integrated": True,
+                "photometric_mean_abs": -1.0,
+                "feature_inliers": 0,
+                "tracking_ms": track_ms,
+                "lost": False,
+            })
+
+    elapsed = time.time() - start_time
+    fps = n_frames / elapsed
+    timed = tracking_times_ms[min(warmup_frames, len(tracking_times_ms)):]
+    tracking_fps = 1000.0 / (sum(timed) / len(timed)) if timed else 0.0
+    return poses_est, [], tracking_log, elapsed, fps, tracking_fps
+
+
 def save_results(output_dir: Path, poses_est, tracking_log, dataset_type,
                  gt_file=None, gt_format=None, gt_poses_inline=None,
                  no_eval=False, tracking_fps=None, elapsed=None):
@@ -518,6 +674,8 @@ def save_results(output_dir: Path, poses_est, tracking_log, dataset_type,
         if tracking_fps is not None:
             f.write(f"tracking_fps_warmup_excluded {tracking_fps:.6f}\n")
         f.write(f"lost_count {lost_count}\n")
+        for key, value in _timestamp_gap_stats(tracking_log).items():
+            f.write(f"{key} {value}\n")
     print(f"✓ Tracking summary → {summary_file}")
 
     if no_eval:
@@ -572,6 +730,8 @@ def _evaluate_and_print(poses_est, gt_file, gt_format, output_dir, tracking_log=
 
     eval_file = output_dir / "evaluation.txt"
     with open(eval_file, "w") as f:
+        f.write(f"gt_assoc_count {len(pairs)}\n")
+        f.write(f"eval_assoc_ratio {len(pairs) / max(1, len(poses_est)):.6f}\n")
         f.write(f"{ate}\n{rpe1}\n{rpe10}\n")
     print(f"\n✓ Evaluation results → {eval_file}")
 
@@ -597,6 +757,9 @@ def _evaluate_inline(poses_est, gt_poses_inline, output_dir):
 
 
 def main():
+    signal.signal(signal.SIGTERM, _request_stop)
+    signal.signal(signal.SIGINT, _request_stop)
+
     parser = build_parser()
     args = parser.parse_args()
 
@@ -627,6 +790,7 @@ def main():
         gt_format = "tum"
 
     n = min(args.max_frames or len(dataset), len(dataset))
+    _validate_workload(args, dataset)
     print(f"Dataset: {ds_type}  frames: {n}  stride: {args.stride}")
     if gt_file:
         print(f"GT file: {gt_file}")
@@ -651,6 +815,7 @@ def main():
         tracking_fps=tracking_fps,
         elapsed=elapsed,
     )
+    _cleanup_accelerator(device)
 
 
 if __name__ == "__main__":
