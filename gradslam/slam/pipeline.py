@@ -11,6 +11,7 @@ import torch.nn.functional as F
 from ..icp.projective import ProjectiveICPConfig, ProjectiveICPTracker
 from ..mapping.tsdf import TSDFConfig, TSDFVolume
 from ..rendering.tsdf_raycast import RenderedFrame, raycast_tsdf
+from .keyframe_database import KeyframeDatabase
 from .pose_graph import SlidingWindowPoseGraph
 
 
@@ -102,6 +103,10 @@ class RGBDTSDFSLAM(torch.nn.Module):
         max_velocity_rotation: float = 0.30,
         pose_graph_enabled: bool = False,
         pose_graph_window: int = 8,
+        relocalization_enabled: bool = False,
+        loop_closure_enabled: bool = False,
+        keyframe_db_size: int = 30,
+        loop_closure_min_inliers: int = 30,
     ):
         """Initialize SLAM pipeline.
 
@@ -167,6 +172,14 @@ class RGBDTSDFSLAM(torch.nn.Module):
                 Defaults to ``False`` (opt-in).
             pose_graph_window: Window size (number of keyframes) for the
                 sliding-window pose graph.
+            relocalization_enabled: Enable ORB-based relocalization after 5+
+                consecutive lost frames.  Requires cv2.  Defaults to ``False``.
+            loop_closure_enabled: Enable loop-closure detection on keyframe
+                insertion.  Requires cv2.  Defaults to ``False``.
+            keyframe_db_size: Maximum number of keyframes kept in the keyframe
+                database for relocalization / loop closure.
+            loop_closure_min_inliers: Minimum ORB feature matches required to
+                trigger a loop-closure edge.
         """
         super().__init__()
         self.tsdf_config = tsdf_config or TSDFConfig()
@@ -226,6 +239,17 @@ class RGBDTSDFSLAM(torch.nn.Module):
             else None
         )
 
+        # Keyframe database for relocalization / loop closure (opt-in)
+        self.relocalization_enabled = relocalization_enabled
+        self.loop_closure_enabled = loop_closure_enabled
+        self.loop_closure_min_inliers = loop_closure_min_inliers
+        self._keyframe_db: KeyframeDatabase | None = (
+            KeyframeDatabase(max_keyframes=keyframe_db_size)
+            if (relocalization_enabled or loop_closure_enabled)
+            else None
+        )
+        self._consecutive_lost: int = 0
+
         self.tsdf: TSDFVolume | None = None
         self.T_world_camera: torch.Tensor | None = None
         self.frame_count: int = 0
@@ -264,6 +288,10 @@ class RGBDTSDFSLAM(torch.nn.Module):
             self._pose_graph = SlidingWindowPoseGraph(
                 window_size=self._pose_graph.window_size
             )
+        # Reset keyframe database and lost counter
+        if self._keyframe_db is not None:
+            self._keyframe_db.clear()
+        self._consecutive_lost = 0
 
     @torch.no_grad()
     def process_frame(self, frame: RGBDFrame) -> TrackingResult:
@@ -674,6 +702,34 @@ class RGBDTSDFSLAM(torch.nn.Module):
 
         lost = self._is_lost(best_quality)
         if lost:
+            self._consecutive_lost += 1
+            # Attempt relocalization after 5+ consecutive lost frames
+            if (
+                self.relocalization_enabled
+                and self._keyframe_db is not None
+                and self._consecutive_lost >= 5
+                and rgb is not None
+            ):
+                rgb_uint8 = _rgb_to_uint8_cpu(rgb)
+                if rgb_uint8 is not None:
+                    depth_np = depth.detach().cpu().numpy().astype("float32")
+                    K_np = K.detach().cpu().numpy()
+                    recovered_T_np, reloc_info = self._keyframe_db.relocalize(
+                        rgb_uint8, depth_np, K_np, min_inliers=20
+                    )
+                    if recovered_T_np is not None:
+                        import torch as _torch
+                        best_pose = _torch.tensor(
+                            recovered_T_np, dtype=depth.dtype, device=depth.device
+                        )
+                        best_rel = torch.linalg.inv(self.T_world_camera) @ best_pose
+                        best_quality.update(reloc_info or {})
+                        best_quality["tracking_source"] = "relocalization"
+                        self._annotate_motion_quality(best_pose, best_quality)
+                        self._consecutive_lost = 0
+                        lost = False
+
+        if lost:
             # Keep a transient reference so the next frame does not match stale
             # geometry, but do not train the velocity model, insert a keyframe,
             # or integrate a weak pose into the map.
@@ -697,6 +753,7 @@ class RGBDTSDFSLAM(torch.nn.Module):
                 lost=True,
             )
 
+        self._consecutive_lost = 0
         prev_pose = self.T_world_camera
         self.T_world_camera = best_pose
         self._last_T_prev_curr = torch.linalg.inv(prev_pose) @ self.T_world_camera
@@ -761,6 +818,53 @@ class RGBDTSDFSLAM(torch.nn.Module):
                         normal=live_normal,
                         is_keyframe=True,
                     )
+
+            # Keyframe database population (opt-in, both reloc and loop closure)
+            if self._keyframe_db is not None and rgb is not None:
+                rgb_uint8_kf = _rgb_to_uint8_cpu(rgb)
+                if rgb_uint8_kf is not None:
+                    depth_np_kf = depth.detach().cpu().numpy().astype("float32")
+                    K_np_kf = K.detach().cpu().numpy()
+                    T_np_kf = self.T_world_camera.detach().cpu().numpy()
+                    self._keyframe_db.add(
+                        rgb_uint8_kf, depth_np_kf, K_np_kf, T_np_kf, self.frame_count
+                    )
+                    # Loop closure check
+                    if (
+                        self.loop_closure_enabled
+                        and self._pose_graph is not None
+                        and len(self._keyframe_db) > 8
+                    ):
+                        import cv2 as _cv2
+                        gray_lc = _cv2.cvtColor(rgb_uint8_kf, _cv2.COLOR_RGB2GRAY)
+                        kpts_cur, desc_cur = self._keyframe_db._orb.detectAndCompute(
+                            gray_lc, None
+                        )
+                        T_match_np, match_idx = self._keyframe_db.find_loop(
+                            rgb_uint8_kf,
+                            (kpts_cur, desc_cur),
+                            exclude_last_n=8,
+                            min_inliers=self.loop_closure_min_inliers,
+                        )
+                        if T_match_np is not None:
+                            T_match = torch.tensor(
+                                T_match_np, dtype=depth.dtype, device=depth.device
+                            )
+                            # T_rel: relative pose from matched keyframe to current
+                            T_rel_loop = torch.linalg.inv(T_match) @ self.T_world_camera
+                            self._pose_graph.add_keyframe(
+                                T_match, T_rel_measured=T_rel_loop, weight=2.0
+                            )
+                            corrected_lc = self._pose_graph.get_corrected_poses()
+                            n_graph_lc = len(corrected_lc)
+                            n_kf_lc = len(self.keyframes)
+                            for j, new_pose in enumerate(corrected_lc):
+                                kf_idx = n_kf_lc - n_graph_lc + j
+                                if 0 <= kf_idx < n_kf_lc:
+                                    self.keyframes[kf_idx].T_world_camera = new_pose
+                            if corrected_lc:
+                                self.T_world_camera = corrected_lc[-1].clone()
+                            best_quality["loop_closure_frame_idx"] = match_idx
 
         best_quality["integrated"] = integrate_frame
         self.frame_count += 1
@@ -990,6 +1094,33 @@ class RGBDTSDFSLAM(torch.nn.Module):
 
         lost = self._is_lost(best_quality)
         if lost:
+            self._consecutive_lost += 1
+            # Attempt relocalization after 5+ consecutive lost frames
+            if (
+                self.relocalization_enabled
+                and self._keyframe_db is not None
+                and self._consecutive_lost >= 5
+                and rgb is not None
+            ):
+                rgb_uint8_h = _rgb_to_uint8_cpu(rgb)
+                if rgb_uint8_h is not None:
+                    depth_np_h = depth.detach().cpu().numpy().astype("float32")
+                    K_np_h = K.detach().cpu().numpy()
+                    recovered_T_np_h, reloc_info_h = self._keyframe_db.relocalize(
+                        rgb_uint8_h, depth_np_h, K_np_h, min_inliers=20
+                    )
+                    if recovered_T_np_h is not None:
+                        best_pose = torch.tensor(
+                            recovered_T_np_h, dtype=depth.dtype, device=depth.device
+                        )
+                        best_rel = torch.linalg.inv(self.T_world_camera) @ best_pose
+                        best_quality.update(reloc_info_h or {})
+                        best_quality["tracking_source"] = "relocalization"
+                        self._annotate_motion_quality(best_pose, best_quality)
+                        self._consecutive_lost = 0
+                        lost = False
+
+        if lost:
             self.lost = True
             self.frame_count += 1
             return TrackingResult(
@@ -999,6 +1130,7 @@ class RGBDTSDFSLAM(torch.nn.Module):
                 lost=True,
             )
 
+        self._consecutive_lost = 0
         prev_pose = self.T_world_camera
         self.T_world_camera = best_pose
         self._last_T_prev_curr = torch.linalg.inv(prev_pose) @ self.T_world_camera
@@ -1058,6 +1190,53 @@ class RGBDTSDFSLAM(torch.nn.Module):
                         normal=live_normal,
                         is_keyframe=True,
                     )
+
+            # Keyframe database population (opt-in, both reloc and loop closure)
+            if self._keyframe_db is not None and rgb is not None:
+                rgb_uint8_kf_h = _rgb_to_uint8_cpu(rgb)
+                if rgb_uint8_kf_h is not None:
+                    depth_np_kf_h = depth.detach().cpu().numpy().astype("float32")
+                    K_np_kf_h = K.detach().cpu().numpy()
+                    T_np_kf_h = self.T_world_camera.detach().cpu().numpy()
+                    self._keyframe_db.add(
+                        rgb_uint8_kf_h, depth_np_kf_h, K_np_kf_h, T_np_kf_h,
+                        self.frame_count
+                    )
+                    # Loop closure check
+                    if (
+                        self.loop_closure_enabled
+                        and self._pose_graph is not None
+                        and len(self._keyframe_db) > 8
+                    ):
+                        import cv2 as _cv2
+                        gray_lc_h = _cv2.cvtColor(rgb_uint8_kf_h, _cv2.COLOR_RGB2GRAY)
+                        kpts_cur_h, desc_cur_h = self._keyframe_db._orb.detectAndCompute(
+                            gray_lc_h, None
+                        )
+                        T_match_np_h, match_idx_h = self._keyframe_db.find_loop(
+                            rgb_uint8_kf_h,
+                            (kpts_cur_h, desc_cur_h),
+                            exclude_last_n=8,
+                            min_inliers=self.loop_closure_min_inliers,
+                        )
+                        if T_match_np_h is not None:
+                            T_match_h = torch.tensor(
+                                T_match_np_h, dtype=depth.dtype, device=depth.device
+                            )
+                            T_rel_loop_h = torch.linalg.inv(T_match_h) @ self.T_world_camera
+                            self._pose_graph.add_keyframe(
+                                T_match_h, T_rel_measured=T_rel_loop_h, weight=2.0
+                            )
+                            corrected_lc_h = self._pose_graph.get_corrected_poses()
+                            n_graph_lc_h = len(corrected_lc_h)
+                            n_kf_lc_h = len(self.keyframes)
+                            for j, new_pose in enumerate(corrected_lc_h):
+                                kf_idx = n_kf_lc_h - n_graph_lc_h + j
+                                if 0 <= kf_idx < n_kf_lc_h:
+                                    self.keyframes[kf_idx].T_world_camera = new_pose
+                            if corrected_lc_h:
+                                self.T_world_camera = corrected_lc_h[-1].clone()
+                            best_quality["loop_closure_frame_idx"] = match_idx_h
 
         best_quality["integrated"] = integrate_frame
         self.frame_count += 1

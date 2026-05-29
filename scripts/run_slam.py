@@ -400,6 +400,12 @@ def build_parser():
                        help="Enable sliding-window pose graph optimization after keyframe insertion")
         p.add_argument("--pose-graph-window", type=int, default=8,
                        help="Sliding-window pose graph window size (number of keyframes)")
+        p.add_argument("--relocalization", choices=["off", "on"], default="off",
+                       help="Enable ORB-based relocalization after lost-frame stretches")
+        p.add_argument("--loop-closure", choices=["off", "on"], default="off",
+                       help="Enable loop closure detection on keyframe insertion")
+        p.add_argument("--loop-closure-min-inliers", type=int, default=30,
+                       help="Minimum ORB match inliers to trigger a loop closure edge")
 
     return parser
 
@@ -510,6 +516,9 @@ def run_slam(args, dataset, extractor, device):
         max_velocity_rotation=getattr(args, 'max_velocity_rotation', 0.30),
         pose_graph_enabled=getattr(args, 'pose_graph', 'off') == 'on',
         pose_graph_window=getattr(args, 'pose_graph_window', 8),
+        relocalization_enabled=getattr(args, 'relocalization', 'off') == 'on',
+        loop_closure_enabled=getattr(args, 'loop_closure', 'off') == 'on',
+        loop_closure_min_inliers=getattr(args, 'loop_closure_min_inliers', 30),
     ).to(device)
 
     # Apply torch.compile for faster execution if requested
