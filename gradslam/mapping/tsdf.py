@@ -15,6 +15,7 @@ class TSDFConfig:
         voxel_size: Size of each voxel in meters.
         truncation_margin_voxels: Truncation margin in voxel counts.
         fuse_color: Whether to fuse color alongside geometry.
+            Note: Color fusion is not yet implemented. Must be False.
         dtype: Data type for TSDF values.
     """
 
@@ -47,6 +48,8 @@ class TSDFVolume(torch.nn.Module):
         """
         super().__init__()
         self.config = config or TSDFConfig()
+        if self.config.fuse_color:
+            raise NotImplementedError("TSDF color fusion is not yet implemented. Set fuse_color=False.")
         self.device = device or torch.device("cpu")
 
         voxel_dim = voxel_dim.to(device=self.device, dtype=torch.int64)
@@ -110,6 +113,8 @@ class TSDFVolume(torch.nn.Module):
             obs_weight: Weight of this observation. Default: 1.0.
             color: Optional color image [H, W, 3] in [0, 1] or [0, 255].
         """
+        if color is not None:
+            raise NotImplementedError("TSDF color fusion is not yet implemented. Pass color=None until implemented.")
         H, W = depth.shape
         device = depth.device
         dtype = self.config.dtype

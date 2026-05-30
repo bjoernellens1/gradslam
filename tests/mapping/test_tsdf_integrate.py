@@ -69,3 +69,20 @@ def test_integrate_weight_increases_with_frames(small_tsdf, simple_depth, intrin
     # Weight should be >= what it was (never decrease)
     assert (w2 >= w1).all()
     assert (w2 > w1).any()
+
+
+def test_tsdf_fuse_color_raises():
+    """TSDFConfig.fuse_color=True should raise NotImplementedError."""
+    config = TSDFConfig(fuse_color=True)
+    vd = torch.tensor([16, 16, 16])
+    vo = torch.tensor([-0.16, -0.16, 0.0])
+    with pytest.raises(NotImplementedError, match="color fusion"):
+        TSDFVolume(vd, vo, config=config)
+
+
+def test_tsdf_integrate_color_arg_raises(small_tsdf, simple_depth, intrinsics):
+    """Passing color to integrate() should raise NotImplementedError."""
+    T = torch.eye(4)
+    color = torch.zeros(48, 64, 3)
+    with pytest.raises(NotImplementedError, match="color fusion"):
+        small_tsdf.integrate(simple_depth, intrinsics, T, color=color)
