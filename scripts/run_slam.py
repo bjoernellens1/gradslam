@@ -628,6 +628,8 @@ def run_slam(args, dataset, extractor, device):
                 "tracking_ms": track_ms,
                 "lost": result.lost,
                 "candidates_json": __import__('json').dumps(q.get("candidates", [])),
+                "tracking_state": q.get("tracking_state", "ok"),
+                "map_update_allowed": q.get("map_update_allowed", True),
             })
 
     elapsed = time.time() - start_time
@@ -791,6 +793,7 @@ def save_results(output_dir: Path, poses_est, tracking_log, dataset_type,
         "photometric_mean_abs", "feature_inliers", "frame_translation",
         "frame_rotation_deg", "motion_gate", "reference_frame_idx",
         "t_disagreement_norm", "tracking_ms", "lost", "candidates_json",
+        "tracking_state", "map_update_allowed",
     ]
     with open(csv_file, "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=_CSV_FIELDS, extrasaction="ignore")

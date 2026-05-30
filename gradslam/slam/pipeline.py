@@ -751,6 +751,14 @@ class RGBDTSDFSLAM(torch.nn.Module):
                         lost = False
 
         if lost:
+            tracking_state = "lost"
+        elif self._is_weak(best_quality):
+            tracking_state = "weak"
+        else:
+            tracking_state = "ok"
+        best_quality["tracking_state"] = tracking_state
+
+        if lost:
             # Keep a transient reference so the next frame does not match stale
             # geometry, but do not train the velocity model, insert a keyframe,
             # or integrate a weak pose into the map.
@@ -782,7 +790,9 @@ class RGBDTSDFSLAM(torch.nn.Module):
 
         used_keyframe = self._should_insert_keyframe(best_rel, best_quality)
         integrate_frame = False
-        if self.tsdf is not None and (
+        map_update_allowed = best_quality.get("tracking_state", "ok") == "ok"
+        best_quality["map_update_allowed"] = map_update_allowed
+        if self.tsdf is not None and map_update_allowed and (
             used_keyframe or (self.frame_count % self.mapping_interval == 0)
         ):
             self.tsdf.integrate(depth, K, self.T_world_camera)
@@ -1161,6 +1171,14 @@ class RGBDTSDFSLAM(torch.nn.Module):
                         lost = False
 
         if lost:
+            tracking_state = "lost"
+        elif self._is_weak(best_quality):
+            tracking_state = "weak"
+        else:
+            tracking_state = "ok"
+        best_quality["tracking_state"] = tracking_state
+
+        if lost:
             self.lost = True
             self.frame_count += 1
             return TrackingResult(
@@ -1177,7 +1195,9 @@ class RGBDTSDFSLAM(torch.nn.Module):
         self.lost = False
 
         used_keyframe = self._should_insert_keyframe(best_rel, best_quality)
-        integrate_frame = used_keyframe or (self.frame_count % self.mapping_interval == 0)
+        map_update_allowed = best_quality.get("tracking_state", "ok") == "ok"
+        best_quality["map_update_allowed"] = map_update_allowed
+        integrate_frame = map_update_allowed and (used_keyframe or (self.frame_count % self.mapping_interval == 0))
         if integrate_frame:
             self.tsdf.integrate(depth, K, self.T_world_camera)
 
@@ -1416,6 +1436,13 @@ class RGBDTSDFSLAM(torch.nn.Module):
             quality.get("num_valid", 0) < self.min_track_inliers
             or quality.get("inlier_ratio", 0.0) < self.lost_inlier_ratio_thresh
             or quality.get("motion_gate", True) is False
+        )
+
+    def _is_weak(self, quality: dict) -> bool:
+        """True if tracking is borderline — pose accepted but map update suppressed."""
+        return (
+            not self._is_lost(quality)
+            and quality.get("inlier_ratio", 1.0) < self.borderline_inlier_ratio
         )
 
     @staticmethod
