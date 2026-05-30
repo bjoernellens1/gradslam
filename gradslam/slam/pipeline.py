@@ -840,20 +840,19 @@ class RGBDTSDFSLAM(torch.nn.Module):
                         kpts_cur, desc_cur = self._keyframe_db._orb.detectAndCompute(
                             gray_lc, None
                         )
-                        T_match_np, match_idx = self._keyframe_db.find_loop(
+                        T_rel_np, match_idx, _n_inliers = self._keyframe_db.find_loop(
                             rgb_uint8_kf,
                             (kpts_cur, desc_cur),
+                            K_np_kf,
                             exclude_last_n=8,
                             min_inliers=self.loop_closure_min_inliers,
                         )
-                        if T_match_np is not None:
-                            T_match = torch.tensor(
-                                T_match_np, dtype=depth.dtype, device=depth.device
+                        if T_rel_np is not None:
+                            T_rel_loop = torch.tensor(
+                                T_rel_np, dtype=depth.dtype, device=depth.device
                             )
-                            # T_rel: relative pose from matched keyframe to current
-                            T_rel_loop = torch.linalg.inv(T_match) @ self.T_world_camera
                             self._pose_graph.add_keyframe(
-                                T_match, T_rel_measured=T_rel_loop, weight=2.0
+                                self.T_world_camera, T_rel_measured=T_rel_loop, weight=2.0
                             )
                             corrected_lc = self._pose_graph.get_corrected_poses()
                             n_graph_lc = len(corrected_lc)
@@ -1213,19 +1212,19 @@ class RGBDTSDFSLAM(torch.nn.Module):
                         kpts_cur_h, desc_cur_h = self._keyframe_db._orb.detectAndCompute(
                             gray_lc_h, None
                         )
-                        T_match_np_h, match_idx_h = self._keyframe_db.find_loop(
+                        T_rel_np_h, match_idx_h, _n_inliers_h = self._keyframe_db.find_loop(
                             rgb_uint8_kf_h,
                             (kpts_cur_h, desc_cur_h),
+                            K_np_kf_h,
                             exclude_last_n=8,
                             min_inliers=self.loop_closure_min_inliers,
                         )
-                        if T_match_np_h is not None:
-                            T_match_h = torch.tensor(
-                                T_match_np_h, dtype=depth.dtype, device=depth.device
+                        if T_rel_np_h is not None:
+                            T_rel_loop_h = torch.tensor(
+                                T_rel_np_h, dtype=depth.dtype, device=depth.device
                             )
-                            T_rel_loop_h = torch.linalg.inv(T_match_h) @ self.T_world_camera
                             self._pose_graph.add_keyframe(
-                                T_match_h, T_rel_measured=T_rel_loop_h, weight=2.0
+                                self.T_world_camera, T_rel_measured=T_rel_loop_h, weight=2.0
                             )
                             corrected_lc_h = self._pose_graph.get_corrected_poses()
                             n_graph_lc_h = len(corrected_lc_h)
