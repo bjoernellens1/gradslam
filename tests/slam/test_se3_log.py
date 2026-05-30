@@ -1,6 +1,6 @@
 import torch
 import math
-from gradslam.slam.pose_graph import se3_log
+from gradslam.geometry.se3utils import se3_log
 from gradslam.geometry.se3utils import se3_exp
 
 
