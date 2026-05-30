@@ -82,11 +82,17 @@ def solve_linear_system(
 
     # Construct the normal equations
     A_t = torch.transpose(A, 0, 1)
-    damp_matrix = torch.eye(A.shape[1]).to(A.device)
+    damp_matrix = torch.eye(A.shape[1], device=A.device, dtype=A.dtype)
     At_A = torch.matmul(A_t, A) + damp_matrix * damp
+    A_t_b = torch.matmul(A_t, b)
 
-    # Solve the normal equations (for now, by inversion!)
-    return torch.matmul(torch.inverse(At_A), torch.matmul(A_t, b))
+    # Solve the normal equations
+    try:
+        return torch.linalg.solve(At_A, A_t_b)
+    except RuntimeError:
+        # Fallback: use lstsq if solve fails (singular or ill-conditioned)
+        result = torch.linalg.lstsq(At_A, A_t_b)
+        return result.solution
 
 
 def gauss_newton_solve(
