@@ -27,7 +27,7 @@ def test_find_loop_empty_database():
     gray = np.zeros((120, 160), dtype=np.uint8)
     kpts, desc = orb.detectAndCompute(gray, None)
     T_match_np, match_idx = db.find_loop(_textured_rgb(), (kpts, desc), exclude_last_n=8)
-    assert match_idx == -1
+    assert match_idx == -1  # no entries in db
     assert T_match_np is None
 
 
@@ -47,8 +47,7 @@ def test_find_loop_skips_recent_keyframes():
     orb = _cv2.ORB_create(500)
     gray = _cv2.cvtColor(rgb, _cv2.COLOR_RGB2GRAY)
     kpts, desc = orb.detectAndCompute(gray, None)
-    result = db.find_loop(rgb, (kpts, desc), exclude_last_n=8, min_inliers=5)
-    T_match_np, match_idx = result
+    T_match_np, match_idx = db.find_loop(rgb, (kpts, desc), exclude_last_n=8, min_inliers=5)
     # Should return -1 since all keyframes are within exclude_last_n
     assert match_idx == -1
 

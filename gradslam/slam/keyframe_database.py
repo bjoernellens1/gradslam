@@ -153,13 +153,11 @@ class KeyframeDatabase:
     ) -> tuple:
         """Find loop closure: match query against entries older than exclude_last_n.
 
-        Returns (T_match_world_4x4, T_rel_4x4, match_frame_idx) or (None, None, -1).
-        T_rel is the relative transform from the matched keyframe to the current
-        frame (T_match_world_inv @ T_current_world — used as the loop edge measurement).
+        Returns (T_match_world_4x4, match_frame_idx) or (None, -1).
         """
         kpts_q, desc_q = query_desc
         if desc_q is None or len(kpts_q) < 10:
-            return None, None, -1
+            return None, -1
 
         entries_to_check = (
             self._entries[:-exclude_last_n]
@@ -167,11 +165,12 @@ class KeyframeDatabase:
             else []
         )
         if not entries_to_check:
-            return None, None, -1
+            return None, -1
 
         bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
         best_inliers = min_inliers - 1
-        best = (None, None, -1)
+        best_T = None
+        best_idx = -1
 
         for entry in entries_to_check:
             if entry["desc"] is None:
@@ -182,16 +181,12 @@ class KeyframeDatabase:
                 continue
             if len(matches) < min_inliers:
                 continue
-            # Count geometric inliers (simple match-count filter)
             if len(matches) > best_inliers:
                 best_inliers = len(matches)
-                best = (entry["T_world_camera"], entry["frame_idx"])
+                best_T = entry["T_world_camera"]
+                best_idx = entry["frame_idx"]
 
-        if best[0] is None:
-            return None, None, -1
-
-        T_match_world, match_frame_idx = best
-        return T_match_world, match_frame_idx
+        return best_T, best_idx
 
     def __len__(self) -> int:
         return len(self._entries)
