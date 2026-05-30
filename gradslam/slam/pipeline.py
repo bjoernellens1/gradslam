@@ -836,7 +836,7 @@ class RGBDTSDFSLAM(torch.nn.Module):
 
             # Keyframe DB population + loop closure (opt-in). Loop edges are the
             # only source of drift correction in the pose graph.
-            self._try_loop_closure(depth, K, rgb, best_quality)
+            self._try_loop_closure(depth, K, rgb, live_normal, best_quality)
 
         best_quality["integrated"] = integrate_frame
         best_quality["velocity_fallback_count"] = self._velocity_fallback_count
@@ -1165,7 +1165,7 @@ class RGBDTSDFSLAM(torch.nn.Module):
 
             # Keyframe DB population + loop closure (opt-in). Loop edges are the
             # only source of drift correction in the pose graph.
-            self._try_loop_closure(depth, K, rgb, best_quality)
+            self._try_loop_closure(depth, K, rgb, live_normal, best_quality)
 
         best_quality["integrated"] = integrate_frame
         best_quality["velocity_fallback_count"] = self._velocity_fallback_count
@@ -1236,7 +1236,7 @@ class RGBDTSDFSLAM(torch.nn.Module):
         for kf in self.keyframes:
             new_pose = id_to_pose.get(getattr(kf, "frame_idx", None))
             if new_pose is not None:
-                kf.T_world_camera = new_pose
+                kf.T_world_camera = new_pose.clone()
 
     def _apply_pose_graph(
         self,
@@ -1268,7 +1268,7 @@ class RGBDTSDFSLAM(torch.nn.Module):
             weight=w,
         )
         if self._pose_graph.num_keyframes >= 2:
-            corrected = self._pose_graph.get_corrected_poses()
+            corrected = self._pose_graph.apply_correction()
             self._write_back_corrected_poses(corrected)
             if corrected:
                 self.T_world_camera = corrected[-1].clone()
@@ -1288,6 +1288,7 @@ class RGBDTSDFSLAM(torch.nn.Module):
         depth: torch.Tensor,
         K: torch.Tensor,
         rgb,
+        live_normal,
         best_quality: dict,
     ) -> None:
         """Populate the keyframe DB and inject a loop-closure edge if found.
@@ -1318,7 +1319,7 @@ class RGBDTSDFSLAM(torch.nn.Module):
         import cv2 as _cv2
         gray_lc = _cv2.cvtColor(rgb_uint8_kf, _cv2.COLOR_RGB2GRAY)
         kpts_cur, desc_cur = self._keyframe_db._orb.detectAndCompute(gray_lc, None)
-        T_rel_np, match_idx, _n_inliers = self._keyframe_db.find_loop(
+        T_rel_np, match_idx, n_inliers = self._keyframe_db.find_loop(
             (kpts_cur, desc_cur),
             K_np_kf,
             exclude_last_n=self.loop_exclude_last_n,
@@ -1338,15 +1339,32 @@ class RGBDTSDFSLAM(torch.nn.Module):
         # Hence we must pass the INVERSE of find_loop's returned transform.
         M = torch.tensor(T_rel_np, dtype=depth.dtype, device=depth.device)
         T_rel_loop = torch.linalg.inv(M)
+        # Inlier-scaled weight so a strong loop counts comparably to the
+        # sequential (odometry) edges, which carry weight up to ~100. A fixed
+        # weight of 2.0 was negligible against that stiffness and barely moved
+        # the trajectory. Scale by verified PnP inliers, clamped to a sane band.
+        loop_weight = float(min(max(n_inliers, self.loop_closure_min_inliers), 200)) / 4.0
         added = self._pose_graph.add_loop_edge(
-            int(match_idx), int(self.frame_count), T_rel_loop, weight=2.0
+            int(match_idx), int(self.frame_count), T_rel_loop, weight=loop_weight
         )
         if not added:
             return
-        corrected_lc = self._pose_graph.get_corrected_poses()
+        corrected_lc = self._pose_graph.apply_correction()
         self._write_back_corrected_poses(corrected_lc)
         if corrected_lc:
             self.T_world_camera = corrected_lc[-1].clone()
+            # The loop correction moved the current pose after _apply_pose_graph
+            # already rebuilt _last_reference, so rebuild it again to keep the
+            # next frame tracking against corrected geometry.
+            self._last_reference = self._make_reference(
+                depth=depth,
+                K=K,
+                T_world_camera=self.T_world_camera,
+                frame_idx=self.frame_count,
+                rgb=rgb,
+                normal=live_normal,
+                is_keyframe=True,
+            )
         best_quality["loop_closure_frame_idx"] = match_idx
 
     def _make_reference(

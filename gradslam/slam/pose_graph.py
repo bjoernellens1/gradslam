@@ -224,6 +224,22 @@ class SlidingWindowPoseGraph:
         """Return optimized poses without modifying internal state."""
         return self.optimize()
 
+    @torch.no_grad()
+    def apply_correction(self) -> list[torch.Tensor]:
+        """Optimize and COMMIT the corrected poses into the graph state.
+
+        Unlike ``get_corrected_poses`` (read-only), this persists the optimized
+        absolute poses back into ``self._poses``. This is required so the next
+        keyframe's sequential edge (derived from the absolute poses when
+        ``T_rel_measured=None``) is measured relative to the *corrected* last
+        pose rather than the stale pre-correction one — otherwise a loop
+        correction's discontinuity is re-injected as fake odometry on the
+        following keyframe and compounds into divergence.
+        """
+        corrected = self.optimize()
+        self._poses = [p.clone() for p in corrected]
+        return corrected
+
     @property
     def num_keyframes(self) -> int:
         return len(self._poses)

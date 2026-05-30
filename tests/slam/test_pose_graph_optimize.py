@@ -129,6 +129,47 @@ def test_loop_edge_reduces_drift():
     assert torch.allclose(corrected[0], true_poses[0], atol=1e-6)
 
 
+def test_apply_correction_commits_get_corrected_does_not():
+    """apply_correction() must persist optimized poses into self._poses;
+    get_corrected_poses() must not mutate. Regression for the bug where a
+    loop correction was discarded and re-injected as fake odometry on the
+    next keyframe."""
+    n = 5
+    true_poses = [torch.eye(4) for _ in range(n)]
+    for i in range(n):
+        true_poses[i][0, 3] = 0.1 * i
+    drifted = [true_poses[0].clone()]
+    for i in range(1, n):
+        rel = torch.linalg.inv(true_poses[i - 1]) @ true_poses[i]
+        rel[0, 3] += 0.02
+        drifted.append(drifted[-1] @ rel)
+
+    pg = SlidingWindowPoseGraph(window_size=16, n_iterations=30, damping=1e-6)
+    for i in range(n):
+        pg.add_keyframe(drifted[i], node_id=i)
+    pg.add_loop_edge(0, n - 1, torch.linalg.inv(true_poses[0]) @ true_poses[n - 1], weight=5.0)
+
+    before = [p.clone() for p in pg._poses]
+    # Read-only path leaves internal state untouched.
+    _ = pg.get_corrected_poses()
+    assert all(torch.allclose(a, b) for a, b in zip(pg._poses, before))
+
+    # Commit path persists the correction.
+    corrected = pg.apply_correction()
+    assert all(torch.allclose(a, b) for a, b in zip(pg._poses, corrected))
+    assert not torch.allclose(pg._poses[-1], before[-1])
+
+    # The next keyframe's auto-derived sequential edge is now measured from the
+    # CORRECTED last pose, so adding a consistent next pose introduces no spurious
+    # residual: optimizing again must not move the committed poses appreciably.
+    next_true = torch.eye(4); next_true[0, 3] = 0.1 * n
+    rel_next = torch.linalg.inv(pg._poses[-1]) @ (pg._poses[-1] @ (torch.linalg.inv(true_poses[n - 2]) @ next_true))
+    pg.add_keyframe(pg._poses[-1] @ rel_next, node_id=n)
+    committed = [p.clone() for p in pg._poses]
+    re_opt = pg.optimize()
+    assert all((a - b).norm().item() < 1e-3 for a, b in zip(re_opt, committed))
+
+
 def test_add_loop_edge_out_of_window_returns_false():
     """add_loop_edge must return False when a referenced node id is not in
     the current window, and must not corrupt the edge list."""
