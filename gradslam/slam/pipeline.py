@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from contextlib import nullcontext
 from dataclasses import dataclass
 
@@ -13,6 +14,8 @@ from ..mapping.tsdf import TSDFConfig, TSDFVolume
 from ..rendering.tsdf_raycast import RenderedFrame, raycast_tsdf
 from .keyframe_database import KeyframeDatabase
 from .pose_graph import SlidingWindowPoseGraph
+
+_logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -249,6 +252,7 @@ class RGBDTSDFSLAM(torch.nn.Module):
             else None
         )
         self._consecutive_lost: int = 0
+        self._velocity_fallback_count: int = 0
 
         self.tsdf: TSDFVolume | None = None
         self.T_world_camera: torch.Tensor | None = None
@@ -292,6 +296,7 @@ class RGBDTSDFSLAM(torch.nn.Module):
         if self._keyframe_db is not None:
             self._keyframe_db.clear()
         self._consecutive_lost = 0
+        self._velocity_fallback_count = 0
 
     @torch.no_grad()
     def process_frame(self, frame: RGBDFrame) -> TrackingResult:
@@ -865,6 +870,7 @@ class RGBDTSDFSLAM(torch.nn.Module):
                             best_quality["loop_closure_frame_idx"] = match_idx
 
         best_quality["integrated"] = integrate_frame
+        best_quality["velocity_fallback_count"] = self._velocity_fallback_count
         self.frame_count += 1
         return TrackingResult(
             T_world_camera=self.T_world_camera.clone(),
@@ -1236,6 +1242,7 @@ class RGBDTSDFSLAM(torch.nn.Module):
                             best_quality["loop_closure_frame_idx"] = match_idx_h
 
         best_quality["integrated"] = integrate_frame
+        best_quality["velocity_fallback_count"] = self._velocity_fallback_count
         self.frame_count += 1
         return TrackingResult(
             T_world_camera=self.T_world_camera.clone(),
@@ -1322,6 +1329,12 @@ class RGBDTSDFSLAM(torch.nn.Module):
         cos_angle = ((trace - 1.0) * 0.5).clamp(-1.0, 1.0)
         angle = torch.acos(cos_angle)
         if translation > self.max_velocity_translation or angle > self.max_velocity_rotation:
+            _logger.debug(
+                "velocity gate fallback at frame %d: t=%.4fm rot=%.3frad (limits: %.3f, %.3f)",
+                self.frame_count, translation.item(), angle.item(),
+                self.max_velocity_translation, self.max_velocity_rotation
+            )
+            self._velocity_fallback_count += 1
             return self.T_world_camera.clone()
         return self.T_world_camera @ self._last_T_prev_curr
 
