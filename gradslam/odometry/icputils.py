@@ -202,13 +202,13 @@ def gauss_newton_solve(
     tgt_pc = tgt_pc.contiguous()
     tgt_normals = tgt_normals.contiguous()
 
-    _KNN = knn_points(src_pc, tgt_pc)
+    _KNN = knn_points(src_pc, tgt_pc, squared=True)
     dist1, idx1 = _KNN.dists.squeeze(-1), _KNN.idx.squeeze(-1)
 
     dist_filter = (
         torch.ones_like(dist1[0], dtype=torch.bool)
         if dist_thresh is None
-        else dist1[0] < dist_thresh
+        else dist1[0] < dist_thresh ** 2
     )
     chamfer_indices = idx1[0][dist_filter].long()
 

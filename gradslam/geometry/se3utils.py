@@ -113,3 +113,56 @@ def se3_exp(xi: torch.Tensor) -> torch.Tensor:
     last_row = torch.tensor([0, 0, 0, 1]).type(omega.dtype).to(omega.device)
 
     return torch.cat((torch.cat((R, t), dim=1), last_row.unsqueeze(0)), dim=0)
+
+
+def se3_log(T: torch.Tensor) -> torch.Tensor:
+    """Matrix logarithm of SE(3) matrix -> se(3) twist [6].
+
+    Returns [v; omega] in R^6 where v is the translation part and omega is
+    the rotation part.  Uses the Rodrigues formula with a small-angle Taylor
+    branch for numerical stability near the identity.
+    """
+    assert torch.is_tensor(T), "Input must be of type torch.Tensor."
+    assert T.shape == (4, 4), f"Expected 4x4 SE(3) matrix, got {T.shape}."
+    R = T[:3, :3]
+    t = T[:3, 3]
+
+    trace = torch.clamp(R.trace(), -1.0 + 1e-7, 3.0 - 1e-7)
+    cos_angle = (trace - 1.0) * 0.5
+    angle = torch.acos(cos_angle.clamp(-1.0, 1.0))
+
+    if angle < 1e-6:
+        # Small-angle: omega ≈ vex(R - R^T) / 2, V_inv ≈ I
+        omega = torch.stack([
+            R[2, 1] - R[1, 2],
+            R[0, 2] - R[2, 0],
+            R[1, 0] - R[0, 1],
+        ]) * 0.5
+        v = t
+    else:
+        sin_angle = torch.sin(angle)
+        # omega_hat = skew(omega_unit) = (R - R^T) / (2 sin θ)
+        omega_hat = (R - R.t()) / (2.0 * sin_angle)
+        omega = torch.stack([
+            omega_hat[2, 1],
+            omega_hat[0, 2],
+            omega_hat[1, 0],
+        ]) * angle
+
+        # Rodrigues coefficients
+        A = sin_angle / angle
+        B = (1.0 - torch.cos(angle)) / (angle * angle)
+
+        # Inverse left Jacobian V_inv:
+        # V_inv = I - (θ/2) * Ω_hat + (1 - A/(2B)) * Ω_hat²
+        # where Ω_hat = skew(omega) / θ  (unit-axis skew matrix)
+        # so Ω_hat² = omega_hat @ omega_hat  (already unit-axis scaled)
+        # Correct coefficient on Ω_hat² is (1 - A/(2B)), NOT * θ²
+        V_inv = (
+            torch.eye(3, device=T.device, dtype=T.dtype)
+            - 0.5 * omega_hat * angle
+            + (1.0 - A / (2.0 * B)) * (omega_hat @ omega_hat)
+        )
+        v = V_inv @ t
+
+    return torch.cat([v, omega])

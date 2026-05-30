@@ -31,4 +31,15 @@ x = torch.randn(2048, 2048, device="cuda")
 y = x @ x.T
 torch.cuda.synchronize()
 print(f"✓ GPU matmul OK: {y.shape}, {y.dtype}")
+
+# Test solve_lm_6x6
+print("\nRunning solve_lm_6x6 test...")
+from gradslam.icp.solvers import solve_lm_6x6
+A = torch.randn(1000, 6, device="cuda")
+b = torch.randn(1000, 1, device="cuda")
+x = solve_lm_6x6(A, b)
+assert torch.isfinite(x).all(), "solve_lm_6x6 produced non-finite values"
+torch.cuda.synchronize()
+print(f"✓ solve_lm_6x6 OK: {x.shape}")
+
 print("\nROCm stack check PASSED")

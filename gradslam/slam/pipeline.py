@@ -678,6 +678,22 @@ class RGBDTSDFSLAM(torch.nn.Module):
                 best_pose, best_quality = veto_result
                 best_rel = torch.linalg.inv(self.T_world_camera) @ best_pose
 
+        # Summarize all evaluated candidates into best_quality for diagnostics
+        best_quality["candidates"] = [
+            {
+                "ref_idx": int(q.get("reference_frame_idx", -1)),
+                "source": q.get("tracking_source", "unknown"),
+                "inliers": int(q.get("num_valid", 0)),
+                "inlier_ratio": float(q.get("inlier_ratio", 0.0)),
+                "rmse": float(q.get("rmse", 0.0)),
+                "photo": float(q.get("photometric_mean_abs", -1.0)),
+                "disagreement": float(q.get("t_disagreement_norm", -1.0)),
+                "motion_gate": bool(q.get("motion_gate", True)),
+                "accepted": bool(q is best_quality),
+            }
+            for _pose, q in all_evaluated
+        ]
+
         pnp_pose = None
         if (
             rgb is not None
@@ -735,6 +751,14 @@ class RGBDTSDFSLAM(torch.nn.Module):
                         lost = False
 
         if lost:
+            tracking_state = "lost"
+        elif self._is_weak(best_quality):
+            tracking_state = "weak"
+        else:
+            tracking_state = "ok"
+        best_quality["tracking_state"] = tracking_state
+
+        if lost:
             # Keep a transient reference so the next frame does not match stale
             # geometry, but do not train the velocity model, insert a keyframe,
             # or integrate a weak pose into the map.
@@ -766,7 +790,9 @@ class RGBDTSDFSLAM(torch.nn.Module):
 
         used_keyframe = self._should_insert_keyframe(best_rel, best_quality)
         integrate_frame = False
-        if self.tsdf is not None and (
+        map_update_allowed = best_quality.get("tracking_state", "ok") == "ok"
+        best_quality["map_update_allowed"] = map_update_allowed
+        if self.tsdf is not None and map_update_allowed and (
             used_keyframe or (self.frame_count % self.mapping_interval == 0)
         ):
             self.tsdf.integrate(depth, K, self.T_world_camera)
@@ -845,20 +871,18 @@ class RGBDTSDFSLAM(torch.nn.Module):
                         kpts_cur, desc_cur = self._keyframe_db._orb.detectAndCompute(
                             gray_lc, None
                         )
-                        T_match_np, match_idx = self._keyframe_db.find_loop(
-                            rgb_uint8_kf,
+                        T_rel_np, match_idx, _n_inliers = self._keyframe_db.find_loop(
                             (kpts_cur, desc_cur),
+                            K_np_kf,
                             exclude_last_n=8,
                             min_inliers=self.loop_closure_min_inliers,
                         )
-                        if T_match_np is not None:
-                            T_match = torch.tensor(
-                                T_match_np, dtype=depth.dtype, device=depth.device
+                        if T_rel_np is not None:
+                            T_rel_loop = torch.tensor(
+                                T_rel_np, dtype=depth.dtype, device=depth.device
                             )
-                            # T_rel: relative pose from matched keyframe to current
-                            T_rel_loop = torch.linalg.inv(T_match) @ self.T_world_camera
                             self._pose_graph.add_keyframe(
-                                T_match, T_rel_measured=T_rel_loop, weight=2.0
+                                self.T_world_camera, T_rel_measured=T_rel_loop, weight=2.0
                             )
                             corrected_lc = self._pose_graph.get_corrected_poses()
                             n_graph_lc = len(corrected_lc)
@@ -1041,6 +1065,8 @@ class RGBDTSDFSLAM(torch.nn.Module):
             "tracking_source": "prediction",
         }
 
+        all_evaluated: list[tuple[torch.Tensor, dict]] = []
+
         for ref in self._tracking_candidates(predicted_pose):
             init_T_ref_live = torch.linalg.inv(ref.T_world_camera) @ predicted_pose
             with ctx:
@@ -1070,6 +1096,7 @@ class RGBDTSDFSLAM(torch.nn.Module):
                 quality["photometric_mean_abs"] = photo
                 if photo > self.photometric_max_diff:
                     quality["photometric_gate"] = False
+            all_evaluated.append((candidate_pose, quality))
             if self._quality_score(quality, t_predicted_hybrid, self.candidate_disagreement_penalty) > self._quality_score(best_quality, t_predicted_hybrid, self.candidate_disagreement_penalty):
                 best_pose = candidate_pose
                 best_rel = torch.linalg.inv(self.T_world_camera) @ best_pose
@@ -1088,8 +1115,25 @@ class RGBDTSDFSLAM(torch.nn.Module):
                 ctx=ctx,
                 ray_cam_unit=ray_cam_unit,
             )
+            all_evaluated.append((tsdf_pose, tsdf_quality))
             if self._quality_score(tsdf_quality, t_predicted_hybrid, self.candidate_disagreement_penalty) > self._quality_score(best_quality, t_predicted_hybrid, self.candidate_disagreement_penalty):
                 best_pose, best_rel, best_quality = tsdf_pose, tsdf_rel, tsdf_quality
+
+        # Summarize all evaluated candidates into best_quality for diagnostics
+        best_quality["candidates"] = [
+            {
+                "ref_idx": int(q.get("reference_frame_idx", -1)),
+                "source": q.get("tracking_source", "unknown"),
+                "inliers": int(q.get("num_valid", 0)),
+                "inlier_ratio": float(q.get("inlier_ratio", 0.0)),
+                "rmse": float(q.get("rmse", 0.0)),
+                "photo": float(q.get("photometric_mean_abs", -1.0)),
+                "disagreement": float(q.get("t_disagreement_norm", -1.0)),
+                "motion_gate": bool(q.get("motion_gate", True)),
+                "accepted": bool(q is best_quality),
+            }
+            for _pose, q in all_evaluated
+        ]
 
         if self.candidate_disagreement_penalty > 0.0 and t_predicted_hybrid > 0.0:
             if "frame_translation" in best_quality:
@@ -1127,6 +1171,14 @@ class RGBDTSDFSLAM(torch.nn.Module):
                         lost = False
 
         if lost:
+            tracking_state = "lost"
+        elif self._is_weak(best_quality):
+            tracking_state = "weak"
+        else:
+            tracking_state = "ok"
+        best_quality["tracking_state"] = tracking_state
+
+        if lost:
             self.lost = True
             self.frame_count += 1
             return TrackingResult(
@@ -1143,7 +1195,9 @@ class RGBDTSDFSLAM(torch.nn.Module):
         self.lost = False
 
         used_keyframe = self._should_insert_keyframe(best_rel, best_quality)
-        integrate_frame = used_keyframe or (self.frame_count % self.mapping_interval == 0)
+        map_update_allowed = best_quality.get("tracking_state", "ok") == "ok"
+        best_quality["map_update_allowed"] = map_update_allowed
+        integrate_frame = map_update_allowed and (used_keyframe or (self.frame_count % self.mapping_interval == 0))
         if integrate_frame:
             self.tsdf.integrate(depth, K, self.T_world_camera)
 
@@ -1219,19 +1273,18 @@ class RGBDTSDFSLAM(torch.nn.Module):
                         kpts_cur_h, desc_cur_h = self._keyframe_db._orb.detectAndCompute(
                             gray_lc_h, None
                         )
-                        T_match_np_h, match_idx_h = self._keyframe_db.find_loop(
-                            rgb_uint8_kf_h,
+                        T_rel_np_h, match_idx_h, _n_inliers_h = self._keyframe_db.find_loop(
                             (kpts_cur_h, desc_cur_h),
+                            K_np_kf_h,
                             exclude_last_n=8,
                             min_inliers=self.loop_closure_min_inliers,
                         )
-                        if T_match_np_h is not None:
-                            T_match_h = torch.tensor(
-                                T_match_np_h, dtype=depth.dtype, device=depth.device
+                        if T_rel_np_h is not None:
+                            T_rel_loop_h = torch.tensor(
+                                T_rel_np_h, dtype=depth.dtype, device=depth.device
                             )
-                            T_rel_loop_h = torch.linalg.inv(T_match_h) @ self.T_world_camera
                             self._pose_graph.add_keyframe(
-                                T_match_h, T_rel_measured=T_rel_loop_h, weight=2.0
+                                self.T_world_camera, T_rel_measured=T_rel_loop_h, weight=2.0
                             )
                             corrected_lc_h = self._pose_graph.get_corrected_poses()
                             n_graph_lc_h = len(corrected_lc_h)
@@ -1383,6 +1436,13 @@ class RGBDTSDFSLAM(torch.nn.Module):
             quality.get("num_valid", 0) < self.min_track_inliers
             or quality.get("inlier_ratio", 0.0) < self.lost_inlier_ratio_thresh
             or quality.get("motion_gate", True) is False
+        )
+
+    def _is_weak(self, quality: dict) -> bool:
+        """True if tracking is borderline — pose accepted but map update suppressed."""
+        return (
+            not self._is_lost(quality)
+            and quality.get("inlier_ratio", 1.0) < self.borderline_inlier_ratio
         )
 
     @staticmethod
