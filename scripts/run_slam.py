@@ -729,25 +729,39 @@ def run_upstream_slam(args, dataset, extractor, device, backend: str):
 
 def save_results(output_dir: Path, poses_est, tracking_log, dataset_type,
                  gt_file=None, gt_format=None, gt_poses_inline=None,
-                 no_eval=False, tracking_fps=None, elapsed=None):
+                 no_eval=False, tracking_fps=None, elapsed=None, args=None):
+    import csv
+    import json
     from scipy.spatial.transform import Rotation
 
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Save estimated poses (TUM format)
-    est_file = output_dir / "estimated_poses.txt"
-    with open(est_file, "w") as f:
+    # ------------------------------------------------------------------
+    # Helper: write TUM-format pose lines to an open file handle
+    # ------------------------------------------------------------------
+    def _write_tum_poses(fh):
         for i, T in enumerate(poses_est):
             ts = tracking_log[i].get("ts") if i < len(tracking_log) else None
             ts_out = float(ts) if ts is not None else float(i)
             t = T[:3, 3]
             R = T[:3, :3]
             q = Rotation.from_matrix(R).as_quat()  # qx qy qz qw
-            f.write(f"{ts_out:.6f} {t[0]:.6f} {t[1]:.6f} {t[2]:.6f} "
-                    f"{q[0]:.6f} {q[1]:.6f} {q[2]:.6f} {q[3]:.6f}\n")
+            fh.write(f"{ts_out:.6f} {t[0]:.6f} {t[1]:.6f} {t[2]:.6f} "
+                     f"{q[0]:.6f} {q[1]:.6f} {q[2]:.6f} {q[3]:.6f}\n")
+
+    # Save estimated poses (TUM format) — keep existing filename
+    est_file = output_dir / "estimated_poses.txt"
+    with open(est_file, "w") as f:
+        _write_tum_poses(f)
     print(f"✓ Estimated poses → {est_file}")
 
-    # Save tracking metrics
+    # Also write trajectory.txt (same content, canonical name)
+    traj_file = output_dir / "trajectory.txt"
+    with open(traj_file, "w") as f:
+        _write_tum_poses(f)
+    print(f"✓ Trajectory      → {traj_file}")
+
+    # Save tracking metrics (existing space-separated format)
     metrics_file = output_dir / "tracking_metrics.txt"
     with open(metrics_file, "w") as f:
         f.write(
@@ -769,6 +783,38 @@ def save_results(output_dir: Path, poses_est, tracking_log, dataset_type,
             )
     print(f"✓ Tracking metrics → {metrics_file}")
 
+    # Save tracking_debug.csv (CSV version of per-frame data)
+    csv_file = output_dir / "tracking_debug.csv"
+    _CSV_FIELDS = [
+        "idx", "num_valid", "inlier_ratio", "rmse", "source", "integrated",
+        "photometric_mean_abs", "feature_inliers", "frame_translation",
+        "frame_rotation_deg", "motion_gate", "reference_frame_idx",
+        "t_disagreement_norm", "tracking_ms", "lost",
+    ]
+    with open(csv_file, "w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=_CSV_FIELDS, extrasaction="ignore")
+        writer.writeheader()
+        for r in tracking_log:
+            row = {
+                "idx": r["idx"],
+                "num_valid": r["num_valid"],
+                "inlier_ratio": r["inlier_ratio"],
+                "rmse": r["rmse"],
+                "source": r["source"],
+                "integrated": int(r["integrated"]),
+                "photometric_mean_abs": r["photometric_mean_abs"],
+                "feature_inliers": r["feature_inliers"],
+                "frame_translation": r.get("frame_translation", -1.0),
+                "frame_rotation_deg": r.get("frame_rotation_deg", -1.0),
+                "motion_gate": int(r.get("motion_gate", True)),
+                "reference_frame_idx": r.get("reference_frame_idx", -1),
+                "t_disagreement_norm": r.get("t_disagreement_norm", -1.0),
+                "tracking_ms": r["tracking_ms"],
+                "lost": int(r["lost"]),
+            }
+            writer.writerow(row)
+    print(f"✓ Tracking debug CSV → {csv_file}")
+
     summary_file = output_dir / "tracking_summary.txt"
     lost_count = sum(1 for r in tracking_log if r["lost"])
     with open(summary_file, "w") as f:
@@ -783,16 +829,94 @@ def save_results(output_dir: Path, poses_est, tracking_log, dataset_type,
             f.write(f"{key} {value}\n")
     print(f"✓ Tracking summary → {summary_file}")
 
-    if no_eval:
-        return
+    # ------------------------------------------------------------------
+    # Compute summary statistics for metrics.json (filter -1.0 sentinels)
+    # ------------------------------------------------------------------
+    def _mean_valid(key, sentinel=-1.0):
+        vals = [r.get(key, sentinel) for r in tracking_log]
+        valid = [v for v in vals if v != sentinel]
+        return float(sum(valid) / len(valid)) if valid else None
 
-    if gt_file and Path(gt_file).exists():
-        print(f"\nEvaluating against GT: {gt_file}")
-        _evaluate_and_print(
-            poses_est, gt_file, gt_format, output_dir, tracking_log
-        )
-    elif gt_poses_inline:
-        _evaluate_inline(poses_est, gt_poses_inline, output_dir)
+    n_keyframes = sum(
+        1 for r in tracking_log
+        if "kf" in str(r.get("source", "")).lower() or r.get("source") == "keyframe"
+        or r.get("integrated", False)
+    )
+
+    end_to_end_fps = (len(tracking_log) / elapsed) if elapsed else None
+
+    eval_metrics = None  # will be filled below if eval runs
+
+    if not no_eval:
+        if gt_file and Path(gt_file).exists():
+            print(f"\nEvaluating against GT: {gt_file}")
+            eval_metrics = _evaluate_and_print(
+                poses_est, gt_file, gt_format, output_dir, tracking_log
+            )
+        elif gt_poses_inline:
+            eval_metrics = _evaluate_inline(poses_est, gt_poses_inline, output_dir)
+
+    # ------------------------------------------------------------------
+    # Write metrics.json (always, even if no_eval=True)
+    # ------------------------------------------------------------------
+    sequence_name = getattr(args, "sequence", None)
+    if sequence_name is None and args is not None:
+        # Derive from scene_dir or capture_dir if available
+        scene_dir = getattr(args, "scene_dir", None) or getattr(args, "capture_dir", None)
+        if scene_dir:
+            sequence_name = Path(scene_dir).name
+
+    metrics_json = {
+        "n_frames": len(tracking_log),
+        "lost_frames": lost_count,
+        "n_keyframes": n_keyframes,
+        "mean_inlier_ratio": _mean_valid("inlier_ratio", sentinel=-1.0),
+        "mean_depth_residual": _mean_valid("rmse", sentinel=-1.0),
+        "mean_update_norm": _mean_valid("t_disagreement_norm", sentinel=-1.0),
+        "tracking_fps": tracking_fps,
+        "end_to_end_fps": end_to_end_fps,
+        "ate_rmse_m": eval_metrics.get("ate_rmse_m") if eval_metrics else None,
+        "ate_mean_m": eval_metrics.get("ate_mean_m") if eval_metrics else None,
+        "rpe_rmse_m": eval_metrics.get("rpe_rmse_m") if eval_metrics else None,
+        "rpe_rmse_deg": eval_metrics.get("rpe_rmse_deg") if eval_metrics else None,
+        "sequence": sequence_name,
+        "dataset": dataset_type,
+    }
+    json_file = output_dir / "metrics.json"
+    with open(json_file, "w") as f:
+        json.dump(metrics_json, f, indent=2)
+    print(f"✓ Metrics JSON    → {json_file}")
+
+    # ------------------------------------------------------------------
+    # Write config_resolved.yaml (best-effort)
+    # ------------------------------------------------------------------
+    if args is not None:
+        config_file = output_dir / "config_resolved.yaml"
+        try:
+            import yaml
+            config_data = vars(args)
+            with open(config_file, "w") as f:
+                yaml.dump(config_data, f, default_flow_style=False)
+            print(f"✓ Config resolved → {config_file}")
+        except ImportError:
+            # YAML not available — fall back to JSON with stringified values
+            try:
+                import json as _json
+                config_data = {}
+                for k, v in vars(args).items():
+                    try:
+                        _json.dumps(v)
+                        config_data[k] = v
+                    except (TypeError, ValueError):
+                        config_data[k] = str(v)
+                config_file_json = output_dir / "config_resolved.json"
+                with open(config_file_json, "w") as f:
+                    _json.dump(config_data, f, indent=2)
+                print(f"✓ Config resolved → {config_file_json} (YAML unavailable)")
+            except Exception:
+                pass  # best-effort: skip silently
+        except Exception:
+            pass  # best-effort: skip silently
 
 
 def _evaluate_and_print(poses_est, gt_file, gt_format, output_dir, tracking_log=None):
@@ -823,7 +947,7 @@ def _evaluate_and_print(poses_est, gt_file, gt_format, output_dir, tracking_log=
 
     if len(pairs) < 2:
         print("  Warning: too few matched pairs for evaluation")
-        return
+        return None
 
     ate = compute_ate(pairs)
     rpe1 = compute_rpe(pairs, delta=1)
@@ -840,6 +964,13 @@ def _evaluate_and_print(poses_est, gt_file, gt_format, output_dir, tracking_log=
         f.write(f"{ate}\n{rpe1}\n{rpe10}\n")
     print(f"\n✓ Evaluation results → {eval_file}")
 
+    return {
+        "ate_rmse_m": ate.rmse,
+        "ate_mean_m": ate.mean,
+        "rpe_rmse_m": rpe1.rmse_t,
+        "rpe_rmse_deg": rpe1.rmse_r,
+    }
+
 
 def _evaluate_inline(poses_est, gt_poses_inline, output_dir):
     """Evaluate using GT poses collected during SLAM (with timestamps)."""
@@ -848,7 +979,7 @@ def _evaluate_inline(poses_est, gt_poses_inline, output_dir):
     gt_list = [p for _, p in gt_poses_inline]
     pairs = associate_by_index(poses_est, gt_list)
     if len(pairs) < 2:
-        return
+        return None
     ate = compute_ate(pairs)
     rpe1 = compute_rpe(pairs, delta=1)
     print(f"\n{ate}")
@@ -859,6 +990,13 @@ def _evaluate_inline(poses_est, gt_poses_inline, output_dir):
     with open(eval_file, "w") as f:
         f.write(f"{ate}\n{rpe1}\n{rpe10}\n")
     print(f"\n✓ Evaluation results → {eval_file}")
+
+    return {
+        "ate_rmse_m": ate.rmse,
+        "ate_mean_m": ate.mean,
+        "rpe_rmse_m": rpe1.rmse_t,
+        "rpe_rmse_deg": rpe1.rmse_r,
+    }
 
 
 def main():
@@ -919,6 +1057,7 @@ def main():
         no_eval=args.no_eval,
         tracking_fps=tracking_fps,
         elapsed=elapsed,
+        args=args,
     )
     _cleanup_accelerator(device)
 
