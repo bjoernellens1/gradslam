@@ -149,6 +149,13 @@ class SlidingWindowPoseGraph:
         return True
 
     @torch.no_grad()
+    def drop_last_edge(self) -> None:
+        """Remove the most recently added edge (used to reject a loop edge
+        whose correction failed the safety guard)."""
+        if self._edges:
+            self._edges.pop()
+
+    @torch.no_grad()
     def optimize(self) -> list[torch.Tensor]:
         """Run Gauss-Newton optimization and return corrected poses.
 
@@ -237,6 +244,32 @@ class SlidingWindowPoseGraph:
         following keyframe and compounds into divergence.
         """
         corrected = self.optimize()
+        self._poses = [p.clone() for p in corrected]
+        return corrected
+
+    @torch.no_grad()
+    def try_commit_correction(
+        self, max_translation_step: float = 2.0
+    ) -> list[torch.Tensor] | None:
+        """Optimize and commit the result ONLY if it is safe.
+
+        A correction is rejected (state left unchanged, ``None`` returned) when
+        any optimized pose is non-finite or any node moves more than
+        ``max_translation_step`` metres from its pre-optimization estimate.
+        This is the safety boundary that prevents an inconsistent constraint
+        (e.g. a bad PnP loop measurement that passes the inlier gate but is
+        geometrically wrong) from corrupting the trajectory or accumulating
+        across keyframes into numerical divergence. The non-robust optimizer
+        has no outlier kernel, so callers must reject-and-drop on ``None``.
+        """
+        pre = self._poses
+        corrected = self.optimize()
+        for p in corrected:
+            if not torch.isfinite(p).all():
+                return None
+        for a, b in zip(pre, corrected):
+            if float((a[:3, 3] - b[:3, 3]).norm()) > max_translation_step:
+                return None
         self._poses = [p.clone() for p in corrected]
         return corrected
 

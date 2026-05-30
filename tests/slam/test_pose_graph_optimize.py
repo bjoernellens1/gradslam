@@ -170,6 +170,35 @@ def test_apply_correction_commits_get_corrected_does_not():
     assert all((a - b).norm().item() < 1e-3 for a, b in zip(re_opt, committed))
 
 
+def test_try_commit_rejects_divergent_loop():
+    """try_commit_correction must reject (return None, leave state unchanged) a
+    loop edge whose correction is non-finite or jumps implausibly far, so a bad
+    PnP loop measurement cannot corrupt the trajectory or accumulate into
+    numerical divergence. Regression for the 1e24 blow-up observed on real data."""
+    n = 10
+    pg = SlidingWindowPoseGraph(window_size=16, n_iterations=5, damping=1e-4)
+    for i in range(n):
+        T = torch.eye(4)
+        T[0, 3] = 0.1 * i
+        pg.add_keyframe(T, node_id=i)
+        if pg.num_keyframes >= 2:
+            pg.try_commit_correction()
+
+    before = [p.clone() for p in pg._poses]
+    n_edges_before = len(pg._edges)
+    # A garbage loop measurement (huge, geometrically wrong) that passed an
+    # inlier gate upstream.
+    bad = se3_exp(torch.tensor([5.0, -4.0, 6.0, 1.0, -1.0, 2.0]))
+    assert pg.add_loop_edge(0, n - 1, bad, weight=2.0) is True
+    result = pg.try_commit_correction()
+    assert result is None, "divergent loop correction must be rejected"
+    pg.drop_last_edge()
+
+    assert len(pg._edges) == n_edges_before
+    assert all(torch.allclose(a, b) for a, b in zip(before, pg._poses))
+    assert all(torch.isfinite(p).all() for p in pg._poses)
+
+
 def test_add_loop_edge_out_of_window_returns_false():
     """add_loop_edge must return False when a referenced node id is not in
     the current window, and must not corrupt the edge list."""

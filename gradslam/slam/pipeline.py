@@ -1268,7 +1268,12 @@ class RGBDTSDFSLAM(torch.nn.Module):
             weight=w,
         )
         if self._pose_graph.num_keyframes >= 2:
-            corrected = self._pose_graph.apply_correction()
+            # Guarded commit: sequential edges are residual-free no-ops, but a
+            # loop edge added earlier can make optimize() move poses; reject the
+            # result if it is non-finite or jumps implausibly far.
+            corrected = self._pose_graph.try_commit_correction()
+            if corrected is None:
+                return
             self._write_back_corrected_poses(corrected)
             if corrected:
                 self.T_world_camera = corrected[-1].clone()
@@ -1339,17 +1344,24 @@ class RGBDTSDFSLAM(torch.nn.Module):
         # Hence we must pass the INVERSE of find_loop's returned transform.
         M = torch.tensor(T_rel_np, dtype=depth.dtype, device=depth.device)
         T_rel_loop = torch.linalg.inv(M)
-        # Inlier-scaled weight so a strong loop counts comparably to the
-        # sequential (odometry) edges, which carry weight up to ~100. A fixed
-        # weight of 2.0 was negligible against that stiffness and barely moved
-        # the trajectory. Scale by verified PnP inliers, clamped to a sane band.
-        loop_weight = float(min(max(n_inliers, self.loop_closure_min_inliers), 200)) / 4.0
+        # Conservative inlier-scaled weight (≈1–3). The pose graph has no robust
+        # outlier kernel, so a bad-but-high-inlier PnP loop can still be
+        # geometrically wrong; keep its influence modest and rely on the
+        # guarded commit below to reject corrections it nonetheless corrupts.
+        loop_weight = float(min(max(n_inliers, self.loop_closure_min_inliers), 90)) / 30.0
         added = self._pose_graph.add_loop_edge(
             int(match_idx), int(self.frame_count), T_rel_loop, weight=loop_weight
         )
         if not added:
             return
-        corrected_lc = self._pose_graph.apply_correction()
+        # Guarded commit: if the loop correction is non-finite or jumps too far
+        # (an inconsistent / outlier loop constraint), reject it and drop the
+        # edge so it cannot accumulate into divergence on later keyframes.
+        corrected_lc = self._pose_graph.try_commit_correction()
+        if corrected_lc is None:
+            self._pose_graph.drop_last_edge()
+            best_quality["loop_closure_rejected"] = True
+            return
         self._write_back_corrected_poses(corrected_lc)
         if corrected_lc:
             self.T_world_camera = corrected_lc[-1].clone()
