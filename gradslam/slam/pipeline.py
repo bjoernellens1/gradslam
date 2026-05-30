@@ -678,6 +678,22 @@ class RGBDTSDFSLAM(torch.nn.Module):
                 best_pose, best_quality = veto_result
                 best_rel = torch.linalg.inv(self.T_world_camera) @ best_pose
 
+        # Summarize all evaluated candidates into best_quality for diagnostics
+        best_quality["candidates"] = [
+            {
+                "ref_idx": int(q.get("reference_frame_idx", -1)),
+                "source": q.get("tracking_source", "unknown"),
+                "inliers": int(q.get("num_valid", 0)),
+                "inlier_ratio": float(q.get("inlier_ratio", 0.0)),
+                "rmse": float(q.get("rmse", 0.0)),
+                "photo": float(q.get("photometric_mean_abs", -1.0)),
+                "disagreement": float(q.get("t_disagreement_norm", -1.0)),
+                "motion_gate": bool(q.get("motion_gate", True)),
+                "accepted": bool(q is best_quality),
+            }
+            for _pose, q in all_evaluated
+        ]
+
         pnp_pose = None
         if (
             rgb is not None
@@ -1039,6 +1055,8 @@ class RGBDTSDFSLAM(torch.nn.Module):
             "tracking_source": "prediction",
         }
 
+        all_evaluated: list[tuple[torch.Tensor, dict]] = []
+
         for ref in self._tracking_candidates(predicted_pose):
             init_T_ref_live = torch.linalg.inv(ref.T_world_camera) @ predicted_pose
             with ctx:
@@ -1068,6 +1086,7 @@ class RGBDTSDFSLAM(torch.nn.Module):
                 quality["photometric_mean_abs"] = photo
                 if photo > self.photometric_max_diff:
                     quality["photometric_gate"] = False
+            all_evaluated.append((candidate_pose, quality))
             if self._quality_score(quality, t_predicted_hybrid, self.candidate_disagreement_penalty) > self._quality_score(best_quality, t_predicted_hybrid, self.candidate_disagreement_penalty):
                 best_pose = candidate_pose
                 best_rel = torch.linalg.inv(self.T_world_camera) @ best_pose
@@ -1086,8 +1105,25 @@ class RGBDTSDFSLAM(torch.nn.Module):
                 ctx=ctx,
                 ray_cam_unit=ray_cam_unit,
             )
+            all_evaluated.append((tsdf_pose, tsdf_quality))
             if self._quality_score(tsdf_quality, t_predicted_hybrid, self.candidate_disagreement_penalty) > self._quality_score(best_quality, t_predicted_hybrid, self.candidate_disagreement_penalty):
                 best_pose, best_rel, best_quality = tsdf_pose, tsdf_rel, tsdf_quality
+
+        # Summarize all evaluated candidates into best_quality for diagnostics
+        best_quality["candidates"] = [
+            {
+                "ref_idx": int(q.get("reference_frame_idx", -1)),
+                "source": q.get("tracking_source", "unknown"),
+                "inliers": int(q.get("num_valid", 0)),
+                "inlier_ratio": float(q.get("inlier_ratio", 0.0)),
+                "rmse": float(q.get("rmse", 0.0)),
+                "photo": float(q.get("photometric_mean_abs", -1.0)),
+                "disagreement": float(q.get("t_disagreement_norm", -1.0)),
+                "motion_gate": bool(q.get("motion_gate", True)),
+                "accepted": bool(q is best_quality),
+            }
+            for _pose, q in all_evaluated
+        ]
 
         if self.candidate_disagreement_penalty > 0.0 and t_predicted_hybrid > 0.0:
             if "frame_translation" in best_quality:

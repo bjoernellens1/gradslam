@@ -627,6 +627,7 @@ def run_slam(args, dataset, extractor, device):
                 "t_disagreement_norm": q.get("t_disagreement_norm", -1.0),
                 "tracking_ms": track_ms,
                 "lost": result.lost,
+                "candidates_json": __import__('json').dumps(q.get("candidates", [])),
             })
 
     elapsed = time.time() - start_time
@@ -789,7 +790,7 @@ def save_results(output_dir: Path, poses_est, tracking_log, dataset_type,
         "idx", "num_valid", "inlier_ratio", "rmse", "source", "integrated",
         "photometric_mean_abs", "feature_inliers", "frame_translation",
         "frame_rotation_deg", "motion_gate", "reference_frame_idx",
-        "t_disagreement_norm", "tracking_ms", "lost",
+        "t_disagreement_norm", "tracking_ms", "lost", "candidates_json",
     ]
     with open(csv_file, "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=_CSV_FIELDS, extrasaction="ignore")
@@ -811,6 +812,7 @@ def save_results(output_dir: Path, poses_est, tracking_log, dataset_type,
                 "t_disagreement_norm": r.get("t_disagreement_norm", -1.0),
                 "tracking_ms": r["tracking_ms"],
                 "lost": int(r["lost"]),
+                "candidates_json": r.get("candidates_json", "[]"),
             }
             writer.writerow(row)
     print(f"✓ Tracking debug CSV → {csv_file}")
