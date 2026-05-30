@@ -115,7 +115,6 @@ def se3_exp(xi: torch.Tensor) -> torch.Tensor:
     return torch.cat((torch.cat((R, t), dim=1), last_row.unsqueeze(0)), dim=0)
 
 
-@torch.no_grad()
 def se3_log(T: torch.Tensor) -> torch.Tensor:
     """Matrix logarithm of SE(3) matrix -> se(3) twist [6].
 
@@ -123,6 +122,8 @@ def se3_log(T: torch.Tensor) -> torch.Tensor:
     the rotation part.  Uses the Rodrigues formula with a small-angle Taylor
     branch for numerical stability near the identity.
     """
+    assert torch.is_tensor(T), "Input must be of type torch.Tensor."
+    assert T.shape == (4, 4), f"Expected 4x4 SE(3) matrix, got {T.shape}."
     R = T[:3, :3]
     t = T[:3, 3]
 

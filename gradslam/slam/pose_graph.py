@@ -6,7 +6,8 @@ with relative pose edges. Runs inline after keyframe insertion.
 
 import torch
 
-from ..geometry.se3utils import se3_exp, se3_log  # noqa: F401  (re-exported for backward compat)
+from ..geometry.se3utils import se3_exp
+from ..geometry.se3utils import se3_log  # noqa: F401 (re-exported for backward compat)
 
 
 @torch.no_grad()
