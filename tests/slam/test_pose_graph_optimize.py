@@ -81,3 +81,100 @@ def test_pose_graph_corrects_drift():
     assert err_after < err_before, (
         f"Pose graph did not reduce drift: before={err_before:.4f}, after={err_after:.4f}"
     )
+
+
+def test_loop_edge_reduces_drift():
+    """The key regression: a single loop edge between an early node and the
+    last node, measured from the GROUND-TRUTH relative, must reduce the
+    last-node position error.  Validates the generalized optimizer AND the
+    edge sign/convention (T_rel_meas ≈ inv(T_world_a) @ T_world_b)."""
+    n = 6
+    # Ground-truth: pure translation along +x, 0.1 m per step.
+    true_poses = []
+    for i in range(n):
+        T = torch.eye(4)
+        T[0, 3] = 0.1 * i
+        true_poses.append(T)
+
+    # Chained (drifted) absolute poses: each step is over-estimated, so error
+    # accumulates and the last pose is wrong by a known amount.
+    drift_step = 0.02  # 2 cm of over-shoot per chained step
+    drifted = [true_poses[0].clone()]
+    for i in range(1, n):
+        rel = torch.linalg.inv(true_poses[i - 1]) @ true_poses[i]
+        rel_drift = rel.clone()
+        rel_drift[0, 3] += drift_step
+        drifted.append(drifted[-1] @ rel_drift)
+
+    pg = SlidingWindowPoseGraph(window_size=16, n_iterations=30, damping=1e-6)
+    # Sequential no-op edges (measurement derived from the drifted absolutes).
+    for i in range(n):
+        pg.add_keyframe(drifted[i], node_id=i)
+
+    err_before = (pg._poses[-1][0, 3] - true_poses[-1][0, 3]).abs().item()
+    assert err_before > 0.05, "test setup: drift should be significant"
+
+    # One loop edge between node 0 (anchor) and the last node, measured from
+    # the GROUND-TRUTH relative pose.
+    M = torch.linalg.inv(true_poses[0]) @ true_poses[n - 1]
+    ok = pg.add_loop_edge(0, n - 1, M, weight=5.0)
+    assert ok is True
+
+    corrected = pg.optimize()
+    err_after = (corrected[-1][0, 3] - true_poses[-1][0, 3]).abs().item()
+    assert err_after < err_before, (
+        f"Loop edge did not reduce drift: before={err_before:.4f}, after={err_after:.4f}"
+    )
+    # Anchor stays fixed.
+    assert torch.allclose(corrected[0], true_poses[0], atol=1e-6)
+
+
+def test_add_loop_edge_out_of_window_returns_false():
+    """add_loop_edge must return False when a referenced node id is not in
+    the current window, and must not corrupt the edge list."""
+    pg = SlidingWindowPoseGraph(window_size=8)
+    for i in range(3):
+        T = torch.eye(4)
+        T[0, 3] = 0.1 * i
+        pg.add_keyframe(T, node_id=i)
+
+    M = torch.eye(4)
+    assert pg.add_loop_edge(0, 2, M, weight=1.0) is True  # both in window
+    assert pg.add_loop_edge(0, 99, M, weight=1.0) is False  # 99 not present
+    assert pg.add_loop_edge(99, 2, M, weight=1.0) is False  # 99 not present
+
+
+def test_trimming_drops_edges_referencing_dropped_nodes():
+    """When the window slides, nodes and any edges referencing dropped node
+    ids are removed.  A loop edge to a node that later slides out is gone."""
+    pg = SlidingWindowPoseGraph(window_size=3)
+    for i in range(3):
+        T = torch.eye(4)
+        T[0, 3] = 0.1 * i
+        pg.add_keyframe(T, node_id=i)
+    # Loop edge between node 0 and node 2.
+    assert pg.add_loop_edge(0, 2, torch.eye(4), weight=1.0) is True
+
+    # Adding two more keyframes slides node 0 (and 1) out of the window.
+    for i in range(3, 5):
+        T = torch.eye(4)
+        T[0, 3] = 0.1 * i
+        pg.add_keyframe(T, node_id=i)
+
+    node_ids = pg.node_ids()
+    assert 0 not in node_ids
+    # No remaining edge may reference the dropped node 0.
+    for a, b, _M, _w in pg._edges:
+        assert a in node_ids and b in node_ids
+
+
+def test_auto_assigned_node_ids_backward_compat():
+    """Callers that don't pass node_id keep working (auto-incrementing ids)."""
+    pg = SlidingWindowPoseGraph(window_size=8)
+    T0 = torch.eye(4)
+    T1 = torch.eye(4); T1[0, 3] = 0.1
+    pg.add_keyframe(T0)
+    pg.add_keyframe(T1, T_rel_measured=torch.linalg.inv(T0) @ T1)
+    assert pg.num_keyframes == 2
+    corrected = pg.optimize()
+    assert len(corrected) == 2

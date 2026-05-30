@@ -234,10 +234,25 @@ class RGBDTSDFSLAM(torch.nn.Module):
         self.max_velocity_translation = float(max_velocity_translation)  # default 0.18
         self.max_velocity_rotation = float(max_velocity_rotation)        # default 0.30
 
-        # Sliding-window pose graph (opt-in)
+        # Keyframes within this many of the most recent are excluded from loop
+        # search (a loop can't close against very recent frames). For a loop
+        # edge to ever attach, the pose-graph window must reach back PAST this
+        # horizon, i.e. window_size must be > loop_exclude_last_n. See
+        # _try_loop_closure / SlidingWindowPoseGraph.add_loop_edge.
+        self.loop_exclude_last_n = 8
+
+        # Sliding-window pose graph (opt-in). When loop closure is enabled the
+        # window is widened so that loop matches (which come from keyframes
+        # OLDER than loop_exclude_last_n) still live inside the window and can
+        # be connected by a loop edge; otherwise add_loop_edge always fails and
+        # the pose graph never corrects drift.
         self.pose_graph_enabled = pose_graph_enabled
+        if pose_graph_enabled and loop_closure_enabled:
+            effective_window = max(pose_graph_window, self.loop_exclude_last_n + 8)
+        else:
+            effective_window = pose_graph_window
         self._pose_graph: SlidingWindowPoseGraph | None = (
-            SlidingWindowPoseGraph(window_size=pose_graph_window)
+            SlidingWindowPoseGraph(window_size=effective_window)
             if pose_graph_enabled
             else None
         )
@@ -815,85 +830,13 @@ class RGBDTSDFSLAM(torch.nn.Module):
                 self.keyframes = self.keyframes[-self.max_keyframes :]
             self._set_feature_keyframe(rgb, depth, K, self.T_world_camera)
 
-            # Sliding-window pose graph correction (opt-in via pose_graph_enabled)
-            if self._pose_graph is not None:
-                inlier_w = float(best_quality.get("inlier_ratio", 0.5))
-                rmse_w = 1.0 / max(float(best_quality.get("rmse", 0.01)), 1e-4)
-                w = inlier_w * min(rmse_w, 100.0)
-                # Pass best_rel as the independent ICP measurement so the
-                # optimizer has information to correct drift with.
-                self._pose_graph.add_keyframe(
-                    self.T_world_camera,
-                    T_rel_measured=best_rel,
-                    weight=w,
-                )
-                if self._pose_graph.num_keyframes >= 2:
-                    corrected = self._pose_graph.get_corrected_poses()
-                    # Update matching keyframes in self.keyframes
-                    n_graph = len(corrected)
-                    n_kf = len(self.keyframes)
-                    for j, new_pose in enumerate(corrected):
-                        kf_idx = n_kf - n_graph + j
-                        if 0 <= kf_idx < n_kf:
-                            self.keyframes[kf_idx].T_world_camera = new_pose
-                    # Update current camera pose from last corrected pose
-                    if corrected:
-                        self.T_world_camera = corrected[-1].clone()
-                    # Rebuild _last_reference so next frame tracks corrected geometry
-                    self._last_reference = self._make_reference(
-                        depth=depth,
-                        K=K,
-                        T_world_camera=self.T_world_camera,
-                        frame_idx=self.frame_count,
-                        rgb=rgb,
-                        normal=live_normal,
-                        is_keyframe=True,
-                    )
+            # Sliding-window pose graph correction (opt-in via pose_graph_enabled).
+            # The current keyframe is added to the graph exactly once here.
+            self._apply_pose_graph(depth, K, rgb, live_normal, best_quality)
 
-            # Keyframe database population (opt-in, both reloc and loop closure)
-            if self._keyframe_db is not None and rgb is not None:
-                rgb_uint8_kf = _rgb_to_uint8_cpu(rgb)
-                if rgb_uint8_kf is not None:
-                    depth_np_kf = depth.detach().cpu().numpy().astype("float32")
-                    K_np_kf = K.detach().cpu().numpy()
-                    T_np_kf = self.T_world_camera.detach().cpu().numpy()
-                    self._keyframe_db.add(
-                        rgb_uint8_kf, depth_np_kf, K_np_kf, T_np_kf, self.frame_count
-                    )
-                    # Loop closure check
-                    if (
-                        self.loop_closure_enabled
-                        and self._pose_graph is not None
-                        and len(self._keyframe_db) > 8
-                    ):
-                        import cv2 as _cv2
-                        gray_lc = _cv2.cvtColor(rgb_uint8_kf, _cv2.COLOR_RGB2GRAY)
-                        kpts_cur, desc_cur = self._keyframe_db._orb.detectAndCompute(
-                            gray_lc, None
-                        )
-                        T_rel_np, match_idx, _n_inliers = self._keyframe_db.find_loop(
-                            (kpts_cur, desc_cur),
-                            K_np_kf,
-                            exclude_last_n=8,
-                            min_inliers=self.loop_closure_min_inliers,
-                        )
-                        if T_rel_np is not None:
-                            T_rel_loop = torch.tensor(
-                                T_rel_np, dtype=depth.dtype, device=depth.device
-                            )
-                            self._pose_graph.add_keyframe(
-                                self.T_world_camera, T_rel_measured=T_rel_loop, weight=2.0
-                            )
-                            corrected_lc = self._pose_graph.get_corrected_poses()
-                            n_graph_lc = len(corrected_lc)
-                            n_kf_lc = len(self.keyframes)
-                            for j, new_pose in enumerate(corrected_lc):
-                                kf_idx = n_kf_lc - n_graph_lc + j
-                                if 0 <= kf_idx < n_kf_lc:
-                                    self.keyframes[kf_idx].T_world_camera = new_pose
-                            if corrected_lc:
-                                self.T_world_camera = corrected_lc[-1].clone()
-                            best_quality["loop_closure_frame_idx"] = match_idx
+            # Keyframe DB population + loop closure (opt-in). Loop edges are the
+            # only source of drift correction in the pose graph.
+            self._try_loop_closure(depth, K, rgb, best_quality)
 
         best_quality["integrated"] = integrate_frame
         best_quality["velocity_fallback_count"] = self._velocity_fallback_count
@@ -1216,86 +1159,13 @@ class RGBDTSDFSLAM(torch.nn.Module):
             if len(self.keyframes) > self.max_keyframes:
                 self.keyframes = self.keyframes[-self.max_keyframes :]
 
-            # Sliding-window pose graph correction (opt-in via pose_graph_enabled)
-            if self._pose_graph is not None:
-                inlier_w = float(best_quality.get("inlier_ratio", 0.5))
-                rmse_w = 1.0 / max(float(best_quality.get("rmse", 0.01)), 1e-4)
-                w = inlier_w * min(rmse_w, 100.0)
-                # Pass best_rel as the independent ICP measurement so the
-                # optimizer has information to correct drift with.
-                self._pose_graph.add_keyframe(
-                    self.T_world_camera,
-                    T_rel_measured=best_rel,
-                    weight=w,
-                )
-                if self._pose_graph.num_keyframes >= 2:
-                    corrected = self._pose_graph.get_corrected_poses()
-                    # Update matching keyframes in self.keyframes
-                    n_graph = len(corrected)
-                    n_kf = len(self.keyframes)
-                    for j, new_pose in enumerate(corrected):
-                        kf_idx = n_kf - n_graph + j
-                        if 0 <= kf_idx < n_kf:
-                            self.keyframes[kf_idx].T_world_camera = new_pose
-                    # Update current camera pose from last corrected pose
-                    if corrected:
-                        self.T_world_camera = corrected[-1].clone()
-                    # Rebuild _last_reference so next frame tracks corrected geometry
-                    self._last_reference = self._make_reference(
-                        depth=depth,
-                        K=K,
-                        T_world_camera=self.T_world_camera,
-                        frame_idx=self.frame_count,
-                        rgb=rgb,
-                        normal=live_normal,
-                        is_keyframe=True,
-                    )
+            # Sliding-window pose graph correction (opt-in via pose_graph_enabled).
+            # The current keyframe is added to the graph exactly once here.
+            self._apply_pose_graph(depth, K, rgb, live_normal, best_quality)
 
-            # Keyframe database population (opt-in, both reloc and loop closure)
-            if self._keyframe_db is not None and rgb is not None:
-                rgb_uint8_kf_h = _rgb_to_uint8_cpu(rgb)
-                if rgb_uint8_kf_h is not None:
-                    depth_np_kf_h = depth.detach().cpu().numpy().astype("float32")
-                    K_np_kf_h = K.detach().cpu().numpy()
-                    T_np_kf_h = self.T_world_camera.detach().cpu().numpy()
-                    self._keyframe_db.add(
-                        rgb_uint8_kf_h, depth_np_kf_h, K_np_kf_h, T_np_kf_h,
-                        self.frame_count
-                    )
-                    # Loop closure check
-                    if (
-                        self.loop_closure_enabled
-                        and self._pose_graph is not None
-                        and len(self._keyframe_db) > 8
-                    ):
-                        import cv2 as _cv2
-                        gray_lc_h = _cv2.cvtColor(rgb_uint8_kf_h, _cv2.COLOR_RGB2GRAY)
-                        kpts_cur_h, desc_cur_h = self._keyframe_db._orb.detectAndCompute(
-                            gray_lc_h, None
-                        )
-                        T_rel_np_h, match_idx_h, _n_inliers_h = self._keyframe_db.find_loop(
-                            (kpts_cur_h, desc_cur_h),
-                            K_np_kf_h,
-                            exclude_last_n=8,
-                            min_inliers=self.loop_closure_min_inliers,
-                        )
-                        if T_rel_np_h is not None:
-                            T_rel_loop_h = torch.tensor(
-                                T_rel_np_h, dtype=depth.dtype, device=depth.device
-                            )
-                            self._pose_graph.add_keyframe(
-                                self.T_world_camera, T_rel_measured=T_rel_loop_h, weight=2.0
-                            )
-                            corrected_lc_h = self._pose_graph.get_corrected_poses()
-                            n_graph_lc_h = len(corrected_lc_h)
-                            n_kf_lc_h = len(self.keyframes)
-                            for j, new_pose in enumerate(corrected_lc_h):
-                                kf_idx = n_kf_lc_h - n_graph_lc_h + j
-                                if 0 <= kf_idx < n_kf_lc_h:
-                                    self.keyframes[kf_idx].T_world_camera = new_pose
-                            if corrected_lc_h:
-                                self.T_world_camera = corrected_lc_h[-1].clone()
-                            best_quality["loop_closure_frame_idx"] = match_idx_h
+            # Keyframe DB population + loop closure (opt-in). Loop edges are the
+            # only source of drift correction in the pose graph.
+            self._try_loop_closure(depth, K, rgb, best_quality)
 
         best_quality["integrated"] = integrate_frame
         best_quality["velocity_fallback_count"] = self._velocity_fallback_count
@@ -1351,6 +1221,133 @@ class RGBDTSDFSLAM(torch.nn.Module):
         quality = dict(quality)
         quality["tracking_source"] = "tsdf"
         return pose, rel, quality
+
+    def _write_back_corrected_poses(self, corrected: list[torch.Tensor]) -> None:
+        """Write optimized node poses back into self.keyframes by node id.
+
+        The pose graph uses keyframe ``frame_idx`` as node ids, so we match
+        corrected poses to keyframes by that id. Keyframes whose frame_idx is
+        not a current node (e.g. slid out of the window) are left untouched.
+        """
+        id_to_pose = {
+            nid: pose
+            for nid, pose in zip(self._pose_graph._ids, corrected)
+        }
+        for kf in self.keyframes:
+            new_pose = id_to_pose.get(getattr(kf, "frame_idx", None))
+            if new_pose is not None:
+                kf.T_world_camera = new_pose
+
+    def _apply_pose_graph(
+        self,
+        depth: torch.Tensor,
+        K: torch.Tensor,
+        rgb,
+        live_normal,
+        best_quality: dict,
+    ) -> None:
+        """Add the current keyframe to the pose graph and apply correction.
+
+        Adds the new keyframe as a node (id = its frame index) with a
+        sequential keyframe-to-keyframe edge whose measurement is derived from
+        the absolute poses (a residual-free no-op; drift correction comes from
+        loop edges added separately). Then optimizes and writes corrected
+        poses back. Adds the node exactly once per keyframe.
+        """
+        if self._pose_graph is None:
+            return
+        inlier_w = float(best_quality.get("inlier_ratio", 0.5))
+        rmse_w = 1.0 / max(float(best_quality.get("rmse", 0.01)), 1e-4)
+        w = inlier_w * min(rmse_w, 100.0)
+        # node_id = the keyframe's frame index; T_rel_measured=None derives the
+        # correct keyframe-to-keyframe relative from the absolute poses.
+        self._pose_graph.add_keyframe(
+            self.T_world_camera,
+            node_id=self.frame_count,
+            T_rel_measured=None,
+            weight=w,
+        )
+        if self._pose_graph.num_keyframes >= 2:
+            corrected = self._pose_graph.get_corrected_poses()
+            self._write_back_corrected_poses(corrected)
+            if corrected:
+                self.T_world_camera = corrected[-1].clone()
+            # Rebuild _last_reference so the next frame tracks corrected geometry.
+            self._last_reference = self._make_reference(
+                depth=depth,
+                K=K,
+                T_world_camera=self.T_world_camera,
+                frame_idx=self.frame_count,
+                rgb=rgb,
+                normal=live_normal,
+                is_keyframe=True,
+            )
+
+    def _try_loop_closure(
+        self,
+        depth: torch.Tensor,
+        K: torch.Tensor,
+        rgb,
+        best_quality: dict,
+    ) -> None:
+        """Populate the keyframe DB and inject a loop-closure edge if found.
+
+        On a detected loop, adds a *loop edge* between the matched node and the
+        current node (not a new keyframe node), then re-optimizes and writes
+        back corrected poses.
+        """
+        if self._keyframe_db is None or rgb is None:
+            return
+        rgb_uint8_kf = _rgb_to_uint8_cpu(rgb)
+        if rgb_uint8_kf is None:
+            return
+        depth_np_kf = depth.detach().cpu().numpy().astype("float32")
+        K_np_kf = K.detach().cpu().numpy()
+        T_np_kf = self.T_world_camera.detach().cpu().numpy()
+        self._keyframe_db.add(
+            rgb_uint8_kf, depth_np_kf, K_np_kf, T_np_kf, self.frame_count
+        )
+
+        if not (
+            self.loop_closure_enabled
+            and self._pose_graph is not None
+            and len(self._keyframe_db) > self.loop_exclude_last_n
+        ):
+            return
+
+        import cv2 as _cv2
+        gray_lc = _cv2.cvtColor(rgb_uint8_kf, _cv2.COLOR_RGB2GRAY)
+        kpts_cur, desc_cur = self._keyframe_db._orb.detectAndCompute(gray_lc, None)
+        T_rel_np, match_idx, _n_inliers = self._keyframe_db.find_loop(
+            (kpts_cur, desc_cur),
+            K_np_kf,
+            exclude_last_n=self.loop_exclude_last_n,
+            min_inliers=self.loop_closure_min_inliers,
+        )
+        if T_rel_np is None:
+            return
+
+        # Convention derivation (sign is load-bearing):
+        # find_loop runs solvePnP(objectPoints=pts_3d in the MATCHED keyframe
+        # frame, imagePoints=query pixels, K=query). The solvePnP contract
+        # returns [R|t] s.t. p_query = M @ p_ref, i.e. M maps ref->query points,
+        # so  M = inv(T_world_query) @ T_world_match.
+        # The pose-graph edge convention is  E ≈ inv(T_world_a) @ T_world_b
+        # with a = match (older) and b = current (query):
+        #   E = inv(T_world_match) @ T_world_query = inv(M).
+        # Hence we must pass the INVERSE of find_loop's returned transform.
+        M = torch.tensor(T_rel_np, dtype=depth.dtype, device=depth.device)
+        T_rel_loop = torch.linalg.inv(M)
+        added = self._pose_graph.add_loop_edge(
+            int(match_idx), int(self.frame_count), T_rel_loop, weight=2.0
+        )
+        if not added:
+            return
+        corrected_lc = self._pose_graph.get_corrected_poses()
+        self._write_back_corrected_poses(corrected_lc)
+        if corrected_lc:
+            self.T_world_camera = corrected_lc[-1].clone()
+        best_quality["loop_closure_frame_idx"] = match_idx
 
     def _make_reference(
         self,

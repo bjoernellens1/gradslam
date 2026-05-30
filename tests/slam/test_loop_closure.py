@@ -83,3 +83,55 @@ def test_find_loop_detects_when_enough_keyframes():
     if match_idx >= 0 and T_rel_np is not None:
         assert T_rel_np.shape == (4, 4)
         assert np.allclose(T_rel_np, np.eye(4), atol=0.15)  # same image → near identity
+
+
+def test_loop_edge_convention_matches_find_loop_sign():
+    """Pin the sign of the loop-edge measurement against find_loop's PnP
+    output convention.
+
+    find_loop runs solvePnP(objectPoints in the MATCHED (ref) frame,
+    imagePoints = query pixels, K = query), so the returned M satisfies
+    p_query = M @ p_ref, i.e. M = inv(T_world_query) @ T_world_ref. The
+    pose-graph edge convention is E ≈ inv(T_world_a) @ T_world_b with
+    a=match (ref), b=current (query):
+        E = inv(T_world_ref) @ T_world_query = inv(M).
+    This test builds M from known world poses the way find_loop would, then
+    asserts that feeding inv(M) (NOT M) as the loop edge corrects drift while
+    feeding M makes it worse — catching a sign flip.
+    """
+    import torch
+    from gradslam.slam.pose_graph import SlidingWindowPoseGraph
+
+    # Ground-truth world poses (cam->world). Node 0 anchor, node 4 = query.
+    n = 5
+    true_poses = []
+    for i in range(n):
+        T = torch.eye(4)
+        T[0, 3] = 0.1 * i
+        true_poses.append(T)
+
+    # Drifted chained absolute poses (over-shoot accumulates).
+    drifted = [true_poses[0].clone()]
+    for i in range(1, n):
+        rel = torch.linalg.inv(true_poses[i - 1]) @ true_poses[i]
+        rel[0, 3] += 0.03
+        drifted.append(drifted[-1] @ rel)
+
+    # M as find_loop would return it, from the GROUND-TRUTH world poses:
+    #   M = inv(T_world_query) @ T_world_ref   (ref = node 0, query = node 4)
+    M = torch.linalg.inv(true_poses[4]) @ true_poses[0]
+
+    def run(edge_meas):
+        pg = SlidingWindowPoseGraph(window_size=16, n_iterations=30, damping=1e-6)
+        for i in range(n):
+            pg.add_keyframe(drifted[i], node_id=i)
+        pg.add_loop_edge(0, 4, edge_meas, weight=5.0)
+        corrected = pg.optimize()
+        return (corrected[-1][0, 3] - true_poses[-1][0, 3]).abs().item()
+
+    err_before = (drifted[-1][0, 3] - true_poses[-1][0, 3]).abs().item()
+    err_correct = run(torch.linalg.inv(M))  # the sign the pipeline uses
+    err_flipped = run(M)                     # the wrong sign
+
+    assert err_correct < err_before, "inv(M) edge should reduce drift"
+    assert err_flipped > err_correct, "M (wrong sign) should be worse than inv(M)"
