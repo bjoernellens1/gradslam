@@ -893,6 +893,11 @@ def save_results(output_dir: Path, poses_est, tracking_log, dataset_type,
     print(f"✓ Metrics JSON    → {json_file}")
 
     # ------------------------------------------------------------------
+    # Debug plots
+    # ------------------------------------------------------------------
+    _save_debug_plots(output_dir, tracking_log)
+
+    # ------------------------------------------------------------------
     # Write config_resolved.yaml (best-effort)
     # ------------------------------------------------------------------
     if args is not None:
@@ -922,6 +927,107 @@ def save_results(output_dir: Path, poses_est, tracking_log, dataset_type,
                 pass  # best-effort: skip silently
         except Exception:
             pass  # best-effort: skip silently
+
+
+STATE_COLORS = {"ok": "#2ecc71", "weak": "#e67e22", "lost": "#e74c3c", "unknown": "#95a5a6"}
+_STATE_INT = {"ok": 2, "weak": 1, "lost": 0, "unknown": -1}
+
+
+def _save_debug_plots(
+    output_dir: Path,
+    tracking_log: list[dict],
+    ate_per_frame: list[float] | None = None,
+) -> None:
+    """Generate and save tracking debug plots to output_dir/tracking_plots.png."""
+    try:
+        import matplotlib
+        matplotlib.use("Agg")  # non-interactive backend
+        import matplotlib.pyplot as plt
+    except ImportError:
+        print("matplotlib not available — skipping debug plots (install with pip install matplotlib)")
+        return
+
+    if not tracking_log:
+        print("tracking_log is empty — skipping debug plots")
+        return
+
+    frames = [r["idx"] for r in tracking_log]
+    inlier_ratios = [r.get("inlier_ratio", 0.0) for r in tracking_log]
+    rmse_vals = [r.get("rmse", 0.0) for r in tracking_log]
+    translations = [r.get("frame_translation", -1.0) for r in tracking_log]
+    rotations = [r.get("frame_rotation_deg", -1.0) for r in tracking_log]
+    states = [r.get("tracking_state", "unknown") for r in tracking_log]
+    point_colors = [STATE_COLORS.get(s, STATE_COLORS["unknown"]) for s in states]
+
+    fig, axes = plt.subplots(3, 2, figsize=(14, 12))
+    ax = axes.flatten()
+
+    # --- Panel 1: Inlier ratio over time ---
+    ax[0].scatter(frames, inlier_ratios, c=point_colors, s=10, zorder=3)
+    ax[0].axhline(0.15, color="green", linestyle="--", linewidth=1.0, label="ok (0.15)")
+    ax[0].axhline(0.08, color="orange", linestyle="--", linewidth=1.0, label="weak (0.08)")
+    ax[0].set_xlabel("Frame index")
+    ax[0].set_ylabel("Inlier ratio")
+    ax[0].set_title("Inlier ratio over time")
+    ax[0].legend(fontsize=8)
+
+    # --- Panel 2: ICP RMSE over time ---
+    ax[1].scatter(frames, rmse_vals, c=point_colors, s=10, zorder=3)
+    ax[1].set_xlabel("Frame index")
+    ax[1].set_ylabel("RMSE (m)")
+    ax[1].set_title("ICP RMSE over time")
+
+    # --- Panel 3: Frame-to-frame translation ---
+    valid_t_idx = [f for f, t in zip(frames, translations) if t != -1.0]
+    valid_t_val = [t for t in translations if t != -1.0]
+    if valid_t_idx:
+        ax[2].plot(valid_t_idx, valid_t_val, linewidth=0.8, color="#3498db")
+    ax[2].set_xlabel("Frame index")
+    ax[2].set_ylabel("Translation (m)")
+    ax[2].set_title("Frame-to-frame translation")
+
+    # --- Panel 4: Frame-to-frame rotation ---
+    valid_r_idx = [f for f, r in zip(frames, rotations) if r != -1.0]
+    valid_r_val = [r for r in rotations if r != -1.0]
+    if valid_r_idx:
+        ax[3].plot(valid_r_idx, valid_r_val, linewidth=0.8, color="#9b59b6")
+    ax[3].set_xlabel("Frame index")
+    ax[3].set_ylabel("Rotation (deg)")
+    ax[3].set_title("Frame-to-frame rotation")
+
+    # --- Panel 5: Tracking state over time ---
+    state_ints = [_STATE_INT.get(s, -1) for s in states]
+    ax[4].step(frames, state_ints, where="post", linewidth=1.0, color="#2c3e50")
+    ax[4].set_xlabel("Frame index")
+    ax[4].set_ylabel("State")
+    ax[4].set_yticks([0, 1, 2])
+    ax[4].set_yticklabels(["lost", "weak", "ok"])
+    ax[4].set_title("Tracking state over time")
+
+    # --- Panel 6: ATE per frame (if available) ---
+    if ate_per_frame is not None and len(ate_per_frame) > 0:
+        ate_frames = list(range(len(ate_per_frame)))
+        ax[5].plot(ate_frames, ate_per_frame, linewidth=0.8, color="#e74c3c")
+        ax[5].set_xlabel("Frame index")
+        ax[5].set_ylabel("ATE (m)")
+        ax[5].set_title("ATE per frame")
+    else:
+        ax[5].text(
+            0.5, 0.5,
+            "ATE per-frame not available\n(requires GT)",
+            ha="center", va="center",
+            fontsize=10, color="#7f8c8d",
+            transform=ax[5].transAxes,
+        )
+        ax[5].set_title("ATE per frame")
+        ax[5].set_xticks([])
+        ax[5].set_yticks([])
+
+    fig.tight_layout()
+    plot_path = output_dir / "tracking_plots.png"
+    fig.savefig(plot_path, dpi=100, bbox_inches="tight")
+    plt.close(fig)
+    print(f"✓ Debug plots → {plot_path}")
 
 
 def _evaluate_and_print(poses_est, gt_file, gt_format, output_dir, tracking_log=None):
