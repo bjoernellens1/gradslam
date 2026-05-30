@@ -146,7 +146,6 @@ class KeyframeDatabase:
 
     def find_loop(
         self,
-        query_rgb: np.ndarray,
         query_desc: tuple,      # (kpts, desc) already computed
         query_K: np.ndarray,    # camera intrinsics for PnP
         exclude_last_n: int = 8,
@@ -157,8 +156,8 @@ class KeyframeDatabase:
         Runs PnP-RANSAC geometric verification on appearance candidates.
 
         Returns (T_rel_np, match_frame_idx, num_inliers) or (None, -1, 0).
-        T_rel is T_match_world_inv @ T_world_query (relative transform from
-        matched keyframe to current query — the loop edge measurement).
+        T_rel is the PnP-estimated camera-to-camera transform from the matched
+        keyframe to the query frame (the loop edge measurement).
         """
         kpts_q, desc_q = query_desc
         if desc_q is None or len(kpts_q) < 10:
@@ -235,10 +234,8 @@ class KeyframeDatabase:
                 T_ref_query = np.eye(4)
                 T_ref_query[:3, :3] = R_mat
                 T_ref_query[:3, 3] = tvec[:, 0]
-                # T_rel = inv(T_match_world) @ T_world_query
-                # = T_ref_query (relative transform from matched KF to query)
-                T_world_query = entry["T_world_camera"] @ T_ref_query
-                T_rel = np.linalg.inv(entry["T_world_camera"]) @ T_world_query
+                # T_rel is the PnP-estimated transform from the matched KF to the query
+                T_rel = T_ref_query
                 best = (T_rel, entry["frame_idx"], n_inliers)
 
         if best[0] is None:

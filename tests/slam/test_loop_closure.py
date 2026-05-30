@@ -27,7 +27,7 @@ def test_find_loop_empty_database():
     gray = np.zeros((120, 160), dtype=np.uint8)
     kpts, desc = orb.detectAndCompute(gray, None)
     T_rel_np, match_idx, n_inliers = db.find_loop(
-        _textured_rgb(), (kpts, desc), query_K=_K(), exclude_last_n=8
+        (kpts, desc), query_K=_K(), exclude_last_n=8
     )
     assert match_idx == -1
     assert T_rel_np is None
@@ -50,7 +50,7 @@ def test_find_loop_skips_recent_keyframes():
     gray = _cv2.cvtColor(rgb, _cv2.COLOR_RGB2GRAY)
     kpts, desc = orb.detectAndCompute(gray, None)
     T_rel_np, match_idx, n_inliers = db.find_loop(
-        rgb, (kpts, desc), query_K=_K(), exclude_last_n=8, min_inliers=5
+        (kpts, desc), query_K=_K(), exclude_last_n=8, min_inliers=5
     )
     # Should return -1 since all keyframes are within exclude_last_n
     assert match_idx == -1
@@ -75,8 +75,11 @@ def test_find_loop_detects_when_enough_keyframes():
 
     # With a very low min_inliers threshold, same-image match should be found
     T_rel_np, match_idx, n_inliers = db.find_loop(
-        rgb, (kpts, desc), query_K=_K(), exclude_last_n=8, min_inliers=1
+        (kpts, desc), query_K=_K(), exclude_last_n=8, min_inliers=1
     )
     # Either finds a match (positive match_idx) or returns -1 if no features
     # (checker may not produce features on some platforms)
     assert match_idx == -1 or (match_idx >= 0 and T_rel_np is not None)
+    if match_idx >= 0 and T_rel_np is not None:
+        assert T_rel_np.shape == (4, 4)
+        assert np.allclose(T_rel_np, np.eye(4), atol=0.15)  # same image → near identity

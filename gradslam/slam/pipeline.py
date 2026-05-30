@@ -841,7 +841,6 @@ class RGBDTSDFSLAM(torch.nn.Module):
                             gray_lc, None
                         )
                         T_rel_np, match_idx, _n_inliers = self._keyframe_db.find_loop(
-                            rgb_uint8_kf,
                             (kpts_cur, desc_cur),
                             K_np_kf,
                             exclude_last_n=8,
@@ -1213,7 +1212,6 @@ class RGBDTSDFSLAM(torch.nn.Module):
                             gray_lc_h, None
                         )
                         T_rel_np_h, match_idx_h, _n_inliers_h = self._keyframe_db.find_loop(
-                            rgb_uint8_kf_h,
                             (kpts_cur_h, desc_cur_h),
                             K_np_kf_h,
                             exclude_last_n=8,
