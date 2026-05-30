@@ -816,6 +816,8 @@ def save_results(output_dir: Path, poses_est, tracking_log, dataset_type,
                 "tracking_ms": r["tracking_ms"],
                 "lost": int(r["lost"]),
                 "candidates_json": r.get("candidates_json", "[]"),
+                "tracking_state": r.get("tracking_state", "ok"),
+                "map_update_allowed": int(r.get("map_update_allowed", True)),
             }
             writer.writerow(row)
     print(f"✓ Tracking debug CSV → {csv_file}")
@@ -895,7 +897,11 @@ def save_results(output_dir: Path, poses_est, tracking_log, dataset_type,
     # ------------------------------------------------------------------
     # Debug plots
     # ------------------------------------------------------------------
-    _save_debug_plots(output_dir, tracking_log)
+    _save_debug_plots(
+        output_dir,
+        tracking_log,
+        ate_per_frame=(eval_metrics or {}).get("ate_per_frame"),
+    )
 
     # ------------------------------------------------------------------
     # Write config_resolved.yaml (best-effort)
@@ -1064,6 +1070,14 @@ def _evaluate_and_print(poses_est, gt_file, gt_format, output_dir, tracking_log=
     rpe1 = compute_rpe(pairs, delta=1)
     rpe10 = compute_rpe(pairs, delta=min(10, len(pairs) - 1))
 
+    # Per-pair aligned ATE (translation error after Umeyama alignment) so the
+    # debug plot's ATE-over-time panel can render instead of "(requires GT)".
+    import numpy as _np
+    est_t = _np.array([p[0][:3, 3] for p in pairs])
+    gt_t = _np.array([p[1][:3, 3] for p in pairs])
+    est_aligned = (ate.T_align[:3, :3] @ est_t.T).T + ate.T_align[:3, 3]
+    ate_per_frame = _np.linalg.norm(est_aligned - gt_t, axis=1).tolist()
+
     print(f"\n{ate}")
     print(f"{rpe1}")
     print(f"{rpe10}")
@@ -1080,6 +1094,7 @@ def _evaluate_and_print(poses_est, gt_file, gt_format, output_dir, tracking_log=
         "ate_mean_m": ate.mean,
         "rpe_rmse_m": rpe1.rmse_t,
         "rpe_rmse_deg": rpe1.rmse_r,
+        "ate_per_frame": ate_per_frame,
     }
 
 

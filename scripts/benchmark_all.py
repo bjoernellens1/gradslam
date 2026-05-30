@@ -38,11 +38,18 @@ def run_benchmark(dataset_type: str, sequence_path: str, dataset_name: str) -> B
         output_dir = Path("runs") / dataset_name / sequence_name
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        # Run SLAM
+        # Run SLAM as designed for accuracy (hybrid TSDF + mapping + keyframe
+        # anchoring + feature PnP). The bare defaults are a fast_rgbd speed
+        # preset with every drift-mitigation path off; benchmarking them
+        # underrepresents the system. See BENCHMARK_RESULTS.md.
         cmd = [
             "python", "scripts/run_slam.py",
             dataset_type,
             "--output", str(output_dir),
+            "--slam-backend", "rgbdtsdf",
+            "--enable-mapping",
+            "--keyframe-tracking-interval", "10",
+            "--feature-interval", "5",
         ]
 
         if dataset_type == "tum":
