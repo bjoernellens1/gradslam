@@ -6,6 +6,8 @@ Computes per-correspondence intensity residuals and their 6-DOF Jacobians.
 import torch
 import torch.nn.functional as F
 
+_sobel_cache: dict = {}
+
 
 def sobel_gradients(gray: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
     """Compute Sobel image gradients.
@@ -16,11 +18,14 @@ def sobel_gradients(gray: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
     Returns:
         (dI_dx, dI_dy): Gradient images [H, W] each.
     """
-    # Sobel kernels
-    kx = torch.tensor([[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]],
-                       dtype=gray.dtype, device=gray.device).view(1, 1, 3, 3) / 8.0
-    ky = torch.tensor([[-1, -2, -1], [0, 0, 0], [1, 2, 1]],
-                       dtype=gray.dtype, device=gray.device).view(1, 1, 3, 3) / 8.0
+    key = (gray.device, gray.dtype)
+    if key not in _sobel_cache:
+        kx = torch.tensor([[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]],
+                           dtype=gray.dtype, device=gray.device).view(1, 1, 3, 3) / 8.0
+        ky = torch.tensor([[-1, -2, -1], [0, 0, 0], [1, 2, 1]],
+                           dtype=gray.dtype, device=gray.device).view(1, 1, 3, 3) / 8.0
+        _sobel_cache[key] = (kx, ky)
+    kx, ky = _sobel_cache[key]
     g = gray.unsqueeze(0).unsqueeze(0)  # [1, 1, H, W]
     dI_dx = F.conv2d(g, kx, padding=1).squeeze()  # [H, W]
     dI_dy = F.conv2d(g, ky, padding=1).squeeze()  # [H, W]

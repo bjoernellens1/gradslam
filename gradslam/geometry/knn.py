@@ -21,7 +21,11 @@ class KNNResult:
 
 
 def knn_points(
-    src: torch.Tensor, tgt: torch.Tensor, k: int = 1, chunk_size: int = 10000
+    src: torch.Tensor,
+    tgt: torch.Tensor,
+    k: int = 1,
+    chunk_size: int = 10000,
+    squared: bool = True,
 ) -> KNNResult:
     """Find K-nearest neighbors of src points in tgt point cloud.
 
@@ -32,9 +36,11 @@ def knn_points(
         tgt: Target points, shape [B, M, 3].
         k: Number of nearest neighbors. Default: 1.
         chunk_size: Process src points in chunks of this size.
+        squared: If True (default), return squared Euclidean distances.
+            Set to False to return actual (non-squared) distances.
 
     Returns:
-        KNNResult with dists [B, N, K] and idx [B, N, K].
+        KNNResult with dists [B, N, K] (squared by default) and idx [B, N, K].
     """
     B, N, D = src.shape
     _, M, _ = tgt.shape
@@ -72,7 +78,7 @@ def knn_points(
     dists = torch.cat(dists_list, dim=1)  # [B, N, k]
     idx = torch.cat(idx_list, dim=1)  # [B, N, k]
 
-    # Convert squared distances to actual distances
-    dists = torch.sqrt(torch.clamp(dists, min=0.0))
+    if not squared:
+        dists = torch.sqrt(torch.clamp(dists, min=0.0))
 
     return KNNResult(dists=dists, idx=idx)
