@@ -555,6 +555,29 @@ def run_slam(args, dataset, extractor, device):
         loader = None
         data_iter = ((idx, dataset[idx]) for idx in range(n_frames))
 
+    # --- Startup sanity diagnostics (peek at frame 0 without consuming iter) ---
+    try:
+        from gradslam.slam.diagnostics import log_startup_sanity
+        _first_sample = dataset[0]
+        _colors0, _depths0, _intrinsics0, _gt_pose0, _ts0 = extractor(_first_sample, device)
+        if _depths0 is not None and _intrinsics0 is not None:
+            _process_scale = float(getattr(args, 'process_scale', 1.0))
+            _label = (getattr(args, 'sequence', None) or getattr(args, 'scene_dir', None)
+                      or getattr(args, 'capture_dir', None) or '')
+            if isinstance(_label, str):
+                _label = _label.rstrip('/').split('/')[-1]
+            log_startup_sanity(
+                first_frame_depth=_depths0,
+                intrinsics=_intrinsics0,
+                process_scale=_process_scale,
+                rgb_ts=None,
+                depth_ts=None,
+                gt_poses=None,
+                label=str(_label),
+            )
+    except Exception as _diag_exc:
+        print(f"[diagnostics] skipped: {_diag_exc}")
+
     start_time = time.time()
     with torch.no_grad():
         for idx, sample in tqdm(data_iter, total=n_frames, desc="SLAM"):
