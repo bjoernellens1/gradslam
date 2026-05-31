@@ -1,0 +1,5 @@
+Hb_imgn freiburg1_room 0 --slam-backend rgbdtsdf --enable-mapping --keyframe-tracking-interval 10 --feature-interval 5 --voxel-size 0.02 --raycast-normal-mode image
+Hb_imgn_nofeat freiburg1_xyz 0 --slam-backend rgbdtsdf --enable-mapping --keyframe-tracking-interval 10 --feature-interval 0 --voxel-size 0.02 --raycast-normal-mode image
+Hb_imgn_nofeat freiburg1_desk 0 --slam-backend rgbdtsdf --enable-mapping --keyframe-tracking-interval 10 --feature-interval 0 --voxel-size 0.02 --raycast-normal-mode image
+Hb_imgn_nofeat freiburg1_room 0 --slam-backend rgbdtsdf --enable-mapping --keyframe-tracking-interval 10 --feature-interval 0 --voxel-size 0.02 --raycast-normal-mode image
+F_nofeat freiburg1_room 0 --slam-backend fast_rgbd --keyframe-tracking-interval 10 --feature-interval 0
