@@ -118,14 +118,22 @@
 <span class="sd">        - Output: [6, 1]</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">device</span> <span class="o">=</span> <span class="n">A</span><span class="o">.</span><span class="n">device</span>
-    <span class="n">dtype</span> <span class="o">=</span> <span class="n">A</span><span class="o">.</span><span class="n">dtype</span>
+    <span class="n">out_dtype</span> <span class="o">=</span> <span class="n">A</span><span class="o">.</span><span class="n">dtype</span>
+
+    <span class="c1"># The 6x6 normal-equation solve always runs in float32: it is cheap, more</span>
+    <span class="c1"># numerically stable, and dtype-safe under mixed-precision autocast. Without</span>
+    <span class="c1"># this, A/b can arrive as bfloat16/float16 and torch.linalg.solve/lstsq raise</span>
+    <span class="c1"># (e.g. &quot;Expected input and other to have the same dtype, but got Float and</span>
+    <span class="c1"># BFloat16&quot;) or lose the rotation precision the SE(3) update needs.</span>
+    <span class="n">A</span> <span class="o">=</span> <span class="n">A</span><span class="o">.</span><span class="n">float</span><span class="p">()</span>
+    <span class="n">b</span> <span class="o">=</span> <span class="n">b</span><span class="o">.</span><span class="n">float</span><span class="p">()</span>
 
     <span class="c1"># Compute normal equations: (A^T A + damp*I)</span>
     <span class="n">AtA</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">matmul</span><span class="p">(</span><span class="n">A</span><span class="o">.</span><span class="n">t</span><span class="p">(),</span> <span class="n">A</span><span class="p">)</span>  <span class="c1"># [6, 6]</span>
     <span class="n">Atb</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">matmul</span><span class="p">(</span><span class="n">A</span><span class="o">.</span><span class="n">t</span><span class="p">(),</span> <span class="n">b</span><span class="p">)</span>  <span class="c1"># [6, 1]</span>
 
     <span class="c1"># Add damping to diagonal</span>
-    <span class="n">I</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="mi">6</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span>
+    <span class="n">I</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="mi">6</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">AtA</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
     <span class="n">H</span> <span class="o">=</span> <span class="n">AtA</span> <span class="o">+</span> <span class="n">damp</span> <span class="o">*</span> <span class="n">I</span>
 
     <span class="c1"># Solve H @ x = Atb via LU decomposition</span>
@@ -135,7 +143,7 @@
         <span class="c1"># Fallback: use lstsq if solve fails (singular or ill-conditioned)</span>
         <span class="n">x</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">lstsq</span><span class="p">(</span><span class="n">H</span><span class="p">,</span> <span class="n">Atb</span><span class="p">)</span>
 
-    <span class="k">return</span> <span class="n">x</span></div>
+    <span class="k">return</span> <span class="n">x</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">out_dtype</span><span class="p">)</span></div>
 
 </pre></div>
 

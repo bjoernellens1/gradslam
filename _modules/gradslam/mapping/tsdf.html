@@ -109,6 +109,7 @@
 <span class="sd">        voxel_size: Size of each voxel in meters.</span>
 <span class="sd">        truncation_margin_voxels: Truncation margin in voxel counts.</span>
 <span class="sd">        fuse_color: Whether to fuse color alongside geometry.</span>
+<span class="sd">            Note: Color fusion is not yet implemented. Must be False.</span>
 <span class="sd">        dtype: Data type for TSDF values.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
@@ -144,6 +145,8 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">config</span> <span class="o">=</span> <span class="n">config</span> <span class="ow">or</span> <span class="n">TSDFConfig</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">fuse_color</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;TSDF color fusion is not yet implemented. Set fuse_color=False.&quot;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">device</span> <span class="o">=</span> <span class="n">device</span> <span class="ow">or</span> <span class="n">torch</span><span class="o">.</span><span class="n">device</span><span class="p">(</span><span class="s2">&quot;cpu&quot;</span><span class="p">)</span>
 
         <span class="n">voxel_dim</span> <span class="o">=</span> <span class="n">voxel_dim</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
@@ -209,6 +212,8 @@
 <span class="sd">            obs_weight: Weight of this observation. Default: 1.0.</span>
 <span class="sd">            color: Optional color image [H, W, 3] in [0, 1] or [0, 255].</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">color</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;TSDF color fusion is not yet implemented. Pass color=None until implemented.&quot;</span><span class="p">)</span>
         <span class="n">H</span><span class="p">,</span> <span class="n">W</span> <span class="o">=</span> <span class="n">depth</span><span class="o">.</span><span class="n">shape</span>
         <span class="n">device</span> <span class="o">=</span> <span class="n">depth</span><span class="o">.</span><span class="n">device</span>
         <span class="n">dtype</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">dtype</span>
