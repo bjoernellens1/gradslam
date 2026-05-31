@@ -164,22 +164,33 @@ def raycast_tsdf(
 
     # Normals
     if normal_mode == "gradient":
-        # Normals: TSDF gradient at surface position (6 grid_sample calls).
+        # Normals: TSDF gradient at the surface position via central differences.
+        # The 6 finite-difference taps (±eps along x/y/z) are batched into a
+        # SINGLE grid_sample call (was 6) — same arithmetic, ~3x fewer 3D
+        # interpolation launches, which dominate raycast cost on ROCm.
         # Use t_surface (ray parameter) × unit ray direction — not depth_flat — for correct 3D position.
         surf_pts = t_w[None, :] + t_surface[:, None] * ray_world  # [N, 3]
         surf_vox = (surf_pts - tsdf_origin[None, :]) / voxel_size  # [N, 3]
         eps = 1.0  # 1 voxel step for gradient
 
-        def sample_at(offsets):
-            """Sample tsdf at surf_vox + offsets (offsets: [3])."""
-            pts = surf_vox + offsets.to(device=device, dtype=dtype)[None, :]
-            pts_n = (2.0 * pts / vol_size[None, :] - 1.0).unsqueeze(0).unsqueeze(2).unsqueeze(3)
-            out = F.grid_sample(tsdf_for_gs, pts_n, mode="bilinear", align_corners=True, padding_mode="border")
-            return out.squeeze()  # [N]
+        # 6 offsets: [+x,-x,+y,-y,+z,-z]
+        offsets = torch.tensor(
+            [[eps, 0, 0], [-eps, 0, 0], [0, eps, 0],
+             [0, -eps, 0], [0, 0, eps], [0, 0, -eps]],
+            device=device, dtype=dtype,
+        )  # [6, 3]
+        # [N, 6, 3] tap points → normalized [-1,1] → grid [1, N, 6, 1, 3]
+        tap_pts = surf_vox[:, None, :] + offsets[None, :, :]          # [N, 6, 3]
+        tap_norm = 2.0 * tap_pts / vol_size[None, None, :] - 1.0      # [N, 6, 3]
+        tap_grid = tap_norm.unsqueeze(0).unsqueeze(3)                 # [1, N, 6, 1, 3]
+        taps = F.grid_sample(
+            tsdf_for_gs, tap_grid, mode="bilinear",
+            align_corners=True, padding_mode="border",
+        ).reshape(N, 6)                                              # [N, 6]
 
-        gx = sample_at(torch.tensor([eps, 0, 0])) - sample_at(torch.tensor([-eps, 0, 0]))
-        gy = sample_at(torch.tensor([0, eps, 0])) - sample_at(torch.tensor([0, -eps, 0]))
-        gz = sample_at(torch.tensor([0, 0, eps])) - sample_at(torch.tensor([0, 0, -eps]))
+        gx = taps[:, 0] - taps[:, 1]
+        gy = taps[:, 2] - taps[:, 3]
+        gz = taps[:, 4] - taps[:, 5]
 
         grad = torch.stack([gx, gy, gz], dim=-1)  # [N, 3] in world space
         grad_cam = grad @ R_cw  # rotate to camera frame [N, 3]
