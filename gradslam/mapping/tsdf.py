@@ -131,13 +131,14 @@ class TSDFVolume(torch.nn.Module):
         voxel_coords = self._cached_voxel_coords   # [N, 3]
         voxel_world = self._cached_voxel_world      # [N, 3]
 
-        # Cheap depth pre-cull (behavior-identical): the camera-frame z is a
-        # single dot product (voxel_world @ R[2] + t_z) — ~3x cheaper than the
-        # full [N,3]@[3,3] transform. Voxels with z<=0 are behind the camera and
-        # would be rejected by the frustum `valid` mask anyway, so we restrict
-        # the full transform + projection to z>0 voxels. The map is unchanged;
-        # only the work done on behind-camera voxels is skipped.
-        z_cam_all = voxel_world @ R[2, :] + t[2]    # [N]
+        # Cheap depth pre-cull (behavior-identical): the camera-frame z is the
+        # dot of each voxel with the 3rd row of R, plus t_z. Voxels with z<=0 are
+        # behind the camera and would be rejected by the frustum `valid` mask
+        # anyway, so we restrict the full transform + projection to z>0 voxels.
+        # Computed as an elementwise mul+sum (NOT a matrix-vector gemv): some
+        # ROCm/hipBLAS builds raise HIPBLAS_STATUS_INTERNAL_ERROR on Sgemv of a
+        # large [N,3]·[3] product, so we avoid that path entirely.
+        z_cam_all = (voxel_world * R[2, :]).sum(dim=1) + t[2]    # [N]
         front = z_cam_all > 0
         if not bool(front.any()):
             return
