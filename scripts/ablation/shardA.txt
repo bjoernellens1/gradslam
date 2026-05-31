@@ -1,0 +1,14 @@
+F_base freiburg1_xyz 0 --slam-backend fast_rgbd --keyframe-tracking-interval 10 --feature-interval 5
+F_base freiburg1_desk 0 --slam-backend fast_rgbd --keyframe-tracking-interval 10 --feature-interval 5
+F_bf16 freiburg1_xyz 0 --slam-backend fast_rgbd --keyframe-tracking-interval 10 --feature-interval 5 --autocast bf16
+F_bf16 freiburg1_desk 0 --slam-backend fast_rgbd --keyframe-tracking-interval 10 --feature-interval 5 --autocast bf16
+F_s05 freiburg1_xyz 0 --slam-backend fast_rgbd --keyframe-tracking-interval 10 --feature-interval 5 --process-scale 0.5
+F_s05 freiburg1_desk 0 --slam-backend fast_rgbd --keyframe-tracking-interval 10 --feature-interval 5 --process-scale 0.5
+F_s05_bf16 freiburg1_xyz 0 --slam-backend fast_rgbd --keyframe-tracking-interval 10 --feature-interval 5 --process-scale 0.5 --autocast bf16
+F_s05_bf16 freiburg1_desk 0 --slam-backend fast_rgbd --keyframe-tracking-interval 10 --feature-interval 5 --process-scale 0.5 --autocast bf16
+H_base freiburg1_xyz 0 --slam-backend rgbdtsdf --enable-mapping --keyframe-tracking-interval 10 --feature-interval 5 --voxel-size 0.02
+H_base freiburg1_desk 0 --slam-backend rgbdtsdf --enable-mapping --keyframe-tracking-interval 10 --feature-interval 5 --voxel-size 0.02
+H_bf16 freiburg1_xyz 0 --slam-backend rgbdtsdf --enable-mapping --keyframe-tracking-interval 10 --feature-interval 5 --voxel-size 0.02 --autocast bf16
+H_bf16 freiburg1_desk 0 --slam-backend rgbdtsdf --enable-mapping --keyframe-tracking-interval 10 --feature-interval 5 --voxel-size 0.02 --autocast bf16
+H_s05 freiburg1_xyz 0 --slam-backend rgbdtsdf --enable-mapping --keyframe-tracking-interval 10 --feature-interval 5 --voxel-size 0.02 --process-scale 0.5
+H_s05 freiburg1_desk 0 --slam-backend rgbdtsdf --enable-mapping --keyframe-tracking-interval 10 --feature-interval 5 --voxel-size 0.02 --process-scale 0.5

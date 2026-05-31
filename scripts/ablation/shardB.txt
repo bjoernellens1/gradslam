@@ -1,0 +1,14 @@
+F_it42 freiburg1_xyz 0 --slam-backend fast_rgbd --keyframe-tracking-interval 10 --feature-interval 5 --icp-iters 4 2
+F_it42 freiburg1_desk 0 --slam-backend fast_rgbd --keyframe-tracking-interval 10 --feature-interval 5 --icp-iters 4 2
+F_nofeat freiburg1_xyz 0 --slam-backend fast_rgbd --keyframe-tracking-interval 10 --feature-interval 0
+F_nofeat freiburg1_desk 0 --slam-backend fast_rgbd --keyframe-tracking-interval 10 --feature-interval 0
+F_fastest freiburg1_xyz 0 --slam-backend fast_rgbd --keyframe-tracking-interval 10 --feature-interval 0 --process-scale 0.5 --autocast bf16 --icp-iters 4 2
+F_fastest freiburg1_desk 0 --slam-backend fast_rgbd --keyframe-tracking-interval 10 --feature-interval 0 --process-scale 0.5 --autocast bf16 --icp-iters 4 2
+H_v04 freiburg1_xyz 0 --slam-backend rgbdtsdf --enable-mapping --keyframe-tracking-interval 10 --feature-interval 5 --voxel-size 0.04
+H_v04 freiburg1_desk 0 --slam-backend rgbdtsdf --enable-mapping --keyframe-tracking-interval 10 --feature-interval 5 --voxel-size 0.04
+H_map10 freiburg1_xyz 0 --slam-backend rgbdtsdf --enable-mapping --keyframe-tracking-interval 10 --feature-interval 5 --voxel-size 0.02 --mapping-interval 10
+H_map10 freiburg1_desk 0 --slam-backend rgbdtsdf --enable-mapping --keyframe-tracking-interval 10 --feature-interval 5 --voxel-size 0.02 --mapping-interval 10
+H_it53 freiburg1_xyz 0 --slam-backend rgbdtsdf --enable-mapping --keyframe-tracking-interval 10 --feature-interval 5 --voxel-size 0.02 --icp-iters 5 3
+H_it53 freiburg1_desk 0 --slam-backend rgbdtsdf --enable-mapping --keyframe-tracking-interval 10 --feature-interval 5 --voxel-size 0.02 --icp-iters 5 3
+H_fast freiburg1_xyz 0 --slam-backend rgbdtsdf --enable-mapping --keyframe-tracking-interval 10 --feature-interval 5 --process-scale 0.5 --autocast bf16 --voxel-size 0.03 --mapping-interval 10
+H_fast freiburg1_desk 0 --slam-backend rgbdtsdf --enable-mapping --keyframe-tracking-interval 10 --feature-interval 5 --process-scale 0.5 --autocast bf16 --voxel-size 0.03 --mapping-interval 10
