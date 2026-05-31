@@ -376,8 +376,11 @@ def build_parser():
                        help="Maximum projective correspondence normal angle in degrees")
         p.add_argument("--no-depth-weighting", action="store_true",
                        help="Disable depth uncertainty weighting in projective ICP")
-        p.add_argument("--num-workers", type=int, default=0,
-                       help="DataLoader workers for async frame loading (0 = main thread)")
+        p.add_argument("--num-workers", type=int, default=4,
+                       help="DataLoader workers for async frame loading (0 = main "
+                            "thread / synchronous). Default 4: PNG decode + H2D "
+                            "overlaps with GPU tracking, lifting end-to-end fps "
+                            "toward tracking fps. Set 0 to disable.")
         p.add_argument("--prefetch-factor", type=int, default=2,
                        help="DataLoader prefetch factor (only used when --num-workers > 0)")
         p.add_argument("--no-pin-memory", action="store_true",
