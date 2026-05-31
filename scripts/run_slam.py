@@ -524,10 +524,14 @@ def run_slam(args, dataset, extractor, device):
         loop_closure_min_inliers=getattr(args, 'loop_closure_min_inliers', 30),
     ).to(device)
 
-    # Apply torch.compile for faster execution if requested
+    # torch.compile: compiling the whole SLAM module graph-breaks on the
+    # pipeline's Python control flow / .item() / cv2 calls, so it bought little.
+    # Instead, --compile enables GRADSLAM_COMPILE so the shape-stable leaf
+    # kernels (ICP residual + 6x6 solver) compile via compile_if_requested.
     if getattr(args, 'compile', False):
-        print("Compiling SLAM model with torch.compile...")
-        slam = torch.compile(slam, mode="reduce-overhead")
+        os.environ["GRADSLAM_COMPILE"] = "1"
+        print("torch.compile enabled for leaf kernels (GRADSLAM_COMPILE=1). "
+              "Note: must be set before importing gradslam to take effect.")
 
     n_frames = min(args.max_frames or len(dataset), len(dataset))
     poses_est = []

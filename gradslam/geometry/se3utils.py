@@ -172,9 +172,15 @@ def se3_inv(T: torch.Tensor) -> torch.Tensor:
     """Analytic inverse of a 4x4 SE(3) matrix.
 
     For ``T = [[R, t], [0, 1]]`` the inverse is ``[[R^T, -R^T t], [0, 1]]``.
-    This avoids a general LU solve (``torch.linalg.inv``) on the per-frame hot
-    path: it is cheaper, never triggers the LAPACK fallback, and stays on-device
-    with no host sync. Only valid for proper rigid transforms.
+
+    WARNING: this assumes R is *exactly* orthonormal (R^-1 == R^T). It is correct
+    for freshly composed transforms (e.g. ``inv(A) @ B`` of two well-formed
+    poses, or a single ``se3_exp`` output), but NOT for poses accumulated over
+    many ``dT @ T`` multiplications, where R slowly drifts from SO(3) and the R^T
+    shortcut yields a wrong inverse that compounds. For accumulated camera poses
+    on the tracking hot path use ``torch.linalg.inv`` instead — empirically the
+    analytic form there degraded fr1_desk ATE 0.135 -> 0.73. Intended for
+    short-lived relative transforms (e.g. pose-graph edge construction).
 
     Args:
         T: SE(3) matrix, shape [4, 4].

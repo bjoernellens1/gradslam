@@ -6,7 +6,6 @@ from dataclasses import dataclass
 
 import torch
 
-from ..geometry.se3utils import se3_inv
 
 
 @dataclass
@@ -121,9 +120,10 @@ class TSDFVolume(torch.nn.Module):
         device = depth.device
         dtype = self.config.dtype
 
-        # Inverse camera transform (world to camera). Analytic SE(3) inverse
-        # avoids a LU solve on the hot path.
-        T_camera_world = se3_inv(T_world_camera)
+        # Inverse camera transform (world to camera). Use the general inverse:
+        # accumulated poses drift from perfect orthonormality, so an analytic
+        # R^T shortcut introduces error that compounds over a run.
+        T_camera_world = torch.linalg.inv(T_world_camera)
         R = T_camera_world[:3, :3]
         t = T_camera_world[:3, 3]
 
