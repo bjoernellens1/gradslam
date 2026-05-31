@@ -3,7 +3,31 @@
 import torch
 import math
 import pytest
-from gradslam.geometry.se3utils import se3_exp, se3_log
+from gradslam.geometry.se3utils import se3_exp, se3_log, se3_inv
+
+
+def test_se3_inv_matches_linalg_inv():
+    """Analytic se3_inv equals torch.linalg.inv for proper rigid transforms,
+    and satisfies T @ inv(T) = I."""
+    torch.manual_seed(0)
+    for scale in (0.05, 0.5, 1.2):
+        for _ in range(5):
+            xi = torch.randn(6) * scale
+            xi[3:] = xi[3:].clamp(-1.0, 1.0)
+            T = se3_exp(xi)
+            Ti = se3_inv(T)
+            assert torch.allclose(Ti, torch.linalg.inv(T), atol=1e-5), (
+                f"se3_inv != linalg.inv at scale {scale}"
+            )
+            assert torch.allclose(T @ Ti, torch.eye(4), atol=1e-5)
+            assert torch.allclose(Ti @ T, torch.eye(4), atol=1e-5)
+
+
+def test_se3_inv_preserves_dtype_device():
+    T = se3_exp(torch.randn(6) * 0.3)
+    Ti = se3_inv(T)
+    assert Ti.dtype == T.dtype and Ti.device == T.device
+    assert Ti.shape == (4, 4)
 
 
 def test_exp_log_roundtrip():

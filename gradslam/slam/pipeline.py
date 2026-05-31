@@ -9,6 +9,7 @@ from dataclasses import dataclass
 import torch
 import torch.nn.functional as F
 
+from ..geometry.se3utils import se3_inv
 from ..icp.projective import ProjectiveICPConfig, ProjectiveICPTracker
 from ..mapping.tsdf import TSDFConfig, TSDFVolume
 from ..rendering.tsdf_raycast import RenderedFrame, raycast_tsdf
@@ -590,7 +591,7 @@ class RGBDTSDFSLAM(torch.nn.Module):
         live_gray = _to_gray(rgb) if rgb is not None else None
         predicted_pose = self._predict_pose()
 
-        predicted_rel = torch.linalg.inv(self.T_world_camera) @ predicted_pose
+        predicted_rel = se3_inv(self.T_world_camera) @ predicted_pose
         t_predicted = float(torch.norm(predicted_rel[:3, 3]).item())
 
         best_pose = predicted_pose
@@ -607,7 +608,7 @@ class RGBDTSDFSLAM(torch.nn.Module):
         tried_refs: list[int] = []
         for ref in self._fast_tracking_candidates(predicted_pose):
             tried_refs.append(id(ref))
-            init_T_ref_live = torch.linalg.inv(ref.T_world_camera) @ predicted_pose
+            init_T_ref_live = se3_inv(ref.T_world_camera) @ predicted_pose
             with ctx:
                 T_ref_live, quality = self.tracker(
                     live_depth=depth,
@@ -638,7 +639,7 @@ class RGBDTSDFSLAM(torch.nn.Module):
             all_evaluated.append((candidate_pose, quality))
             if self._quality_score(quality, t_predicted, self.candidate_disagreement_penalty) > self._quality_score(best_quality, t_predicted, self.candidate_disagreement_penalty):
                 best_pose = candidate_pose
-                best_rel = torch.linalg.inv(self.T_world_camera) @ best_pose
+                best_rel = se3_inv(self.T_world_camera) @ best_pose
                 best_quality = quality
 
         if (
@@ -647,7 +648,7 @@ class RGBDTSDFSLAM(torch.nn.Module):
             or best_quality.get("motion_gate", True) is False
         ):
             for ref in self._fast_recovery_candidates(predicted_pose, tried_refs):
-                init_T_ref_live = torch.linalg.inv(ref.T_world_camera) @ predicted_pose
+                init_T_ref_live = se3_inv(ref.T_world_camera) @ predicted_pose
                 with ctx:
                     T_ref_live, quality = self.tracker(
                         live_depth=depth,
@@ -678,7 +679,7 @@ class RGBDTSDFSLAM(torch.nn.Module):
                 all_evaluated.append((candidate_pose, quality))
                 if self._quality_score(quality, t_predicted, self.candidate_disagreement_penalty) > self._quality_score(best_quality, t_predicted, self.candidate_disagreement_penalty):
                     best_pose = candidate_pose
-                    best_rel = torch.linalg.inv(self.T_world_camera) @ best_pose
+                    best_rel = se3_inv(self.T_world_camera) @ best_pose
                     best_quality = quality
 
         # A2: scale-consistency veto — apply before PnP
@@ -691,7 +692,7 @@ class RGBDTSDFSLAM(torch.nn.Module):
             veto_result = self._scale_veto(all_candidates_sorted, t_predicted, self.scale_veto_ratio)
             if veto_result is not None:
                 best_pose, best_quality = veto_result
-                best_rel = torch.linalg.inv(self.T_world_camera) @ best_pose
+                best_rel = se3_inv(self.T_world_camera) @ best_pose
 
         # Summarize all evaluated candidates into best_quality for diagnostics
         best_quality["candidates"] = [
@@ -726,7 +727,7 @@ class RGBDTSDFSLAM(torch.nn.Module):
                 or pnp_quality.get("feature_inliers", 0) >= 20
             ):
                 best_pose = pnp_pose
-                best_rel = torch.linalg.inv(self.T_world_camera) @ best_pose
+                best_rel = se3_inv(self.T_world_camera) @ best_pose
                 best_quality.update(pnp_quality)
                 best_quality["tracking_source"] = "feature_pnp"
                 self._annotate_motion_quality(best_pose, best_quality)
@@ -758,7 +759,7 @@ class RGBDTSDFSLAM(torch.nn.Module):
                         best_pose = _torch.tensor(
                             recovered_T_np, dtype=depth.dtype, device=depth.device
                         )
-                        best_rel = torch.linalg.inv(self.T_world_camera) @ best_pose
+                        best_rel = se3_inv(self.T_world_camera) @ best_pose
                         best_quality.update(reloc_info or {})
                         best_quality["tracking_source"] = "relocalization"
                         self._annotate_motion_quality(best_pose, best_quality)
@@ -800,7 +801,7 @@ class RGBDTSDFSLAM(torch.nn.Module):
         self._consecutive_lost = 0
         prev_pose = self.T_world_camera
         self.T_world_camera = best_pose
-        self._last_T_prev_curr = torch.linalg.inv(prev_pose) @ self.T_world_camera
+        self._last_T_prev_curr = se3_inv(prev_pose) @ self.T_world_camera
         self.lost = False
 
         used_keyframe = self._should_insert_keyframe(best_rel, best_quality)
@@ -867,7 +868,7 @@ class RGBDTSDFSLAM(torch.nn.Module):
             for ref in self.keyframes:
                 if any(id(ref) == id(candidate) for candidate in candidates):
                     continue
-                rel = torch.linalg.inv(ref.T_world_camera) @ predicted_pose
+                rel = se3_inv(ref.T_world_camera) @ predicted_pose
                 scored.append((torch.norm(rel[:3, 3]).item(), ref))
             if scored:
                 candidates.append(min(scored, key=lambda item: item[0])[1])
@@ -883,7 +884,7 @@ class RGBDTSDFSLAM(torch.nn.Module):
         for ref in self.keyframes:
             if id(ref) in tried_ref_ids:
                 continue
-            rel = torch.linalg.inv(ref.T_world_camera) @ predicted_pose
+            rel = se3_inv(ref.T_world_camera) @ predicted_pose
             scored.append((torch.norm(rel[:3, 3]).item(), ref))
         limit = self.local_map_candidates if self.tracking_mode == "local_map" else 3
         return [ref for _, ref in sorted(scored, key=lambda item: item[0])[:limit]]
@@ -996,7 +997,7 @@ class RGBDTSDFSLAM(torch.nn.Module):
         live_gray = _to_gray(rgb) if rgb is not None else None
         predicted_pose = self._predict_pose()
 
-        predicted_rel_hybrid = torch.linalg.inv(self.T_world_camera) @ predicted_pose
+        predicted_rel_hybrid = se3_inv(self.T_world_camera) @ predicted_pose
         t_predicted_hybrid = float(torch.norm(predicted_rel_hybrid[:3, 3]).item())
 
         best_pose = predicted_pose
@@ -1011,7 +1012,7 @@ class RGBDTSDFSLAM(torch.nn.Module):
         all_evaluated: list[tuple[torch.Tensor, dict]] = []
 
         for ref in self._tracking_candidates(predicted_pose):
-            init_T_ref_live = torch.linalg.inv(ref.T_world_camera) @ predicted_pose
+            init_T_ref_live = se3_inv(ref.T_world_camera) @ predicted_pose
             with ctx:
                 T_ref_live, quality = self.tracker(
                     live_depth=depth,
@@ -1042,7 +1043,7 @@ class RGBDTSDFSLAM(torch.nn.Module):
             all_evaluated.append((candidate_pose, quality))
             if self._quality_score(quality, t_predicted_hybrid, self.candidate_disagreement_penalty) > self._quality_score(best_quality, t_predicted_hybrid, self.candidate_disagreement_penalty):
                 best_pose = candidate_pose
-                best_rel = torch.linalg.inv(self.T_world_camera) @ best_pose
+                best_rel = se3_inv(self.T_world_camera) @ best_pose
                 best_quality = quality
 
         needs_tsdf_recovery = (
@@ -1106,7 +1107,7 @@ class RGBDTSDFSLAM(torch.nn.Module):
                         best_pose = torch.tensor(
                             recovered_T_np_h, dtype=depth.dtype, device=depth.device
                         )
-                        best_rel = torch.linalg.inv(self.T_world_camera) @ best_pose
+                        best_rel = se3_inv(self.T_world_camera) @ best_pose
                         best_quality.update(reloc_info_h or {})
                         best_quality["tracking_source"] = "relocalization"
                         self._annotate_motion_quality(best_pose, best_quality)
@@ -1134,7 +1135,7 @@ class RGBDTSDFSLAM(torch.nn.Module):
         self._consecutive_lost = 0
         prev_pose = self.T_world_camera
         self.T_world_camera = best_pose
-        self._last_T_prev_curr = torch.linalg.inv(prev_pose) @ self.T_world_camera
+        self._last_T_prev_curr = se3_inv(prev_pose) @ self.T_world_camera
         self.lost = False
 
         used_keyframe = self._should_insert_keyframe(best_rel, best_quality)
@@ -1217,7 +1218,7 @@ class RGBDTSDFSLAM(torch.nn.Module):
                 intrinsics=K,
             )
         pose = pose_init @ T_model_live
-        rel = torch.linalg.inv(self.T_world_camera) @ pose
+        rel = se3_inv(self.T_world_camera) @ pose
         quality = dict(quality)
         quality["tracking_source"] = "tsdf"
         return pose, rel, quality
@@ -1343,7 +1344,7 @@ class RGBDTSDFSLAM(torch.nn.Module):
         #   E = inv(T_world_match) @ T_world_query = inv(M).
         # Hence we must pass the INVERSE of find_loop's returned transform.
         M = torch.tensor(T_rel_np, dtype=depth.dtype, device=depth.device)
-        T_rel_loop = torch.linalg.inv(M)
+        T_rel_loop = se3_inv(M)
         # Conservative inlier-scaled weight (≈1–3). The pose graph has no robust
         # outlier kernel, so a bad-but-high-inlier PnP loop can still be
         # geometrically wrong; keep its influence modest and rely on the
@@ -1429,7 +1430,7 @@ class RGBDTSDFSLAM(torch.nn.Module):
         if self.keyframes:
             scored = []
             for ref in self.keyframes:
-                rel = torch.linalg.inv(ref.T_world_camera) @ predicted_pose
+                rel = se3_inv(ref.T_world_camera) @ predicted_pose
                 score = torch.norm(rel[:3, 3]).item()
                 scored.append((score, ref))
             for _, ref in sorted(scored, key=lambda item: item[0])[:3]:
@@ -1443,7 +1444,7 @@ class RGBDTSDFSLAM(torch.nn.Module):
         if not self.keyframes:
             return True
         last_keyframe = self.keyframes[-1]
-        rel_key = torch.linalg.inv(last_keyframe.T_world_camera) @ self.T_world_camera
+        rel_key = se3_inv(last_keyframe.T_world_camera) @ self.T_world_camera
         key_translation = torch.norm(rel_key[:3, 3]).item()
         frame_gap = self.frame_count - last_keyframe.frame_idx
         frame_translation = torch.norm(T_prev_live[:3, 3]).item()
@@ -1520,7 +1521,7 @@ class RGBDTSDFSLAM(torch.nn.Module):
 
     def _annotate_motion_quality(self, candidate_pose: torch.Tensor, quality: dict) -> None:
         assert self.T_world_camera is not None
-        rel = torch.linalg.inv(self.T_world_camera) @ candidate_pose
+        rel = se3_inv(self.T_world_camera) @ candidate_pose
         translation = torch.norm(rel[:3, 3])
         trace = torch.trace(rel[:3, :3])
         cos_angle = ((trace - 1.0) * 0.5).clamp(-1.0, 1.0)

@@ -166,3 +166,27 @@ def se3_log(T: torch.Tensor) -> torch.Tensor:
         v = V_inv @ t
 
     return torch.cat([v, omega])
+
+
+def se3_inv(T: torch.Tensor) -> torch.Tensor:
+    """Analytic inverse of a 4x4 SE(3) matrix.
+
+    For ``T = [[R, t], [0, 1]]`` the inverse is ``[[R^T, -R^T t], [0, 1]]``.
+    This avoids a general LU solve (``torch.linalg.inv``) on the per-frame hot
+    path: it is cheaper, never triggers the LAPACK fallback, and stays on-device
+    with no host sync. Only valid for proper rigid transforms.
+
+    Args:
+        T: SE(3) matrix, shape [4, 4].
+
+    Returns:
+        The inverse SE(3) matrix, shape [4, 4].
+    """
+    R = T[:3, :3]
+    t = T[:3, 3]
+    Rt = R.transpose(-1, -2)
+    out = torch.zeros_like(T)
+    out[:3, :3] = Rt
+    out[:3, 3] = -(Rt @ t)
+    out[3, 3] = 1.0
+    return out
