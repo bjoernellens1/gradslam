@@ -131,8 +131,21 @@ class TSDFVolume(torch.nn.Module):
         voxel_coords = self._cached_voxel_coords   # [N, 3]
         voxel_world = self._cached_voxel_world      # [N, 3]
 
-        # Transform to camera frame
-        voxel_camera = torch.matmul(voxel_world, R.t()) + t  # [N, 3]
+        # Cheap depth pre-cull (behavior-identical): the camera-frame z is a
+        # single dot product (voxel_world @ R[2] + t_z) — ~3x cheaper than the
+        # full [N,3]@[3,3] transform. Voxels with z<=0 are behind the camera and
+        # would be rejected by the frustum `valid` mask anyway, so we restrict
+        # the full transform + projection to z>0 voxels. The map is unchanged;
+        # only the work done on behind-camera voxels is skipped.
+        z_cam_all = voxel_world @ R[2, :] + t[2]    # [N]
+        front = z_cam_all > 0
+        if not bool(front.any()):
+            return
+        vox_coords_f = voxel_coords[front]
+        vox_world_f = voxel_world[front]
+
+        # Transform the front-facing subset to camera frame
+        voxel_camera = torch.matmul(vox_world_f, R.t()) + t  # [M, 3]
 
         # Project to image
         fx, fy = intrinsics[0, 0], intrinsics[1, 1]
@@ -141,20 +154,14 @@ class TSDFVolume(torch.nn.Module):
         u = (voxel_camera[:, 0] * fx / voxel_camera[:, 2] + cx).long()
         v = (voxel_camera[:, 1] * fy / voxel_camera[:, 2] + cy).long()
 
-        # Frustum check
-        valid = (
-            (voxel_camera[:, 2] > 0)
-            & (u >= 0)
-            & (u < W)
-            & (v >= 0)
-            & (v < H)
-        )
+        # Frustum check (z>0 already guaranteed by the pre-cull)
+        valid = (u >= 0) & (u < W) & (v >= 0) & (v < H)
 
         if valid.sum() == 0:
             return
 
         # Valid voxel positions
-        voxel_coords_valid = voxel_coords[valid]
+        voxel_coords_valid = vox_coords_f[valid]
         u_valid = u[valid]
         v_valid = v[valid]
         voxel_camera_valid = voxel_camera[valid]
