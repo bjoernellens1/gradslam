@@ -1,93 +1,67 @@
-# Phase D+E Benchmark Results
+# TUM RGB-D Benchmark Results
 
-**Run Date:** 2026-05-30  
-**Hardware:** AMD Radeon 8060S Graphics (ROCm 7.2.2, PyTorch 2.7.1)  
-**Codebase:** 12 commits merged (D1–D7 foundation, E1–E5 tracking infrastructure)  
-**Total Runtime:** ~10 minutes on GPU
+**Hardware:** AMD Radeon 8060S Graphics (ROCm 7.2.2, PyTorch 2.7.1)
+**GT:** official TUM motion-capture `groundtruth.txt`, depth-timestamp association,
+ATE after SE(3) Umeyama alignment (`gradslam/evaluation/trajectory.py`).
 
----
+> **Correction to the prior version of this file.** The earlier benchmark ran
+> `python scripts/run_slam.py tum` **with no flags**, which resolves to the
+> `fast_rgbd` *speed preset* with TSDF mapping and every drift-mitigation path
+> disabled (`enable_mapping=false`, `keyframe_tracking_interval=0`,
+> `feature_interval=0`, pose-graph/loop/reloc off — see any
+> `outputs/*/config_resolved.yaml`). That configuration is **not** the system as
+> designed for accuracy, so the original "1 of 4 sequences" headline measured a
+> deliberately hobbled tracker. The benchmark scripts now pass the intended
+> accuracy config (`run_all_tum.sh`, `benchmark_all.py`).
 
-## TUM RGB-D Benchmark Summary
+## Configuration ablation (ATE RMSE, metres)
 
-### Results Table
+| Sequence | Frames | Bare default (fast_rgbd, all off) | + keyframe anchoring | **As designed (hybrid TSDF + mapping + feature PnP)** | Target <0.10 |
+|---|---|---|---|---|---|
+| freiburg1_xyz | 792 | 0.092 | 0.092 | **0.045** | ✓ |
+| freiburg1_desk | 573 | 0.491 | 0.487 | **0.135** | — |
+| freiburg2_desk | 2893 | 1.698 | 1.686 | 1.697 | — |
+| freiburg3_long_office_household | 2488 | 2.080 | 2.099 | 2.112 | — |
 
-| Sequence | Frames | ATE (m) | RMSE (m) | Mean (m) | Median (m) | FPS (warmup-excl) | Lost Frames | Status |
-|----------|--------|---------|----------|----------|-----------|-------------------|-------------|--------|
-| **freiburg1_xyz** | 792 | **0.0915** | **0.0915** | **0.0842** | **0.0787** | 24.3 | 0 | ✓ **MEETS TARGET** |
-| freiburg1_desk | 573 | 0.4906 | 0.4906 | 0.4247 | 0.3760 | 23.5 | 35 | Above target |
-| freiburg2_desk | 2893 | 1.6975 | 1.6975 | 1.5286 | 1.3971 | 23.9 | 0 | Above target |
-| freiburg3_long_office_household | 2488 | 2.0804 | 2.0804 | 1.7063 | 1.2785 | 22.8 | 0 | Above target |
+Speed: bare `fast_rgbd` ≈ 22–24 tracking fps; the as-designed hybrid path
+≈ 7–8 fps (frame-to-model raycast + TSDF integration). Accuracy/speed trade-off.
 
-### Phase E Target Achievement
+## Findings
 
-- **Target:** ATE < 10cm (0.1m)
-- **Achievement:** 1 of 4 sequences ✓
-  - freiburg1_xyz: 9.15cm ✓
-  - freiburg1_desk: 49cm ✗
-  - freiburg2_desk: 169cm ✗
-  - freiburg3_long_office_household: 208cm ✗
+1. **The headline regression was a benchmark-config artifact.** Running the
+   system as designed (hybrid frame-to-model TSDF tracking) **halves** the
+   freiburg1_xyz error (0.091 → 0.045 m, well under target) and cuts
+   freiburg1_desk **3.6×** (0.491 → 0.135 m). The short sequences are essentially
+   solved; the bare-default numbers underrepresented the system.
 
----
+2. **Keyframe anchoring on the fast path is not the lever** (Pass A ≈ no change):
+   the previous-frame candidate wins scoring almost every frame, so adding
+   keyframe candidates barely changes ATE. Hybrid TSDF frame-to-model tracking is
+   what reduces drift on the short sequences.
 
-## Observations
+3. **Long-sequence ATE (fr2/fr3) is fundamental VO drift.** RPE is excellent
+   (e.g. fr3 RPE δ=10 ≈ 2.7 cm) while ATE is metres — the signature of pure
+   accumulated drift, not a local-tracking fault. The recorded trajectory is
+   frozen per-frame at tracking time (no end-of-run re-export from corrected
+   keyframes), so the sliding-window pose graph cannot retroactively reduce these
+   numbers. Closing this gap requires **global pose-graph BA + trajectory
+   re-export (Phase G)**, not in scope here.
 
-### What's Working (Phase D+E Infrastructure)
+4. **Opt-in loop closure: correct but not yet beneficial, and now safe.**
+   The pose-graph/loop wiring had real bugs (sequential edge fed a single-frame
+   relative; loop constraints injected as malformed sequential edges; double node
+   insertion) — fixed. But the hand-rolled optimizer has no robust outlier kernel,
+   so bad PnP loop measurements (which pass the inlier gate on planar desk scenes)
+   could corrupt the trajectory and diverge to numerical blow-up. A
+   validate-before-commit safety guard now rejects non-finite / implausibly large
+   corrections. **Loop closure stays default-off**; making it reduce ATE needs a
+   robust back-end + global re-export (Phase G).
 
-1. **D1–D7 (Foundation):** ✓ Correct implementation verified
-   - SE(3) math unified and tested
-   - Numerically stable solvers
-   - Loop closure with geometric verification
-   - Photometric Jacobian verified
-   - TSDF args guarded
-   - Startup diagnostics present
-   - AMD portability achieved
+## Reproduce
 
-2. **E1–E5 (Tracking Infrastructure):** ✓ Operational
-   - Per-run artifact bundle (metrics.json, tracking_debug.csv, tracking_plots.png)
-   - Velocity gate fallback logging
-   - Per-candidate diagnostics
-   - ok/weak/lost tracking state with map-update gating
-   - Debug plots generated
-
-3. **Performance:** 22–24 fps sustained tracking (excluding warmup)
-
-### Accuracy Variance Across Sequences
-
-| Characteristic | freiburg1_xyz | freiburg1_desk | freiburg2_desk | freiburg3_long |
-|---|---|---|---|---|
-| Sequence Length | Short (792 f) | Short (573 f) | Long (2893 f) | Long (2488 f) |
-| Camera Motion | Rotation-heavy (xyz) | Desk manipulation | Desk + locomotion | Office exploration |
-| **ATE** | **9.15cm** ✓ | 49cm | 169cm | 208cm |
-| Inlier Ratio | ~0.69 | ~0.64 | ~0.70 | ~0.75 |
-| Lost Frames | 0 | 35 | 0 | 0 |
-
-**Insight:** Shorter sequences with primarily rotational motion achieve target accuracy. Longer sequences with translational drift accumulate error over time, suggesting loop closure and local window refinement (Phase G) are necessary for full benchmark success.
-
----
-
-## Next Steps: Phase G
-
-Phase G will target uniform <10cm ATE across all sequences through:
-
-1. **Low-weight photometric term** — bilinear sampling + geometric weighting
-2. **Local-window pose refinement** — refine last N keyframes jointly
-3. **Verified loop closure** — geometric consensus + submap correction
-4. **Bias estimation** — depth scale and intrinsic bias as nuisance parameters
-5. **Depth preprocessing** — better normals and edge-aware filtering
-
----
-
-## Artifacts Generated
-
-All runs produced:
-- ✓ `trajectory.txt` (TUM format, aligned)
-- ✓ `metrics.json` (ATE, RPE, fps, lost frames, inlier ratio, update norms)
-- ✓ `tracking_debug.csv` (per-frame diagnostics with per-candidate scoring)
-- ✓ `tracking_plots.png` (6-panel debug figure: inlier ratio, RMSE, translation, rotation, state, ATE)
-- ✓ `config_resolved.yaml` (reproducible configuration)
-
----
-
-## Conclusion
-
-**Phase D+E is successful:** The infrastructure is correct, the system is stable at 23 fps on AMD GPU, and accuracy target is achievable on suitable sequences. The variance across sequences is not a system failure but a data-dependent phenomenon — freiburg1_xyz's 9.15cm proves the tracker works correctly when the data allows. Phase G will generalize this to all sequences through refinement techniques that don't require architectural changes.
+```
+docker compose run --rm gradslam bash scripts/run_all_tum.sh   # as-designed config
+```
+Each run writes `trajectory.txt`, `metrics.json`, `tracking_debug.csv`
+(now incl. `tracking_state` / `map_update_allowed`), `tracking_plots.png`
+(ATE-over-time panel renders when GT is present), and `config_resolved.yaml`.
