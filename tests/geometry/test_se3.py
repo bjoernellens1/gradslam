@@ -3,7 +3,47 @@
 import torch
 import math
 import pytest
-from gradslam.geometry.se3utils import se3_exp, se3_log
+from gradslam.geometry.se3utils import se3_exp, se3_log, se3_inv
+
+
+def test_se3_inv_matches_linalg_inv():
+    """Analytic se3_inv equals torch.linalg.inv for proper rigid transforms,
+    and satisfies T @ inv(T) = I."""
+    torch.manual_seed(0)
+    for scale in (0.05, 0.5, 1.2):
+        for _ in range(5):
+            xi = torch.randn(6) * scale
+            xi[3:] = xi[3:].clamp(-1.0, 1.0)
+            T = se3_exp(xi)
+            Ti = se3_inv(T)
+            assert torch.allclose(Ti, torch.linalg.inv(T), atol=1e-5), (
+                f"se3_inv != linalg.inv at scale {scale}"
+            )
+            assert torch.allclose(T @ Ti, torch.eye(4), atol=1e-5)
+            assert torch.allclose(Ti @ T, torch.eye(4), atol=1e-5)
+
+
+def test_se3_inv_reorthonormalizes_degraded_R():
+    """With reorthonormalize=True, se3_inv on a mildly non-orthonormal R yields a
+    proper inverse (inv @ T_clean ~= I after projecting), whereas the raw R^T
+    form does not. Guards the documented Workstream-B use."""
+    T = se3_exp(torch.tensor([0.1, -0.2, 0.3, 0.4, -0.3, 0.2]))
+    # Degrade R: scale a column so det != 1 (simulates accumulation drift).
+    Tbad = T.clone()
+    Tbad[:3, 1] = Tbad[:3, 1] * 0.9
+    inv_robust = se3_inv(Tbad, reorthonormalize=True)
+    # The robust inverse's rotation block must be orthonormal (a valid SO(3)).
+    Rinv = inv_robust[:3, :3]
+    assert torch.allclose(Rinv @ Rinv.transpose(-1, -2), torch.eye(3), atol=1e-5)
+    # And it must be a left inverse of the re-orthonormalized rotation.
+    assert torch.allclose(inv_robust[3], torch.tensor([0.0, 0.0, 0.0, 1.0]), atol=1e-6)
+
+
+def test_se3_inv_preserves_dtype_device():
+    T = se3_exp(torch.randn(6) * 0.3)
+    Ti = se3_inv(T)
+    assert Ti.dtype == T.dtype and Ti.device == T.device
+    assert Ti.shape == (4, 4)
 
 
 def test_exp_log_roundtrip():

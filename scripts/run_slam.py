@@ -26,6 +26,7 @@ Usage examples:
 from __future__ import annotations
 
 import argparse
+import os
 import signal
 import time
 from pathlib import Path
@@ -376,8 +377,11 @@ def build_parser():
                        help="Maximum projective correspondence normal angle in degrees")
         p.add_argument("--no-depth-weighting", action="store_true",
                        help="Disable depth uncertainty weighting in projective ICP")
-        p.add_argument("--num-workers", type=int, default=0,
-                       help="DataLoader workers for async frame loading (0 = main thread)")
+        p.add_argument("--num-workers", type=int, default=4,
+                       help="DataLoader workers for async frame loading (0 = main "
+                            "thread / synchronous). Default 4: PNG decode + H2D "
+                            "overlaps with GPU tracking, lifting end-to-end fps "
+                            "toward tracking fps. Set 0 to disable.")
         p.add_argument("--prefetch-factor", type=int, default=2,
                        help="DataLoader prefetch factor (only used when --num-workers > 0)")
         p.add_argument("--no-pin-memory", action="store_true",
@@ -400,10 +404,24 @@ def build_parser():
                        help="Enable sliding-window pose graph optimization after keyframe insertion")
         p.add_argument("--pose-graph-window", type=int, default=8,
                        help="Sliding-window pose graph window size (number of keyframes)")
+        p.add_argument("--pose-graph-backend", choices=["global", "sliding"], default="global",
+                       help="Pose-graph backend: 'global' (pypose SE(3) LM over all "
+                            "keyframes + trajectory re-export, default) or 'sliding' "
+                            "(legacy windowed identity-Jacobian GN)")
+        p.add_argument("--pose-graph-observer", choices=["on", "off"], default="on",
+                       help="Observer mode (default on): accumulate graph during run but "
+                            "apply corrections only at run end via finalize+reexport. "
+                            "Required for frame-to-model trackers with a baked TSDF map — "
+                            "mid-run pose jumps without map correction desync tracker. "
+                            "Set off to restore legacy feedback behaviour.")
         p.add_argument("--relocalization", choices=["off", "on"], default="off",
                        help="Enable ORB-based relocalization after lost-frame stretches")
         p.add_argument("--loop-closure", choices=["off", "on"], default="off",
                        help="Enable loop closure detection on keyframe insertion")
+        p.add_argument("--keyframe-db-size", type=int, default=30,
+                       help="Max keyframes retained for loop closure / reloc. Long-baseline "
+                            "revisits need the early keyframe still present, so raise this "
+                            "(or set high) on loopy sequences.")
         p.add_argument("--loop-closure-min-inliers", type=int, default=30,
                        help="Minimum ORB match inliers to trigger a loop closure edge")
 
@@ -516,18 +534,26 @@ def run_slam(args, dataset, extractor, device):
         max_velocity_rotation=getattr(args, 'max_velocity_rotation', 0.30),
         pose_graph_enabled=getattr(args, 'pose_graph', 'off') == 'on',
         pose_graph_window=getattr(args, 'pose_graph_window', 8),
+        pose_graph_backend=getattr(args, 'pose_graph_backend', 'global'),
+        pose_graph_observer=getattr(args, 'pose_graph_observer', 'on') == 'on',
         relocalization_enabled=getattr(args, 'relocalization', 'off') == 'on',
         loop_closure_enabled=getattr(args, 'loop_closure', 'off') == 'on',
+        keyframe_db_size=getattr(args, 'keyframe_db_size', 30),
         loop_closure_min_inliers=getattr(args, 'loop_closure_min_inliers', 30),
     ).to(device)
 
-    # Apply torch.compile for faster execution if requested
+    # torch.compile: compiling the whole SLAM module graph-breaks on the
+    # pipeline's Python control flow / .item() / cv2 calls, so it bought little.
+    # Instead, --compile enables GRADSLAM_COMPILE so the shape-stable leaf
+    # kernels (ICP residual + 6x6 solver) compile via compile_if_requested.
     if getattr(args, 'compile', False):
-        print("Compiling SLAM model with torch.compile...")
-        slam = torch.compile(slam, mode="reduce-overhead")
+        os.environ["GRADSLAM_COMPILE"] = "1"
+        print("torch.compile enabled for leaf kernels (GRADSLAM_COMPILE=1). "
+              "Note: must be set before importing gradslam to take effect.")
 
     n_frames = min(args.max_frames or len(dataset), len(dataset))
     poses_est = []
+    live_poses_by_idx: list[tuple[int, "torch.Tensor"]] = []
     gt_poses_by_ts: list | dict = []
     tracking_log = []
     tracking_times_ms = []
@@ -605,6 +631,10 @@ def run_slam(args, dataset, extractor, device):
                 track_ms = (time.perf_counter() - start_wall) * 1000.0
             tracking_times_ms.append(track_ms)
 
+            # Pipeline frame index for this frame = frame_count BEFORE its
+            # post-increment, i.e. the count after process_frame minus 1.
+            frame_idx = slam.frame_count - 1 if hasattr(slam, "frame_count") else len(poses_est)
+            live_poses_by_idx.append((frame_idx, result.T_world_camera))
             pose_np = result.T_world_camera.cpu().numpy()
             poses_est.append(pose_np)
             if gt_pose is not None:
@@ -630,12 +660,37 @@ def run_slam(args, dataset, extractor, device):
                 "candidates_json": __import__('json').dumps(q.get("candidates", [])),
                 "tracking_state": q.get("tracking_state", "ok"),
                 "map_update_allowed": q.get("map_update_allowed", True),
+                "loop_closure_frame_idx": q.get("loop_closure_frame_idx", -1),
+                "loop_closure_rejected": int(q.get("loop_closure_rejected", False)),
+                "loop_closure_inliers": q.get("loop_closure_inliers", 0),
+                "loop_closure_weight": q.get("loop_closure_weight", 0.0),
             })
 
     elapsed = time.time() - start_time
     fps = n_frames / elapsed
     timed = tracking_times_ms[min(warmup_frames, len(tracking_times_ms)):]
     tracking_fps = 1000.0 / (sum(timed) / len(timed)) if timed else 0.0
+
+    # B3: online trajectory re-export. After a final global pose-graph
+    # optimization, re-derive each per-frame pose from its (now corrected) anchor
+    # keyframe. Frames whose anchor never entered the graph keep their live pose.
+    if os.environ.get("SKIP_REEXPORT") == "1":
+        print("✓ Re-export SKIPPED (SKIP_REEXPORT=1): trajectory = in-run live poses")
+    elif getattr(slam, "_pose_graph", None) is not None and hasattr(slam, "reexport_pose"):
+        try:
+            slam.finalize_pose_graph()
+            n_changed = 0
+            for k, (fidx, live_pose) in enumerate(live_poses_by_idx):
+                new_pose = slam.reexport_pose(fidx, live_pose)
+                np_new = new_pose.cpu().numpy()
+                if not np.allclose(np_new, poses_est[k], atol=1e-9):
+                    n_changed += 1
+                poses_est[k] = np_new
+            print(f"✓ Re-exported trajectory from corrected pose graph "
+                  f"({n_changed}/{len(poses_est)} frames updated)")
+        except Exception as e:
+            print(f"  Warning: pose-graph re-export skipped ({e})")
+
     return poses_est, gt_poses_by_ts, tracking_log, elapsed, fps, tracking_fps
 
 
@@ -794,6 +849,8 @@ def save_results(output_dir: Path, poses_est, tracking_log, dataset_type,
         "frame_rotation_deg", "motion_gate", "reference_frame_idx",
         "t_disagreement_norm", "tracking_ms", "lost", "candidates_json",
         "tracking_state", "map_update_allowed",
+        "loop_closure_frame_idx", "loop_closure_rejected",
+        "loop_closure_inliers", "loop_closure_weight",
     ]
     with open(csv_file, "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=_CSV_FIELDS, extrasaction="ignore")
@@ -818,6 +875,10 @@ def save_results(output_dir: Path, poses_est, tracking_log, dataset_type,
                 "candidates_json": r.get("candidates_json", "[]"),
                 "tracking_state": r.get("tracking_state", "ok"),
                 "map_update_allowed": int(r.get("map_update_allowed", True)),
+                "loop_closure_frame_idx": r.get("loop_closure_frame_idx", -1),
+                "loop_closure_rejected": int(r.get("loop_closure_rejected", False)),
+                "loop_closure_inliers": r.get("loop_closure_inliers", 0),
+                "loop_closure_weight": r.get("loop_closure_weight", 0.0),
             }
             writer.writerow(row)
     print(f"✓ Tracking debug CSV → {csv_file}")

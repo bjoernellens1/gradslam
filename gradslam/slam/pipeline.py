@@ -106,6 +106,8 @@ class RGBDTSDFSLAM(torch.nn.Module):
         max_velocity_rotation: float = 0.30,
         pose_graph_enabled: bool = False,
         pose_graph_window: int = 8,
+        pose_graph_backend: str = "global",
+        pose_graph_observer: bool = True,
         relocalization_enabled: bool = False,
         loop_closure_enabled: bool = False,
         keyframe_db_size: int = 30,
@@ -247,15 +249,37 @@ class RGBDTSDFSLAM(torch.nn.Module):
         # be connected by a loop edge; otherwise add_loop_edge always fails and
         # the pose graph never corrects drift.
         self.pose_graph_enabled = pose_graph_enabled
-        if pose_graph_enabled and loop_closure_enabled:
-            effective_window = max(pose_graph_window, self.loop_exclude_last_n + 8)
+        self.pose_graph_backend = pose_graph_backend
+        # Observer mode: accumulate graph nodes/edges live but do NOT write
+        # corrections back into self.T_world_camera or self.keyframes during the
+        # run. Apply only at finalize_pose_graph() + reexport_pose(). Required
+        # for frame-to-model TSDF trackers because the TSDF map is baked in the
+        # pre-correction gauge; feeding mid-run pose jumps into the tracker
+        # without also correcting the map causes desync and degrades ATE.
+        # (Confirmed empirically: fr1_desk 0.135 → 0.505 with feedback enabled.)
+        self.pose_graph_observer = pose_graph_observer
+        if pose_graph_enabled and pose_graph_backend == "global":
+            # Global backend (pypose SE(3) LM): keeps ALL keyframe nodes, so a
+            # loop edge to an early keyframe constrains the whole chain. This is
+            # the backend validated by the B-i oracle (fr1_desk 0.135 -> 0.047).
+            from .global_pose_graph import GlobalPoseGraph
+            self._pose_graph = GlobalPoseGraph() if pose_graph_enabled else None
+        elif pose_graph_enabled:
+            # Legacy sliding-window backend (identity-Jacobian GN). Window is
+            # widened so loop matches (older than loop_exclude_last_n) stay in.
+            effective_window = (
+                max(pose_graph_window, self.loop_exclude_last_n + 8)
+                if loop_closure_enabled else pose_graph_window
+            )
+            self._pose_graph = SlidingWindowPoseGraph(window_size=effective_window)
         else:
-            effective_window = pose_graph_window
-        self._pose_graph: SlidingWindowPoseGraph | None = (
-            SlidingWindowPoseGraph(window_size=effective_window)
-            if pose_graph_enabled
-            else None
-        )
+            self._pose_graph = None
+
+        # Frame -> (anchor keyframe node id, T_kf_frame) attachment, captured at
+        # tracking time so a corrected keyframe pose can re-derive the per-frame
+        # poses between keyframes. Enables online trajectory re-export (B3).
+        self._frame_to_keyframe: dict[int, tuple[int, torch.Tensor]] = {}
+        self._reexported_poses: dict[int, torch.Tensor] = {}
 
         # Keyframe database for relocalization / loop closure (opt-in)
         self.relocalization_enabled = relocalization_enabled
@@ -304,9 +328,15 @@ class RGBDTSDFSLAM(torch.nn.Module):
         self._keyframe_pose_cpu = None
         # Reset pose graph (if enabled, re-create to clear accumulated state)
         if self._pose_graph is not None:
-            self._pose_graph = SlidingWindowPoseGraph(
-                window_size=self._pose_graph.window_size
-            )
+            if self.pose_graph_backend == "global":
+                from .global_pose_graph import GlobalPoseGraph
+                self._pose_graph = GlobalPoseGraph()
+            else:
+                self._pose_graph = SlidingWindowPoseGraph(
+                    window_size=self._pose_graph.window_size
+                )
+        self._frame_to_keyframe.clear()
+        self._reexported_poses.clear()
         # Reset keyframe database and lost counter
         if self._keyframe_db is not None:
             self._keyframe_db.clear()
@@ -840,6 +870,7 @@ class RGBDTSDFSLAM(torch.nn.Module):
 
         best_quality["integrated"] = integrate_frame
         best_quality["velocity_fallback_count"] = self._velocity_fallback_count
+        self._record_frame_attachment()
         self.frame_count += 1
         return TrackingResult(
             T_world_camera=self.T_world_camera.clone(),
@@ -847,6 +878,19 @@ class RGBDTSDFSLAM(torch.nn.Module):
             used_keyframe=used_keyframe,
             lost=False,
         )
+
+    def _record_frame_attachment(self) -> None:
+        """B1: attach the current frame to its anchor keyframe by a rigid
+        relative transform, so a later pose-graph correction of that keyframe can
+        re-derive this frame's world pose (B3 re-export). No-op unless the global
+        pose graph is active. The anchor is the most recent keyframe; its node id
+        in the graph is its ``frame_idx`` (what ``_apply_pose_graph`` uses)."""
+        if self._pose_graph is None or not self.keyframes:
+            return
+        anchor = self.keyframes[-1]
+        anchor_id = anchor.frame_idx
+        T_kf_frame = torch.linalg.inv(anchor.T_world_camera) @ self.T_world_camera
+        self._frame_to_keyframe[self.frame_count] = (anchor_id, T_kf_frame.detach().clone())
 
     def _fast_tracking_candidates(self, predicted_pose: torch.Tensor) -> list[_LocalReference]:
         candidates: list[_LocalReference] = []
@@ -1169,6 +1213,7 @@ class RGBDTSDFSLAM(torch.nn.Module):
 
         best_quality["integrated"] = integrate_frame
         best_quality["velocity_fallback_count"] = self._velocity_fallback_count
+        self._record_frame_attachment()
         self.frame_count += 1
         return TrackingResult(
             T_world_camera=self.T_world_camera.clone(),
@@ -1222,6 +1267,42 @@ class RGBDTSDFSLAM(torch.nn.Module):
         quality["tracking_source"] = "tsdf"
         return pose, rel, quality
 
+    @torch.no_grad()
+    def finalize_pose_graph(self) -> None:
+        """B3: run one final global optimization (global backend only) so the
+        trajectory tail — keyframes added after the last accepted loop commit —
+        is also corrected. Call once at stream end before re-exporting. No-op for
+        the sliding-window backend or when no pose graph is active."""
+        pg = self._pose_graph
+        if pg is None or not hasattr(pg, "finalize"):
+            return
+        corrected = pg.finalize()
+        self._write_back_corrected_poses(corrected)
+
+    @torch.no_grad()
+    def reexport_pose(self, frame_idx: int, live_pose: torch.Tensor) -> torch.Tensor:
+        """B3: corrected world pose for a per-frame index, derived from the
+        pose-graph-optimized anchor keyframe. Falls back to ``live_pose`` for
+        frames with no attachment or whose anchor never entered the graph.
+
+        The corrected anchor pose is read from the graph (which keeps all nodes),
+        NOT from ``self.keyframes`` (capped at ``max_keyframes``)."""
+        pg = self._pose_graph
+        att = self._frame_to_keyframe.get(frame_idx)
+        if pg is None or att is None:
+            return live_pose
+        anchor_id, T_kf_frame = att
+        try:
+            pos = pg.node_ids().index(anchor_id)
+        except (ValueError, AttributeError):
+            return live_pose
+        anchor_corrected = pg._poses[pos].to(
+            dtype=live_pose.dtype, device=live_pose.device
+        )
+        return anchor_corrected @ T_kf_frame.to(
+            dtype=live_pose.dtype, device=live_pose.device
+        )
+
     def _write_back_corrected_poses(self, corrected: list[torch.Tensor]) -> None:
         """Write optimized node poses back into self.keyframes by node id.
 
@@ -1229,6 +1310,9 @@ class RGBDTSDFSLAM(torch.nn.Module):
         corrected poses to keyframes by that id. Keyframes whose frame_idx is
         not a current node (e.g. slid out of the window) are left untouched.
         """
+        # The global backend optimizes in float64; cast corrections back to each
+        # keyframe's own dtype/device so the float32 pipeline math doesn't hit a
+        # double/float mismatch.
         id_to_pose = {
             nid: pose
             for nid, pose in zip(self._pose_graph._ids, corrected)
@@ -1236,7 +1320,9 @@ class RGBDTSDFSLAM(torch.nn.Module):
         for kf in self.keyframes:
             new_pose = id_to_pose.get(getattr(kf, "frame_idx", None))
             if new_pose is not None:
-                kf.T_world_camera = new_pose.clone()
+                kf.T_world_camera = new_pose.to(
+                    dtype=kf.T_world_camera.dtype, device=kf.T_world_camera.device
+                ).clone()
 
     def _apply_pose_graph(
         self,
@@ -1267,16 +1353,19 @@ class RGBDTSDFSLAM(torch.nn.Module):
             T_rel_measured=None,
             weight=w,
         )
-        if self._pose_graph.num_keyframes >= 2:
-            # Guarded commit: sequential edges are residual-free no-ops, but a
-            # loop edge added earlier can make optimize() move poses; reject the
-            # result if it is non-finite or jumps implausibly far.
+        if self._pose_graph.num_keyframes >= 2 and not self.pose_graph_observer:
+            # Non-observer mode: apply mid-run corrections to live tracking.
+            # Only valid when the TSDF map is also being corrected; for a
+            # frame-to-model tracker with a stale/baked map this desynchronises
+            # pose and map → ATE degrades (observed: 0.135 → 0.505).
             corrected = self._pose_graph.try_commit_correction()
             if corrected is None:
                 return
             self._write_back_corrected_poses(corrected)
             if corrected:
-                self.T_world_camera = corrected[-1].clone()
+                self.T_world_camera = corrected[-1].to(
+                    dtype=self.T_world_camera.dtype, device=self.T_world_camera.device
+                ).clone()
             # Rebuild _last_reference so the next frame tracks corrected geometry.
             self._last_reference = self._make_reference(
                 depth=depth,
@@ -1287,6 +1376,10 @@ class RGBDTSDFSLAM(torch.nn.Module):
                 normal=live_normal,
                 is_keyframe=True,
             )
+        elif self._pose_graph.num_keyframes >= 2:
+            # Observer mode: run the guarded commit to reject bad loop edges,
+            # but discard the correction — it will be applied at finalize_pose_graph().
+            self._pose_graph.try_commit_correction()
 
     def _try_loop_closure(
         self,
@@ -1354,30 +1447,35 @@ class RGBDTSDFSLAM(torch.nn.Module):
         )
         if not added:
             return
-        # Guarded commit: if the loop correction is non-finite or jumps too far
-        # (an inconsistent / outlier loop constraint), reject it and drop the
-        # edge so it cannot accumulate into divergence on later keyframes.
+        # Guarded commit: reject bad loop edges before they accumulate.
         corrected_lc = self._pose_graph.try_commit_correction()
         if corrected_lc is None:
             self._pose_graph.drop_last_edge()
             best_quality["loop_closure_rejected"] = True
             return
-        self._write_back_corrected_poses(corrected_lc)
-        if corrected_lc:
-            self.T_world_camera = corrected_lc[-1].clone()
-            # The loop correction moved the current pose after _apply_pose_graph
-            # already rebuilt _last_reference, so rebuild it again to keep the
-            # next frame tracking against corrected geometry.
-            self._last_reference = self._make_reference(
-                depth=depth,
-                K=K,
-                T_world_camera=self.T_world_camera,
-                frame_idx=self.frame_count,
-                rgb=rgb,
-                normal=live_normal,
-                is_keyframe=True,
-            )
+
+        if not self.pose_graph_observer:
+            # Non-observer mode: apply loop correction to live tracking immediately.
+            self._write_back_corrected_poses(corrected_lc)
+            if corrected_lc:
+                self.T_world_camera = corrected_lc[-1].to(
+                    dtype=self.T_world_camera.dtype, device=self.T_world_camera.device
+                ).clone()
+                self._last_reference = self._make_reference(
+                    depth=depth,
+                    K=K,
+                    T_world_camera=self.T_world_camera,
+                    frame_idx=self.frame_count,
+                    rgb=rgb,
+                    normal=live_normal,
+                    is_keyframe=True,
+                )
+        # In observer mode the correction is already committed to the graph;
+        # it will be applied to the trajectory at finalize_pose_graph() + reexport_pose().
+
         best_quality["loop_closure_frame_idx"] = match_idx
+        best_quality["loop_closure_inliers"] = n_inliers
+        best_quality["loop_closure_weight"] = loop_weight
 
     def _make_reference(
         self,

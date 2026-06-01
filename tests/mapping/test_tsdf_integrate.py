@@ -33,6 +33,52 @@ def test_integrate_does_not_raise(small_tsdf, simple_depth, intrinsics):
     small_tsdf.integrate(simple_depth, intrinsics, T)
 
 
+def _reference_integrate(tsdf, depth, K, T_world_camera, obs_weight=1.0):
+    """Reference integrate that transforms ALL voxels (pre-optimization path),
+    used to prove the frustum pre-cull is behavior-identical."""
+    from gradslam.geometry.se3utils import se3_inv
+    H, W = depth.shape
+    Tcw = se3_inv(T_world_camera)
+    R, t = Tcw[:3, :3], Tcw[:3, 3]
+    vc = tsdf._cached_voxel_coords
+    vw = tsdf._cached_voxel_world
+    cam = vw @ R.t() + t
+    fx, fy, cx, cy = K[0, 0], K[1, 1], K[0, 2], K[1, 2]
+    u = (cam[:, 0] * fx / cam[:, 2] + cx).long()
+    v = (cam[:, 1] * fy / cam[:, 2] + cy).long()
+    valid = (cam[:, 2] > 0) & (u >= 0) & (u < W) & (v >= 0) & (v < H)
+    vc, u, v, cam = vc[valid], u[valid], v[valid], cam[valid]
+    ds = depth[v, u]
+    m = ds > 0
+    vc, cam, ds = vc[m], cam[m], ds[m]
+    trunc = tsdf.config.truncation_margin_voxels * tsdf.config.voxel_size
+    td = torch.clamp(ds - cam[:, 2], -trunc, trunc)
+    xi, yi, zi = vc[:, 0].long(), vc[:, 1].long(), vc[:, 2].long()
+    fi = xi * tsdf._ny_nz + yi * tsdf._nz + zi
+    tf, wf = tsdf.tsdf.reshape(-1), tsdf.weight.reshape(-1)
+    ow = wf[fi]
+    nw = ow + obs_weight
+    tf.scatter_(0, fi, (tf[fi] * ow + td * obs_weight) / nw)
+    wf.scatter_(0, fi, nw)
+
+
+def test_frustum_precull_is_map_identical(small_tsdf, simple_depth, intrinsics):
+    """The frustum depth pre-cull must yield a bit-identical TSDF + weights to
+    the all-voxel reference, including a pose with voxels behind the camera."""
+    from gradslam.geometry.se3utils import se3_exp
+    # A rotated+translated pose so a chunk of the volume is behind the camera.
+    T = se3_exp(torch.tensor([0.05, -0.03, 0.1, 0.2, -0.15, 0.1]))
+
+    ref = TSDFVolume(torch.tensor([32, 32, 32]), torch.tensor([-0.32, -0.32, 0.0]),
+                     config=small_tsdf.config, device=torch.device("cpu"))
+    _reference_integrate(ref, simple_depth, intrinsics, T)
+    small_tsdf.integrate(simple_depth, intrinsics, T)
+
+    assert torch.equal(small_tsdf.weight, ref.weight)
+    assert torch.allclose(small_tsdf.tsdf, ref.tsdf, atol=1e-6)
+    assert (small_tsdf.weight > 0).any()  # the test actually exercised updates
+
+
 def test_integrate_modifies_tsdf(small_tsdf, simple_depth, intrinsics):
     """After integration, some TSDF values should differ from initial +1."""
     T = torch.eye(4)

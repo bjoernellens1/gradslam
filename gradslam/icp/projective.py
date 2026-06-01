@@ -7,9 +7,20 @@ from dataclasses import dataclass
 import torch
 import torch.nn.functional as F
 
+from ..backend.compile import compile_if_requested
 from ..geometry.se3utils import se3_exp
-from .residuals import point_to_plane_projective
-from .solvers import solve_lm_6x6
+from .residuals import point_to_plane_projective as _point_to_plane_projective
+from .solvers import solve_lm_6x6 as _solve_lm_6x6
+
+# Shape-stable leaf kernels on the ICP inner loop. Compiled only when
+# GRADSLAM_COMPILE=1 (eager otherwise); both are pure tensor math, so they
+# compile with fullgraph=True. Compiling these leaves — rather than
+# torch.compile on the whole pipeline, which graph-breaks on Python control
+# flow / .item() / cv2 — is the seam that actually fuses hot-loop work.
+point_to_plane_projective = compile_if_requested(
+    _point_to_plane_projective, fullgraph=True
+)
+solve_lm_6x6 = compile_if_requested(_solve_lm_6x6, fullgraph=True)
 
 
 @dataclass
