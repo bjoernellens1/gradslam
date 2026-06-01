@@ -424,7 +424,7 @@ def build_parser():
                             "(or set high) on loopy sequences.")
         p.add_argument("--loop-closure-min-inliers", type=int, default=30,
                        help="Minimum ORB match inliers to trigger a loop closure edge")
-        p.add_argument("--loop-min-frame-gap", type=int, default=50,
+        p.add_argument("--loop-min-frame-gap", type=int, default=0,
                        help="Minimum raw-frame-index gap between query and matched keyframe. "
                             "Candidates closer than this are rejected as short-baseline matches. "
                             "Set 0 to disable.")

@@ -112,7 +112,7 @@ class RGBDTSDFSLAM(torch.nn.Module):
         loop_closure_enabled: bool = False,
         keyframe_db_size: int = 30,
         loop_closure_min_inliers: int = 30,
-        loop_min_frame_gap: int = 50,
+        loop_min_frame_gap: int = 0,
     ):
         """Initialize SLAM pipeline.
 
