@@ -169,8 +169,10 @@ class ProjectiveICPTracker(torch.nn.Module):
             scale = 2 ** (self.config.n_pyramid_levels - 1 - level)
             K = intrinsics / scale  # K correctly scaled per level
 
-            # model_vertex is constant within the level — compute outside inner loop
+            # model_vertex and live_vertex are constant within the level — compute outside inner loop.
+            # Both depend only on the depth maps and camera intrinsics, not on the pose estimate.
             model_vertex = self._depth_to_vertex(model_d, K, device, dtype)  # [H_l, W_l, 3]
+            live_vertex = self._depth_to_vertex(live_d, K, device, dtype)  # [H_l, W_l, 3]
 
             # Compute photometric setup once per level (not per iteration):
             # gray interpolation and Sobel gradients depend only on the pyramid level,
@@ -208,7 +210,6 @@ class ProjectiveICPTracker(torch.nn.Module):
             # Run ICP iterations at this level
             for it in range(self.config.iterations[level]):
                 # Transform live vertices using current estimate
-                live_vertex = self._depth_to_vertex(live_d, K, device, dtype)  # [H_l, W_l, 3]
                 live_vertex_model = self._transform_points(live_vertex, T_model_live)
                 live_n_model = self._transform_normals(live_n, T_model_live)
 
