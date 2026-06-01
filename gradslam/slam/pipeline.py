@@ -975,12 +975,13 @@ class RGBDTSDFSLAM(torch.nn.Module):
             return None, {"feature_inliers": 0}
         matches = sorted(matches, key=lambda m: m.distance)[:120]
 
-        K_np = self._keyframe_K_cpu
+        K_ref_np = self._keyframe_K_cpu          # for 3D back-projection of keyframe depth
+        K_live_np = K.detach().cpu().numpy()     # for PnP (pts2 are in live frame)
         depth_ref = self._keyframe_depth_cpu
         pts3 = []
         pts2 = []
-        fx, fy = K_np[0, 0], K_np[1, 1]
-        cx, cy = K_np[0, 2], K_np[1, 2]
+        fx, fy = K_ref_np[0, 0], K_ref_np[1, 1]
+        cx, cy = K_ref_np[0, 2], K_ref_np[1, 2]
         H, W = depth_ref.shape
         for m in matches:
             u_ref, v_ref = kp_ref[m.queryIdx].pt
@@ -1003,7 +1004,7 @@ class RGBDTSDFSLAM(torch.nn.Module):
         ok, rvec, tvec, inliers = cv2.solvePnPRansac(
             pts3,
             pts2,
-            K_np.astype(np.float64),
+            K_live_np.astype(np.float64),
             None,
             iterationsCount=80,
             reprojectionError=3.0,
