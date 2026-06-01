@@ -72,6 +72,21 @@ def test_loop_plus_finalize_reduces_drift():
     assert err_after < 0.3 * err_before, f"{err_before:.3f} -> {err_after:.3f}"
 
 
+def test_no_loop_optimize_is_exact_identity():
+    """With only sequential edges, optimize()/finalize() must return the RAW
+    poses unchanged (delta-on-raw, not pp's SO(3)-projected matrices). Otherwise
+    the projection error leaks into every re-exported frame (B-ii: 561/573 frames
+    spuriously 'updated' with zero loops)."""
+    _, est = _drift_trajectory(n=20, drift=0.03)
+    pg = GlobalPoseGraph()
+    for j in range(20):
+        pg.add_keyframe(est[j], node_id=j)
+    before = [p.clone() for p in pg._poses]
+    pg.finalize()
+    maxd = max(float((a - b).abs().max()) for a, b in zip(before, pg._poses))
+    assert maxd < 1e-9, f"no-loop finalize must be identity, drifted {maxd:.2e}"
+
+
 def test_try_commit_rejects_divergent_loop():
     """A garbage loop edge must be rejected (None, state unchanged), mirroring
     the SlidingWindowPoseGraph safety contract."""

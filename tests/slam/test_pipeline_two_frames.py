@@ -146,6 +146,7 @@ def test_pose_graph_and_loop_closure_enabled_short_run(intrinsics_4x4):
         keyframe_max_frames=1,  # force a keyframe every frame
         pose_graph_enabled=True,
         pose_graph_window=8,
+        pose_graph_backend="sliding",  # global backend needs pypose (container only)
         loop_closure_enabled=True,
         keyframe_db_size=30,
         loop_closure_min_inliers=5,

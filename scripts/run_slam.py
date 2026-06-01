@@ -404,10 +404,18 @@ def build_parser():
                        help="Enable sliding-window pose graph optimization after keyframe insertion")
         p.add_argument("--pose-graph-window", type=int, default=8,
                        help="Sliding-window pose graph window size (number of keyframes)")
+        p.add_argument("--pose-graph-backend", choices=["global", "sliding"], default="global",
+                       help="Pose-graph backend: 'global' (pypose SE(3) LM over all "
+                            "keyframes + trajectory re-export, default) or 'sliding' "
+                            "(legacy windowed identity-Jacobian GN)")
         p.add_argument("--relocalization", choices=["off", "on"], default="off",
                        help="Enable ORB-based relocalization after lost-frame stretches")
         p.add_argument("--loop-closure", choices=["off", "on"], default="off",
                        help="Enable loop closure detection on keyframe insertion")
+        p.add_argument("--keyframe-db-size", type=int, default=30,
+                       help="Max keyframes retained for loop closure / reloc. Long-baseline "
+                            "revisits need the early keyframe still present, so raise this "
+                            "(or set high) on loopy sequences.")
         p.add_argument("--loop-closure-min-inliers", type=int, default=30,
                        help="Minimum ORB match inliers to trigger a loop closure edge")
 
@@ -520,8 +528,10 @@ def run_slam(args, dataset, extractor, device):
         max_velocity_rotation=getattr(args, 'max_velocity_rotation', 0.30),
         pose_graph_enabled=getattr(args, 'pose_graph', 'off') == 'on',
         pose_graph_window=getattr(args, 'pose_graph_window', 8),
+        pose_graph_backend=getattr(args, 'pose_graph_backend', 'global'),
         relocalization_enabled=getattr(args, 'relocalization', 'off') == 'on',
         loop_closure_enabled=getattr(args, 'loop_closure', 'off') == 'on',
+        keyframe_db_size=getattr(args, 'keyframe_db_size', 30),
         loop_closure_min_inliers=getattr(args, 'loop_closure_min_inliers', 30),
     ).to(device)
 
@@ -536,6 +546,7 @@ def run_slam(args, dataset, extractor, device):
 
     n_frames = min(args.max_frames or len(dataset), len(dataset))
     poses_est = []
+    live_poses_by_idx: list[tuple[int, "torch.Tensor"]] = []
     gt_poses_by_ts: list | dict = []
     tracking_log = []
     tracking_times_ms = []
@@ -613,6 +624,10 @@ def run_slam(args, dataset, extractor, device):
                 track_ms = (time.perf_counter() - start_wall) * 1000.0
             tracking_times_ms.append(track_ms)
 
+            # Pipeline frame index for this frame = frame_count BEFORE its
+            # post-increment, i.e. the count after process_frame minus 1.
+            frame_idx = slam.frame_count - 1 if hasattr(slam, "frame_count") else len(poses_est)
+            live_poses_by_idx.append((frame_idx, result.T_world_camera))
             pose_np = result.T_world_camera.cpu().numpy()
             poses_est.append(pose_np)
             if gt_pose is not None:
@@ -644,6 +659,25 @@ def run_slam(args, dataset, extractor, device):
     fps = n_frames / elapsed
     timed = tracking_times_ms[min(warmup_frames, len(tracking_times_ms)):]
     tracking_fps = 1000.0 / (sum(timed) / len(timed)) if timed else 0.0
+
+    # B3: online trajectory re-export. After a final global pose-graph
+    # optimization, re-derive each per-frame pose from its (now corrected) anchor
+    # keyframe. Frames whose anchor never entered the graph keep their live pose.
+    if getattr(slam, "_pose_graph", None) is not None and hasattr(slam, "reexport_pose"):
+        try:
+            slam.finalize_pose_graph()
+            n_changed = 0
+            for k, (fidx, live_pose) in enumerate(live_poses_by_idx):
+                new_pose = slam.reexport_pose(fidx, live_pose)
+                np_new = new_pose.cpu().numpy()
+                if not np.allclose(np_new, poses_est[k], atol=1e-9):
+                    n_changed += 1
+                poses_est[k] = np_new
+            print(f"✓ Re-exported trajectory from corrected pose graph "
+                  f"({n_changed}/{len(poses_est)} frames updated)")
+        except Exception as e:
+            print(f"  Warning: pose-graph re-export skipped ({e})")
+
     return poses_est, gt_poses_by_ts, tracking_log, elapsed, fps, tracking_fps
 
 

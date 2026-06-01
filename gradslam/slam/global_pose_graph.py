@@ -24,10 +24,25 @@ import torch
 from ..geometry.se3utils import se3_inv
 
 
+def _project_so3(R: torch.Tensor) -> torch.Tensor:
+    """Nearest rotation matrix to R via SVD (Kabsch). Accumulated tracking poses
+    drift slightly off SO(3); pypose's mat2SE3 rejects non-orthogonal R, so we
+    project first. SVD polar projection is the closest valid rotation."""
+    U, _, Vh = torch.linalg.svd(R)
+    Rp = U @ Vh
+    if torch.linalg.det(Rp) < 0:                # guard against reflection
+        U = U.clone()
+        U[:, -1] = -U[:, -1]
+        Rp = U @ Vh
+    return Rp
+
+
 def _mat_to_SE3(T: torch.Tensor):
     import pypose as pp
 
-    return pp.mat2SE3(T[:3, :4].unsqueeze(0)).tensor().squeeze(0)
+    M = T[:3, :4].clone()
+    M[:3, :3] = _project_so3(M[:3, :3])
+    return pp.mat2SE3(M.unsqueeze(0)).tensor().squeeze(0)
 
 
 class GlobalPoseGraph:
@@ -79,14 +94,16 @@ class GlobalPoseGraph:
             node_id = self._next_auto_id
         self._next_auto_id = max(self._next_auto_id, node_id + 1)
 
-        T = T_world_camera.detach().to(torch.float64).clone()
+        # Keep the whole graph on CPU/float64: it is tiny, pypose LM is fine on
+        # CPU, and this avoids device mismatches when poses arrive from cuda.
+        T = T_world_camera.detach().to(device="cpu", dtype=torch.float64).clone()
         if self._poses:
             prev_id = self._ids[-1]
             if T_rel_measured is None:
                 # Derive from RAW tracking poses (immutable), not corrected state.
                 rel = se3_inv(self._raw_poses[-1]) @ T
             else:
-                rel = T_rel_measured.detach().to(torch.float64).clone()
+                rel = T_rel_measured.detach().to(device="cpu", dtype=torch.float64).clone()
             self._edges.append((prev_id, node_id, rel, float(weight)))
         self._ids.append(node_id)
         self._poses.append(T.clone())        # optimization state (mutated by commit)
@@ -103,7 +120,9 @@ class GlobalPoseGraph:
         if a_id not in live or b_id not in live:
             return False
         self._edges.append(
-            (a_id, b_id, T_rel_meas.detach().to(torch.float64).clone(), float(weight))
+            (a_id, b_id,
+             T_rel_meas.detach().to(device="cpu", dtype=torch.float64).clone(),
+             float(weight))
         )
         return True
 
@@ -158,8 +177,24 @@ class GlobalPoseGraph:
             opt.step(closure)
 
         with torch.no_grad():
+            # Apply the optimized correction as a left-delta on the RAW stored
+            # poses, NOT pp's projected matrices. The optimizer's start state is
+            # `nodes` (a projected-to-SO(3) version of self._poses); returning
+            # mat(P) would bake the projection error into every node, so a no-op
+            # optimization (xi=0, e.g. only sequential edges) would NOT be the
+            # identity and would corrupt all re-exported frames. Instead:
+            #   delta_i = mat(P_i) @ inv(mat(nodes_i))   (projection cancels)
+            #   corrected_i = delta_i @ raw_pose_i
+            # so xi=0 => delta=I => corrected == raw, exactly.
             P = pp.se3(xi).Exp() @ nodes
-            return [P[i].matrix().to(torch.float64) for i in range(n)]
+            start = pp.se3(torch.zeros_like(xi)).Exp() @ nodes  # == nodes, as matrices
+            out = []
+            for i in range(n):
+                delta = P[i].matrix().to(torch.float64) @ torch.linalg.inv(
+                    start[i].matrix().to(torch.float64)
+                )
+                out.append(delta @ self._poses[i])
+            return out
 
     @torch.no_grad()
     def finalize(self) -> list[torch.Tensor]:
