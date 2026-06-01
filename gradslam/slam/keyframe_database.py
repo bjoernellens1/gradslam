@@ -149,6 +149,8 @@ class KeyframeDatabase:
         query_K: np.ndarray,    # camera intrinsics for PnP
         exclude_last_n: int = 8,
         min_inliers: int = 30,
+        query_frame_idx: int = 0,   # frame index of the query (for gap check)
+        min_frame_gap: int = 0,     # require match.frame_idx <= query_frame_idx - min_frame_gap
     ) -> tuple:
         """Find loop closure: match query against entries older than exclude_last_n.
 
@@ -167,6 +169,11 @@ class KeyframeDatabase:
             if exclude_last_n < len(self._entries)
             else []
         )
+        if min_frame_gap > 0:
+            entries_to_check = [
+                e for e in entries_to_check
+                if query_frame_idx - e["frame_idx"] >= min_frame_gap
+            ]
         if not entries_to_check:
             return None, -1, 0
 

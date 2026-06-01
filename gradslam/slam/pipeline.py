@@ -112,6 +112,7 @@ class RGBDTSDFSLAM(torch.nn.Module):
         loop_closure_enabled: bool = False,
         keyframe_db_size: int = 30,
         loop_closure_min_inliers: int = 30,
+        loop_min_frame_gap: int = 50,
     ):
         """Initialize SLAM pipeline.
 
@@ -185,6 +186,10 @@ class RGBDTSDFSLAM(torch.nn.Module):
                 database for relocalization / loop closure.
             loop_closure_min_inliers: Minimum ORB feature matches required to
                 trigger a loop-closure edge.
+            loop_min_frame_gap: Minimum raw-frame-index distance between the
+                query frame and a candidate keyframe's ``frame_idx``.  Candidates
+                closer than this are rejected as short-baseline matches that
+                cannot reduce drift.  Default 50; set 0 to disable.
         """
         super().__init__()
         self.tsdf_config = tsdf_config or TSDFConfig()
@@ -285,6 +290,7 @@ class RGBDTSDFSLAM(torch.nn.Module):
         self.relocalization_enabled = relocalization_enabled
         self.loop_closure_enabled = loop_closure_enabled
         self.loop_closure_min_inliers = loop_closure_min_inliers
+        self.loop_min_frame_gap = int(loop_min_frame_gap)
         self._keyframe_db: KeyframeDatabase | None = (
             KeyframeDatabase(max_keyframes=keyframe_db_size)
             if (relocalization_enabled or loop_closure_enabled)
@@ -1423,6 +1429,8 @@ class RGBDTSDFSLAM(torch.nn.Module):
             K_np_kf,
             exclude_last_n=self.loop_exclude_last_n,
             min_inliers=self.loop_closure_min_inliers,
+            query_frame_idx=self.frame_count,
+            min_frame_gap=self.loop_min_frame_gap,
         )
         if T_rel_np is None:
             return

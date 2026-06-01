@@ -424,6 +424,10 @@ def build_parser():
                             "(or set high) on loopy sequences.")
         p.add_argument("--loop-closure-min-inliers", type=int, default=30,
                        help="Minimum ORB match inliers to trigger a loop closure edge")
+        p.add_argument("--loop-min-frame-gap", type=int, default=50,
+                       help="Minimum raw-frame-index gap between query and matched keyframe. "
+                            "Candidates closer than this are rejected as short-baseline matches. "
+                            "Set 0 to disable.")
 
     return parser
 
@@ -540,6 +544,7 @@ def run_slam(args, dataset, extractor, device):
         loop_closure_enabled=getattr(args, 'loop_closure', 'off') == 'on',
         keyframe_db_size=getattr(args, 'keyframe_db_size', 30),
         loop_closure_min_inliers=getattr(args, 'loop_closure_min_inliers', 30),
+        loop_min_frame_gap=getattr(args, 'loop_min_frame_gap', 50),
     ).to(device)
 
     # torch.compile: compiling the whole SLAM module graph-breaks on the

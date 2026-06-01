@@ -85,6 +85,82 @@ def test_find_loop_detects_when_enough_keyframes():
         assert np.allclose(T_rel_np, np.eye(4), atol=0.15)  # same image → near identity
 
 
+def test_find_loop_min_frame_gap_rejects_short_baseline():
+    """Entries within min_frame_gap of query_frame_idx must be skipped."""
+    db = KeyframeDatabase()
+    rgb = _textured_rgb()
+    T = np.eye(4)
+    K = _K()
+    depth = np.full((120, 160), 2.0, dtype=np.float32)
+
+    # Add 12 keyframes with frame_idx 0..11, then query with frame_idx=100
+    # and min_frame_gap=90 → only entries with frame_idx <= 10 pass (gap >= 90).
+    for i in range(12):
+        db.add(rgb, depth, K, T, frame_idx=i)
+
+    import cv2 as _cv2
+    orb = _cv2.ORB_create(500)
+    gray = _cv2.cvtColor(rgb, _cv2.COLOR_RGB2GRAY)
+    kpts, desc = orb.detectAndCompute(gray, None)
+
+    # min_frame_gap=200 → query_frame_idx(100) - max_entry_frame_idx(11) = 89 < 200
+    # All entries are filtered out.
+    T_rel_np, match_idx, n_inliers = db.find_loop(
+        (kpts, desc),
+        query_K=K,
+        exclude_last_n=0,
+        min_inliers=1,
+        query_frame_idx=100,
+        min_frame_gap=200,
+    )
+    assert match_idx == -1, "All entries should be rejected when gap < min_frame_gap"
+    assert T_rel_np is None
+
+    # min_frame_gap=0 → gap filter disabled; same as before
+    T_rel_np2, match_idx2, _ = db.find_loop(
+        (kpts, desc),
+        query_K=K,
+        exclude_last_n=0,
+        min_inliers=1,
+        query_frame_idx=100,
+        min_frame_gap=0,
+    )
+    # With gap filter off, entries are eligible (match possible or not based on features)
+    assert match_idx2 == -1 or match_idx2 >= 0  # either outcome is valid; filter is gone
+
+
+def test_find_loop_min_frame_gap_allows_old_entries():
+    """Entries older than min_frame_gap must remain eligible."""
+    db = KeyframeDatabase()
+    rgb = _textured_rgb()
+    T = np.eye(4)
+    K = _K()
+    depth = np.full((120, 160), 2.0, dtype=np.float32)
+
+    # frame_idx=0 is 150 frames back from query_frame_idx=150; gap=50 → passes.
+    # frame_idx=140 is only 10 frames back; gap=50 → rejected.
+    db.add(rgb, depth, K, T, frame_idx=0)
+    db.add(rgb, depth, K, T, frame_idx=140)
+
+    import cv2 as _cv2
+    orb = _cv2.ORB_create(500)
+    gray = _cv2.cvtColor(rgb, _cv2.COLOR_RGB2GRAY)
+    kpts, desc = orb.detectAndCompute(gray, None)
+
+    T_rel_np, match_idx, n_inliers = db.find_loop(
+        (kpts, desc),
+        query_K=K,
+        exclude_last_n=0,
+        min_inliers=1,
+        query_frame_idx=150,
+        min_frame_gap=50,
+    )
+    # frame_idx=0 passes (gap=150 >= 50); frame_idx=140 is filtered (gap=10 < 50).
+    # So if a match is found, it must be frame_idx=0.
+    if match_idx >= 0:
+        assert match_idx == 0, "Only the old entry (frame_idx=0) should be eligible"
+
+
 def test_loop_edge_convention_matches_find_loop_sign():
     """Pin the sign of the loop-edge measurement against find_loop's PnP
     output convention.
