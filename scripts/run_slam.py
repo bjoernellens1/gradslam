@@ -663,7 +663,9 @@ def run_slam(args, dataset, extractor, device):
     # B3: online trajectory re-export. After a final global pose-graph
     # optimization, re-derive each per-frame pose from its (now corrected) anchor
     # keyframe. Frames whose anchor never entered the graph keep their live pose.
-    if getattr(slam, "_pose_graph", None) is not None and hasattr(slam, "reexport_pose"):
+    if os.environ.get("SKIP_REEXPORT") == "1":
+        print("✓ Re-export SKIPPED (SKIP_REEXPORT=1): trajectory = in-run live poses")
+    elif getattr(slam, "_pose_graph", None) is not None and hasattr(slam, "reexport_pose"):
         try:
             slam.finalize_pose_graph()
             n_changed = 0
