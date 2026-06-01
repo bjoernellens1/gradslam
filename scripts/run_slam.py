@@ -408,6 +408,12 @@ def build_parser():
                        help="Pose-graph backend: 'global' (pypose SE(3) LM over all "
                             "keyframes + trajectory re-export, default) or 'sliding' "
                             "(legacy windowed identity-Jacobian GN)")
+        p.add_argument("--pose-graph-observer", choices=["on", "off"], default="on",
+                       help="Observer mode (default on): accumulate graph during run but "
+                            "apply corrections only at run end via finalize+reexport. "
+                            "Required for frame-to-model trackers with a baked TSDF map — "
+                            "mid-run pose jumps without map correction desync tracker. "
+                            "Set off to restore legacy feedback behaviour.")
         p.add_argument("--relocalization", choices=["off", "on"], default="off",
                        help="Enable ORB-based relocalization after lost-frame stretches")
         p.add_argument("--loop-closure", choices=["off", "on"], default="off",
@@ -529,6 +535,7 @@ def run_slam(args, dataset, extractor, device):
         pose_graph_enabled=getattr(args, 'pose_graph', 'off') == 'on',
         pose_graph_window=getattr(args, 'pose_graph_window', 8),
         pose_graph_backend=getattr(args, 'pose_graph_backend', 'global'),
+        pose_graph_observer=getattr(args, 'pose_graph_observer', 'on') == 'on',
         relocalization_enabled=getattr(args, 'relocalization', 'off') == 'on',
         loop_closure_enabled=getattr(args, 'loop_closure', 'off') == 'on',
         keyframe_db_size=getattr(args, 'keyframe_db_size', 30),
@@ -653,6 +660,10 @@ def run_slam(args, dataset, extractor, device):
                 "candidates_json": __import__('json').dumps(q.get("candidates", [])),
                 "tracking_state": q.get("tracking_state", "ok"),
                 "map_update_allowed": q.get("map_update_allowed", True),
+                "loop_closure_frame_idx": q.get("loop_closure_frame_idx", -1),
+                "loop_closure_rejected": int(q.get("loop_closure_rejected", False)),
+                "loop_closure_inliers": q.get("loop_closure_inliers", 0),
+                "loop_closure_weight": q.get("loop_closure_weight", 0.0),
             })
 
     elapsed = time.time() - start_time
@@ -838,6 +849,8 @@ def save_results(output_dir: Path, poses_est, tracking_log, dataset_type,
         "frame_rotation_deg", "motion_gate", "reference_frame_idx",
         "t_disagreement_norm", "tracking_ms", "lost", "candidates_json",
         "tracking_state", "map_update_allowed",
+        "loop_closure_frame_idx", "loop_closure_rejected",
+        "loop_closure_inliers", "loop_closure_weight",
     ]
     with open(csv_file, "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=_CSV_FIELDS, extrasaction="ignore")
@@ -862,6 +875,10 @@ def save_results(output_dir: Path, poses_est, tracking_log, dataset_type,
                 "candidates_json": r.get("candidates_json", "[]"),
                 "tracking_state": r.get("tracking_state", "ok"),
                 "map_update_allowed": int(r.get("map_update_allowed", True)),
+                "loop_closure_frame_idx": r.get("loop_closure_frame_idx", -1),
+                "loop_closure_rejected": int(r.get("loop_closure_rejected", False)),
+                "loop_closure_inliers": r.get("loop_closure_inliers", 0),
+                "loop_closure_weight": r.get("loop_closure_weight", 0.0),
             }
             writer.writerow(row)
     print(f"✓ Tracking debug CSV → {csv_file}")
