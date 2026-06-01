@@ -82,3 +82,23 @@ def test_scale_intrinsics_does_not_modify_input():
     K_orig = K.clone()
     _ = scale_intrinsics(K, scale=4.0)
     assert torch.allclose(K, K_orig)
+
+
+def test_depth_pyramid_masks_invalid_zeros():
+    """Invalid zero-depth should not contaminate valid neighbors when downsampling."""
+    # 2x2 block: one valid pixel (2.0) surrounded by three zeros
+    depth = torch.tensor([
+        [2.0, 0.0],
+        [0.0, 0.0],
+    ])
+    pyr = build_depth_pyramid(depth, n_levels=2)
+    # Coarsest level (1x1): should be 2.0, not 0.5
+    assert abs(pyr[0][0, 0].item() - 2.0) < 1e-5
+
+
+def test_depth_pyramid_all_invalid_gives_zero():
+    """An entirely-zero block should remain zero (not NaN/inf)."""
+    depth = torch.zeros(4, 4)
+    pyr = build_depth_pyramid(depth, n_levels=3)
+    for level in pyr:
+        assert torch.all(level == 0.0)

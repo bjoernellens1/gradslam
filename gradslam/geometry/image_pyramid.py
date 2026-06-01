@@ -10,7 +10,10 @@ def build_depth_pyramid(
     depth: torch.Tensor,
     n_levels: int,
 ) -> list[torch.Tensor]:
-    """Build a Gaussian (average-pool) depth pyramid, coarsest first.
+    """Build a masked average-pool depth pyramid, coarsest first.
+
+    Masked average pooling (invalid zero-depth pixels excluded): each downsampled
+    pixel is the average of valid neighbors, where invalid means depth == 0.
 
     Args:
         depth: Full-resolution depth image [H, W].
@@ -26,11 +29,21 @@ def build_depth_pyramid(
     """
     levels = [depth]
     for _ in range(n_levels - 1):
-        downed = F.avg_pool2d(
-            levels[-1].unsqueeze(0).unsqueeze(0),
+        prev = levels[-1]
+        valid = (prev > 0).float()
+        d_sum = F.avg_pool2d(
+            (prev * valid).unsqueeze(0).unsqueeze(0),
             kernel_size=2,
             stride=2,
+            divisor_override=1,
         ).squeeze(0).squeeze(0)
+        cnt = F.avg_pool2d(
+            valid.unsqueeze(0).unsqueeze(0),
+            kernel_size=2,
+            stride=2,
+            divisor_override=1,
+        ).squeeze(0).squeeze(0)
+        downed = torch.where(cnt > 0, d_sum / cnt.clamp(min=1e-8), prev.new_zeros(1))
         levels.append(downed)
     return list(reversed(levels))
 
