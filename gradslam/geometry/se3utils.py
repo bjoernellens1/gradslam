@@ -168,28 +168,47 @@ def se3_log(T: torch.Tensor) -> torch.Tensor:
     return torch.cat([v, omega])
 
 
-def se3_inv(T: torch.Tensor) -> torch.Tensor:
-    """Analytic inverse of a 4x4 SE(3) matrix.
+def se3_inv(T: torch.Tensor, reorthonormalize: bool = True) -> torch.Tensor:
+    """Inverse of a 4x4 SE(3) matrix via the analytic rigid-transform formula.
 
-    For ``T = [[R, t], [0, 1]]`` the inverse is ``[[R^T, -R^T t], [0, 1]]``.
+    For ``T = [[R, t], [0, 1]]`` the inverse is ``[[R^-1, -R^-1 t], [0, 1]]``,
+    and for a rotation ``R^-1 == R^T``. This avoids a general LU solve.
 
-    WARNING: this assumes R is *exactly* orthonormal (R^-1 == R^T). It is correct
-    for freshly composed transforms (e.g. ``inv(A) @ B`` of two well-formed
-    poses, or a single ``se3_exp`` output), but NOT for poses accumulated over
-    many ``dT @ T`` multiplications, where R slowly drifts from SO(3) and the R^T
-    shortcut yields a wrong inverse that compounds. For accumulated camera poses
-    on the tracking hot path use ``torch.linalg.inv`` instead — empirically the
-    analytic form there degraded fr1_desk ATE 0.135 -> 0.73. Intended for
-    short-lived relative transforms (e.g. pose-graph edge construction).
+    DO NOT use this on the tracking hot path. Camera poses there are inverted by
+    ``torch.linalg.inv`` for a reason: using ``R^T`` instead feeds a slightly
+    wrong inverse back into the ``T = T @ dT`` chain, which then accelerates R
+    away from SO(3) (det(R) measured collapsing 1.0 -> 0.89 in ~16 frames) and
+    destroys tracking (fr1_desk ATE 0.135 -> 0.73/0.87, 538/573 frames lost).
+    The control pipeline with ``linalg.inv`` keeps det(R) ~= 1, so this is a
+    feedback failure of the analytic form, not a latent pipeline bug. Also note
+    a 4x4 inverse is a GPU kernel, not a host sync — it is not a bottleneck, so
+    there is no speed reason to replace it.
+
+    ``reorthonormalize=True`` (default) projects R onto SO(3) with one
+    Gram-Schmidt pass before transposing. This makes the inverse self-consistent
+    for the SINGLE call but does NOT rescue the hot path (the rest of the
+    pipeline still consumes the degraded pose). Its only intended use is
+    short-lived relative transforms built from two clean poses — e.g. pose-graph
+    edge construction in Workstream B — where ``reorthonormalize=False`` is also
+    safe because the inputs are freshly composed ``se3_exp`` outputs.
 
     Args:
         T: SE(3) matrix, shape [4, 4].
+        reorthonormalize: Project R onto SO(3) (Gram-Schmidt) before inverting.
 
     Returns:
         The inverse SE(3) matrix, shape [4, 4].
     """
     R = T[:3, :3]
     t = T[:3, 3]
+    if reorthonormalize:
+        # One modified Gram-Schmidt pass on the columns of R -> nearest SO(3).
+        c0 = R[:, 0]
+        c0 = c0 / c0.norm().clamp_min(1e-12)
+        c1 = R[:, 1] - (c0 @ R[:, 1]) * c0
+        c1 = c1 / c1.norm().clamp_min(1e-12)
+        c2 = torch.linalg.cross(c0, c1)
+        R = torch.stack([c0, c1, c2], dim=1)  # [3,3], orthonormal, det +1
     Rt = R.transpose(-1, -2)
     out = torch.zeros_like(T)
     out[:3, :3] = Rt

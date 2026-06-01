@@ -26,6 +26,7 @@ Usage examples:
 from __future__ import annotations
 
 import argparse
+import os
 import signal
 import time
 from pathlib import Path
