@@ -99,6 +99,7 @@
 <span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
 
 
+
 <div class="viewcode-block" id="TSDFConfig">
 <a class="viewcode-back" href="../../../modules/mapping.html#gradslam.mapping.TSDFConfig">[docs]</a>
 <span class="nd">@dataclass</span>
@@ -218,7 +219,9 @@
         <span class="n">device</span> <span class="o">=</span> <span class="n">depth</span><span class="o">.</span><span class="n">device</span>
         <span class="n">dtype</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">dtype</span>
 
-        <span class="c1"># Inverse camera transform (world to camera)</span>
+        <span class="c1"># Inverse camera transform (world to camera). Use the general inverse:</span>
+        <span class="c1"># accumulated poses drift from perfect orthonormality, so an analytic</span>
+        <span class="c1"># R^T shortcut introduces error that compounds over a run.</span>
         <span class="n">T_camera_world</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">inv</span><span class="p">(</span><span class="n">T_world_camera</span><span class="p">)</span>
         <span class="n">R</span> <span class="o">=</span> <span class="n">T_camera_world</span><span class="p">[:</span><span class="mi">3</span><span class="p">,</span> <span class="p">:</span><span class="mi">3</span><span class="p">]</span>
         <span class="n">t</span> <span class="o">=</span> <span class="n">T_camera_world</span><span class="p">[:</span><span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">]</span>
@@ -227,8 +230,22 @@
         <span class="n">voxel_coords</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cached_voxel_coords</span>   <span class="c1"># [N, 3]</span>
         <span class="n">voxel_world</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cached_voxel_world</span>      <span class="c1"># [N, 3]</span>
 
-        <span class="c1"># Transform to camera frame</span>
-        <span class="n">voxel_camera</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">matmul</span><span class="p">(</span><span class="n">voxel_world</span><span class="p">,</span> <span class="n">R</span><span class="o">.</span><span class="n">t</span><span class="p">())</span> <span class="o">+</span> <span class="n">t</span>  <span class="c1"># [N, 3]</span>
+        <span class="c1"># Cheap depth pre-cull (behavior-identical): the camera-frame z is the</span>
+        <span class="c1"># dot of each voxel with the 3rd row of R, plus t_z. Voxels with z&lt;=0 are</span>
+        <span class="c1"># behind the camera and would be rejected by the frustum `valid` mask</span>
+        <span class="c1"># anyway, so we restrict the full transform + projection to z&gt;0 voxels.</span>
+        <span class="c1"># Computed as an elementwise mul+sum (NOT a matrix-vector gemv): some</span>
+        <span class="c1"># ROCm/hipBLAS builds raise HIPBLAS_STATUS_INTERNAL_ERROR on Sgemv of a</span>
+        <span class="c1"># large [N,3]·[3] product, so we avoid that path entirely.</span>
+        <span class="n">z_cam_all</span> <span class="o">=</span> <span class="p">(</span><span class="n">voxel_world</span> <span class="o">*</span> <span class="n">R</span><span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="p">:])</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="o">+</span> <span class="n">t</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>    <span class="c1"># [N]</span>
+        <span class="n">front</span> <span class="o">=</span> <span class="n">z_cam_all</span> <span class="o">&gt;</span> <span class="mi">0</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">bool</span><span class="p">(</span><span class="n">front</span><span class="o">.</span><span class="n">any</span><span class="p">()):</span>
+            <span class="k">return</span>
+        <span class="n">vox_coords_f</span> <span class="o">=</span> <span class="n">voxel_coords</span><span class="p">[</span><span class="n">front</span><span class="p">]</span>
+        <span class="n">vox_world_f</span> <span class="o">=</span> <span class="n">voxel_world</span><span class="p">[</span><span class="n">front</span><span class="p">]</span>
+
+        <span class="c1"># Transform the front-facing subset to camera frame</span>
+        <span class="n">voxel_camera</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">matmul</span><span class="p">(</span><span class="n">vox_world_f</span><span class="p">,</span> <span class="n">R</span><span class="o">.</span><span class="n">t</span><span class="p">())</span> <span class="o">+</span> <span class="n">t</span>  <span class="c1"># [M, 3]</span>
 
         <span class="c1"># Project to image</span>
         <span class="n">fx</span><span class="p">,</span> <span class="n">fy</span> <span class="o">=</span> <span class="n">intrinsics</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">intrinsics</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span>
@@ -237,20 +254,14 @@
         <span class="n">u</span> <span class="o">=</span> <span class="p">(</span><span class="n">voxel_camera</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">fx</span> <span class="o">/</span> <span class="n">voxel_camera</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">]</span> <span class="o">+</span> <span class="n">cx</span><span class="p">)</span><span class="o">.</span><span class="n">long</span><span class="p">()</span>
         <span class="n">v</span> <span class="o">=</span> <span class="p">(</span><span class="n">voxel_camera</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">fy</span> <span class="o">/</span> <span class="n">voxel_camera</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">]</span> <span class="o">+</span> <span class="n">cy</span><span class="p">)</span><span class="o">.</span><span class="n">long</span><span class="p">()</span>
 
-        <span class="c1"># Frustum check</span>
-        <span class="n">valid</span> <span class="o">=</span> <span class="p">(</span>
-            <span class="p">(</span><span class="n">voxel_camera</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span>
-            <span class="o">&amp;</span> <span class="p">(</span><span class="n">u</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">)</span>
-            <span class="o">&amp;</span> <span class="p">(</span><span class="n">u</span> <span class="o">&lt;</span> <span class="n">W</span><span class="p">)</span>
-            <span class="o">&amp;</span> <span class="p">(</span><span class="n">v</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">)</span>
-            <span class="o">&amp;</span> <span class="p">(</span><span class="n">v</span> <span class="o">&lt;</span> <span class="n">H</span><span class="p">)</span>
-        <span class="p">)</span>
+        <span class="c1"># Frustum check (z&gt;0 already guaranteed by the pre-cull)</span>
+        <span class="n">valid</span> <span class="o">=</span> <span class="p">(</span><span class="n">u</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">u</span> <span class="o">&lt;</span> <span class="n">W</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">v</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">v</span> <span class="o">&lt;</span> <span class="n">H</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">valid</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
             <span class="k">return</span>
 
         <span class="c1"># Valid voxel positions</span>
-        <span class="n">voxel_coords_valid</span> <span class="o">=</span> <span class="n">voxel_coords</span><span class="p">[</span><span class="n">valid</span><span class="p">]</span>
+        <span class="n">voxel_coords_valid</span> <span class="o">=</span> <span class="n">vox_coords_f</span><span class="p">[</span><span class="n">valid</span><span class="p">]</span>
         <span class="n">u_valid</span> <span class="o">=</span> <span class="n">u</span><span class="p">[</span><span class="n">valid</span><span class="p">]</span>
         <span class="n">v_valid</span> <span class="o">=</span> <span class="n">v</span><span class="p">[</span><span class="n">valid</span><span class="p">]</span>
         <span class="n">voxel_camera_valid</span> <span class="o">=</span> <span class="n">voxel_camera</span><span class="p">[</span><span class="n">valid</span><span class="p">]</span>

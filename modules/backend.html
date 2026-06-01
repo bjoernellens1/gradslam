@@ -160,8 +160,11 @@ backend, device_count, device_name.</p>
 <dt class="sig sig-object py" id="gradslam.backend.compile_if_requested">
 <span class="sig-name descname"><span class="pre">compile_if_requested</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fn</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">fullgraph</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/backend/compile.html#compile_if_requested"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.backend.compile_if_requested" title="Link to this definition"></a></dt>
 <dd><p>Conditionally compile a function via torch.compile.</p>
-<p>Respects GRADSLAM_COMPILE environment variable (0/1/true/yes).
-When disabled, returns the original function unchanged.</p>
+<p>Respects GRADSLAM_COMPILE environment variable (0/1/true/yes), checked
+LAZILY at first call (not at import). Module-level functions get wrapped
+during import, but the flag may be set afterward (e.g. by a –compile CLI
+flag), so a call-time check keeps the flag order-independent. When disabled
+the wrapper just forwards to the eager function with negligible overhead.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -171,7 +174,8 @@ If False, use fullgraph=False (default, allows dynamic shapes).</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>Compiled function or original function if compilation is disabled.</p>
+<dd class="field-even"><p>A wrapper that runs eager or compiled depending on GRADSLAM_COMPILE at
+call time. The compiled callable is built once and cached.</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/collections.abc.html#collections.abc.Callable" title="(in Python v3.14)"><em>Callable</em></a></p>
@@ -247,8 +251,11 @@ backend, device_count, device_name.</p>
 <dt class="sig sig-object py" id="gradslam.backend.compile.compile_if_requested">
 <span class="sig-name descname"><span class="pre">compile_if_requested</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fn</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">fullgraph</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gradslam/backend/compile.html#compile_if_requested"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gradslam.backend.compile.compile_if_requested" title="Link to this definition"></a></dt>
 <dd><p>Conditionally compile a function via torch.compile.</p>
-<p>Respects GRADSLAM_COMPILE environment variable (0/1/true/yes).
-When disabled, returns the original function unchanged.</p>
+<p>Respects GRADSLAM_COMPILE environment variable (0/1/true/yes), checked
+LAZILY at first call (not at import). Module-level functions get wrapped
+during import, but the flag may be set afterward (e.g. by a –compile CLI
+flag), so a call-time check keeps the flag order-independent. When disabled
+the wrapper just forwards to the eager function with negligible overhead.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -258,7 +265,8 @@ If False, use fullgraph=False (default, allows dynamic shapes).</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>Compiled function or original function if compilation is disabled.</p>
+<dd class="field-even"><p>A wrapper that runs eager or compiled depending on GRADSLAM_COMPILE at
+call time. The compiled callable is built once and cached.</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/collections.abc.html#collections.abc.Callable" title="(in Python v3.14)"><em>Callable</em></a></p>

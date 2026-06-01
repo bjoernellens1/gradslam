@@ -99,9 +99,20 @@
 <span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">torch.nn.functional</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">F</span>
 
+<span class="kn">from</span><span class="w"> </span><span class="nn">..backend.compile</span><span class="w"> </span><span class="kn">import</span> <span class="n">compile_if_requested</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">..geometry.se3utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">se3_exp</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">.residuals</span><span class="w"> </span><span class="kn">import</span> <span class="n">point_to_plane_projective</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">.solvers</span><span class="w"> </span><span class="kn">import</span> <span class="n">solve_lm_6x6</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.residuals</span><span class="w"> </span><span class="kn">import</span> <span class="n">point_to_plane_projective</span> <span class="k">as</span> <span class="n">_point_to_plane_projective</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.solvers</span><span class="w"> </span><span class="kn">import</span> <span class="n">solve_lm_6x6</span> <span class="k">as</span> <span class="n">_solve_lm_6x6</span>
+
+<span class="c1"># Shape-stable leaf kernels on the ICP inner loop. Compiled only when</span>
+<span class="c1"># GRADSLAM_COMPILE=1 (eager otherwise); both are pure tensor math, so they</span>
+<span class="c1"># compile with fullgraph=True. Compiling these leaves — rather than</span>
+<span class="c1"># torch.compile on the whole pipeline, which graph-breaks on Python control</span>
+<span class="c1"># flow / .item() / cv2 — is the seam that actually fuses hot-loop work.</span>
+<span class="n">point_to_plane_projective</span> <span class="o">=</span> <span class="n">compile_if_requested</span><span class="p">(</span>
+    <span class="n">_point_to_plane_projective</span><span class="p">,</span> <span class="n">fullgraph</span><span class="o">=</span><span class="kc">True</span>
+<span class="p">)</span>
+<span class="n">solve_lm_6x6</span> <span class="o">=</span> <span class="n">compile_if_requested</span><span class="p">(</span><span class="n">_solve_lm_6x6</span><span class="p">,</span> <span class="n">fullgraph</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
 
 <div class="viewcode-block" id="ProjectiveICPConfig">

@@ -105,8 +105,11 @@
 <span class="k">def</span><span class="w"> </span><span class="nf">compile_if_requested</span><span class="p">(</span><span class="n">fn</span><span class="p">:</span> <span class="n">Callable</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">fullgraph</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Conditionally compile a function via torch.compile.</span>
 
-<span class="sd">    Respects GRADSLAM_COMPILE environment variable (0/1/true/yes).</span>
-<span class="sd">    When disabled, returns the original function unchanged.</span>
+<span class="sd">    Respects GRADSLAM_COMPILE environment variable (0/1/true/yes), checked</span>
+<span class="sd">    LAZILY at first call (not at import). Module-level functions get wrapped</span>
+<span class="sd">    during import, but the flag may be set afterward (e.g. by a --compile CLI</span>
+<span class="sd">    flag), so a call-time check keeps the flag order-independent. When disabled</span>
+<span class="sd">    the wrapper just forwards to the eager function with negligible overhead.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        fn: Function to compile.</span>
@@ -114,12 +117,22 @@
 <span class="sd">                   If False, use fullgraph=False (default, allows dynamic shapes).</span>
 
 <span class="sd">    Returns:</span>
-<span class="sd">        Compiled function or original function if compilation is disabled.</span>
+<span class="sd">        A wrapper that runs eager or compiled depending on GRADSLAM_COMPILE at</span>
+<span class="sd">        call time. The compiled callable is built once and cached.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">mode</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;GRADSLAM_COMPILE&quot;</span><span class="p">,</span> <span class="s2">&quot;0&quot;</span><span class="p">)</span>
-    <span class="k">if</span> <span class="n">mode</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">{</span><span class="s2">&quot;1&quot;</span><span class="p">,</span> <span class="s2">&quot;true&quot;</span><span class="p">,</span> <span class="s2">&quot;yes&quot;</span><span class="p">}:</span>
-        <span class="k">return</span> <span class="n">fn</span>
-    <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="n">fn</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;reduce-overhead&quot;</span><span class="p">,</span> <span class="n">fullgraph</span><span class="o">=</span><span class="n">fullgraph</span><span class="p">)</span></div>
+    <span class="n">compiled_holder</span><span class="p">:</span> <span class="nb">list</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_maybe_compiled</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">mode</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;GRADSLAM_COMPILE&quot;</span><span class="p">,</span> <span class="s2">&quot;0&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">mode</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">{</span><span class="s2">&quot;1&quot;</span><span class="p">,</span> <span class="s2">&quot;true&quot;</span><span class="p">,</span> <span class="s2">&quot;yes&quot;</span><span class="p">}:</span>
+            <span class="k">return</span> <span class="n">fn</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">compiled_holder</span><span class="p">:</span>
+            <span class="n">compiled_holder</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="n">torch</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="n">fn</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;reduce-overhead&quot;</span><span class="p">,</span> <span class="n">fullgraph</span><span class="o">=</span><span class="n">fullgraph</span><span class="p">)</span>
+            <span class="p">)</span>
+        <span class="k">return</span> <span class="n">compiled_holder</span><span class="p">[</span><span class="mi">0</span><span class="p">](</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">_maybe_compiled</span></div>
 
 
 
