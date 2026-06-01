@@ -1,5 +1,12 @@
 # Performance Tuning Ablation — FPS vs ATE (hard constraint ATE < 10 cm)
 
+> **Update:** The ablation established the baseline accuracy floor (0.135 m with
+> hybrid TSDF tracking) and identified that `fast_rgbd` defaults don't use the
+> designed accuracy config. Since this ablation, the **observer-mode global PGO**
+> (branch `perf-and-accuracy`) brings fr1_desk to **0.100 m** and fr1_xyz to
+> **0.014 m** with real ORB loop closure. See `BENCHMARK_RESULTS.md` for current
+> recommended config and results.
+
 **Hardware:** AMD Radeon 8060S APU (ROCm 7.2.2, PyTorch 2.7.1), single GPU.
 **Harness:** `scripts/ablation/` — `run_one.sh` (flock-serialized, single APU → GPU runs
 must serialize for valid FPS; resumable via `results.csv`), shard job lists run by parallel
