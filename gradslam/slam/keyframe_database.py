@@ -128,13 +128,12 @@ class KeyframeDatabase:
             n_inliers = len(inliers)
             if n_inliers > best_inliers:
                 best_inliers = n_inliers
-                # Build T_query_ref (camera-to-camera transform)
                 R_mat, _ = cv2.Rodrigues(rvec)
-                T_ref_query = np.eye(4)
-                T_ref_query[:3, :3] = R_mat
-                T_ref_query[:3, 3] = tvec[:, 0]
-                # T_world_query = T_world_ref @ T_ref_query
-                T_world_query = entry["T_world_camera"] @ T_ref_query
+                T_query_from_ref = np.eye(4)
+                T_query_from_ref[:3, :3] = R_mat
+                T_query_from_ref[:3, 3] = tvec[:, 0]
+                # solvePnP returns T_query_from_ref; invert to get T_ref_from_query
+                T_world_query = entry["T_world_camera"] @ np.linalg.inv(T_query_from_ref)
                 best_result = (
                     T_world_query,
                     {"feature_inliers": n_inliers, "ref_frame_idx": entry["frame_idx"]},

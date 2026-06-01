@@ -78,3 +78,78 @@ def test_database_clear():
     assert len(db) == 1
     db.clear()
     assert len(db) == 0
+
+
+def test_relocalize_recovers_known_pose():
+    """Synthetic test: verify PnP direction gives correct T_world_query.
+
+    solvePnPRansac returns T_query_from_ref (maps ref-cam coords → query-cam coords).
+    The correct composition is T_world_ref @ inv(T_query_from_ref).
+    This test documents that formula and verifies it numerically.
+    """
+    # Known poses
+    T_world_ref = np.eye(4, dtype=np.float64)  # ref camera at world origin
+
+    # Query is 0.5 m to the right with a slight y-axis rotation
+    angle = 0.1  # radians
+    T_world_query = np.eye(4, dtype=np.float64)
+    T_world_query[:3, :3] = np.array([
+        [np.cos(angle), 0, np.sin(angle)],
+        [0,             1, 0            ],
+        [-np.sin(angle), 0, np.cos(angle)],
+    ])
+    T_world_query[:3, 3] = [0.5, 0.0, 0.0]
+
+    K = np.array([[200., 0., 80.], [0., 200., 60.], [0., 0., 1.]], dtype=np.float64)
+
+    # 3D points in world frame (flat wall at z=2 in ref-cam coords)
+    pts_world = np.array(
+        [[0.1 * i - 0.2, 0.1 * j - 0.2, 2.0] for i in range(5) for j in range(5)],
+        dtype=np.float64,
+    )  # shape [25, 3]
+
+    # Express points in each camera frame
+    T_ref_from_world = np.linalg.inv(T_world_ref)
+    pts_ref_cam = (T_ref_from_world[:3, :3] @ pts_world.T + T_ref_from_world[:3, 3:]).T
+
+    T_query_from_world = np.linalg.inv(T_world_query)
+    pts_query_cam = (T_query_from_world[:3, :3] @ pts_world.T + T_query_from_world[:3, 3:]).T
+
+    # Project query-camera points to 2-D image coordinates
+    pts2d_query = (K[:2, :2] @ (pts_query_cam[:, :2] / pts_query_cam[:, 2:]).T).T + K[:2, 2]
+
+    # --- Run solvePnPRansac exactly as relocalize does ---
+    success, rvec, tvec, inliers = cv2.solvePnPRansac(
+        pts_ref_cam.astype(np.float64),
+        pts2d_query.astype(np.float64),
+        K,
+        None,
+        iterationsCount=100,
+        reprojectionError=1.0,
+        confidence=0.999,
+        flags=cv2.SOLVEPNP_ITERATIVE,
+    )
+    assert success and inliers is not None and len(inliers) >= 10, \
+        "solvePnPRansac failed on synthetic data — check point generation"
+
+    R_mat, _ = cv2.Rodrigues(rvec)
+    T_query_from_ref = np.eye(4, dtype=np.float64)
+    T_query_from_ref[:3, :3] = R_mat
+    T_query_from_ref[:3, 3] = tvec[:, 0]
+
+    # --- Correct formula (the fix applied in relocalize) ---
+    T_world_query_recovered = T_world_ref @ np.linalg.inv(T_query_from_ref)
+
+    np.testing.assert_allclose(
+        T_world_query_recovered[:3, 3], T_world_query[:3, 3], atol=1e-3,
+        err_msg="Translation recovery wrong — PnP direction may be inverted",
+    )
+    np.testing.assert_allclose(
+        T_world_query_recovered[:3, :3], T_world_query[:3, :3], atol=1e-2,
+        err_msg="Rotation recovery wrong — PnP direction may be inverted",
+    )
+
+    # --- Verify the WRONG (pre-fix) formula gives a different answer ---
+    T_world_query_wrong = T_world_ref @ T_query_from_ref
+    assert not np.allclose(T_world_query_wrong[:3, 3], T_world_query[:3, 3], atol=0.05), \
+        "The wrong formula should NOT match ground truth — bug may have been re-introduced"
