@@ -409,9 +409,10 @@ class ProjectiveICPTracker(torch.nn.Module):
             H, W, _ = points.shape
             points = points.reshape(-1, 3)
 
-        # Apply transform
-        points_h = torch.cat([points, torch.ones(points.shape[0], 1, device=points.device)], dim=1)
-        points_t = torch.matmul(T, points_h.t()).t()[:, :3]
+        # Apply transform using R,t decomposition (no homogeneous allocation)
+        R = T[:3, :3]
+        t = T[:3, 3]
+        points_t = points @ R.t() + t
 
         if was_batched:
             points_t = points_t.reshape(H, W, 3)
