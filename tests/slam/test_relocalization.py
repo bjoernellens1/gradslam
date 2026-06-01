@@ -88,7 +88,15 @@ def test_relocalize_recovers_known_pose():
     This test documents that formula and verifies it numerically.
     """
     # Known poses
-    T_world_ref = np.eye(4, dtype=np.float64)  # ref camera at world origin
+    # Reference camera is 1m forward, 30-degree rotation around Y
+    T_world_ref = np.eye(4, dtype=np.float64)
+    angle_ref = np.pi / 6  # 30 degrees
+    T_world_ref[:3, :3] = np.array([
+        [np.cos(angle_ref), 0, np.sin(angle_ref)],
+        [0,                 1, 0                ],
+        [-np.sin(angle_ref),0, np.cos(angle_ref)],
+    ])
+    T_world_ref[:3, 3] = [0.0, 0.0, 1.0]
 
     # Query is 0.5 m to the right with a slight y-axis rotation
     angle = 0.1  # radians
