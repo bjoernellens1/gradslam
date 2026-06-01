@@ -157,6 +157,7 @@ class ProjectiveICPTracker(torch.nn.Module):
         last_rmse_sq_gpu = torch.tensor(0.0, device=device, dtype=dtype)
         last_mean_abs_gpu = torch.tensor(0.0, device=device, dtype=dtype)
         last_xi_norm_sq_gpu = torch.tensor(0.0, device=device, dtype=dtype)
+        last_rmse_photo_sq_gpu = None  # set only when photometric is active
 
         # Coarse-to-fine ICP: iterate from coarsest (index 0) to finest (index n-1)
         for level in range(self.config.n_pyramid_levels):
@@ -240,6 +241,9 @@ class ProjectiveICPTracker(torch.nn.Module):
 
                 A, b = self._apply_residual_weights(A, b, live_v)
 
+                # Capture geometric residual BEFORE stacking photometric rows
+                b_geom = b[:, 0]  # [N_geom] pure point-to-plane residuals (metres)
+
                 # Optionally stack photometric residuals at the finest levels
                 # (setup — ref_gray_l, live_gray_l, ref_dI_dx, ref_dI_dy — was
                 # already computed once per level before this inner loop)
@@ -263,6 +267,8 @@ class ProjectiveICPTracker(torch.nn.Module):
                     )
 
                     if J_photo.shape[0] > 0:
+                        # Track photometric RMSE in intensity units (unweighted)
+                        last_rmse_photo_sq_gpu = torch.mean(r_photo[:, 0] ** 2)
                         # Huber weighting on photometric residuals
                         r_abs = torch.abs(r_photo[:, 0])
                         delta_p = self.config.photometric_huber_delta
@@ -283,10 +289,9 @@ class ProjectiveICPTracker(torch.nn.Module):
                 xi = solve_lm_6x6(A, -b, damp=damp)  # [6, 1]
 
                 # Update GPU-resident metrics (no .item() calls inside the loop)
-                residual = b[:, 0]  # [N]
                 last_n_valid_gpu = n_valid_gpu
-                last_rmse_sq_gpu = torch.mean(residual ** 2)
-                last_mean_abs_gpu = torch.mean(torch.abs(residual))
+                last_rmse_sq_gpu = torch.mean(b_geom ** 2)        # geometric only (metres²)
+                last_mean_abs_gpu = torch.mean(torch.abs(b_geom))  # geometric only
 
                 # Capture xi norm BEFORE applying convergence mask so reported
                 # update_norm reflects the true update, not a zeroed value.
@@ -307,10 +312,16 @@ class ProjectiveICPTracker(torch.nn.Module):
         rmse = float(last_rmse_sq_gpu.item() ** 0.5)
         mean_abs = last_mean_abs_gpu.item()
         xi_norm = float(last_xi_norm_sq_gpu.item() ** 0.5)
+        rmse_photo = (
+            float(last_rmse_photo_sq_gpu.item() ** 0.5)
+            if last_rmse_photo_sq_gpu is not None
+            else None
+        )
         quality_metrics = {
             "num_valid": n_valid,
             "inlier_ratio": n_valid / total_pixels,
-            "rmse": rmse,
+            "rmse": rmse,              # geometric RMSE in metres
+            "rmse_photometric": rmse_photo,  # intensity RMSE or None
             "mean_abs_residual": mean_abs,
             "update_norm": xi_norm,
             "converged": xi_norm < 1e-6,
