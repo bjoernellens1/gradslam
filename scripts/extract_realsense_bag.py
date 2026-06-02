@@ -34,6 +34,61 @@ def _depth_stats_m(depth_raw: np.ndarray, depth_scale: float) -> dict[str, float
     }
 
 
+_INDOOR_DEPTH_MIN_M = 0.3
+_INDOOR_DEPTH_MAX_M = 8.0
+# Candidate factors in order of RealSense common configurations:
+# 10000 = 0.1 mm/count, 1000 = 1 mm/count, 5000 = 0.2 mm/count
+_CANDIDATE_FACTORS = [10000.0, 1000.0, 5000.0, 2000.0, 500.0]
+
+
+def _validate_and_correct_depth_factor(
+    output_dir: "Path",
+    frames_data: list,
+    depth_factor: float,
+) -> float:
+    """Validate depth_factor against sampled frames; auto-correct if implausible.
+
+    Contract: median depth of sampled frames must fall in [0.3, 8.0] m (indoor).
+    If the SDK-derived factor fails this check, try common RealSense factors in
+    order and pick the first that passes. Raises RuntimeError if none pass.
+    """
+    if not frames_data:
+        return depth_factor
+
+    sample_idx = max(0, len(frames_data) // 4)  # skip first few frames (warm-up)
+    depth_path = output_dir / frames_data[sample_idx]["depth_file"]
+    depth_raw = cv2.imread(str(depth_path), cv2.IMREAD_ANYDEPTH | cv2.IMREAD_UNCHANGED)
+    if depth_raw is None:
+        return depth_factor
+
+    valid = depth_raw[depth_raw > 0].astype(np.float64)
+    if valid.size < 1000:  # not enough pixels to judge
+        return depth_factor
+
+    def _median_m(factor: float) -> float:
+        return float(np.median(valid) / factor)
+
+    med = _median_m(depth_factor)
+    if _INDOOR_DEPTH_MIN_M <= med <= _INDOOR_DEPTH_MAX_M:
+        return depth_factor  # already correct
+
+    # SDK factor is implausible — search candidates
+    print(
+        f"  WARNING: SDK depth_factor={depth_factor:.0f} gives median {med:.2f} m "
+        f"(expected {_INDOOR_DEPTH_MIN_M}–{_INDOOR_DEPTH_MAX_M} m). Auto-correcting."
+    )
+    for candidate in _CANDIDATE_FACTORS:
+        med_c = _median_m(candidate)
+        if _INDOOR_DEPTH_MIN_M <= med_c <= _INDOOR_DEPTH_MAX_M:
+            print(f"  Corrected depth_factor: {candidate:.0f} → median {med_c:.2f} m")
+            return candidate
+
+    raise RuntimeError(
+        f"Could not determine a plausible depth_factor for {depth_path}. "
+        f"Tried {_CANDIDATE_FACTORS}. Check the bag's depth unit configuration."
+    )
+
+
 def extract_bag(bag_path: str, output_dir: str, skip_frames: int = 1, max_frames: int | None = None) -> None:
     """Extract RealSense bag to normalized RGB-D format.
 
@@ -184,7 +239,17 @@ def extract_bag(bag_path: str, output_dir: str, skip_frames: int = 1, max_frames
             f.write(f"{frame['index']},{frame['timestamp']},{frame['rgb_file']},{frame['depth_file']}\n")
 
     # Write camera_info.json. NormalizedRGBD computes depth_m = raw / depth_factor.
+    # depth_scale from the SDK is in metres/count (metric depth = raw * depth_scale).
+    # depth_factor is the inverse: raw / depth_factor = metric depth.
+    #
+    # CONTRACT: depth_factor must satisfy 0.3 m <= median_depth <= 8.0 m for indoor
+    # scenes. The SDK's get_depth_scale() can return the wrong value when replaying a
+    # .bag (observed: SDK reports 0.001 but data is 0.0001 m/count, i.e. factor 10000).
+    # We validate using a sampled frame and auto-correct via a plausible-range check.
     depth_factor = 1.0 / float(depth_scale)
+    depth_factor = _validate_and_correct_depth_factor(
+        output_dir, frames_data, depth_factor
+    )
     camera_info = {
         "width": color_intr.width,
         "height": color_intr.height,
@@ -193,7 +258,7 @@ def extract_bag(bag_path: str, output_dir: str, skip_frames: int = 1, max_frames
         "cx": float(color_intr.ppx),
         "cy": float(color_intr.ppy),
         "depth_factor": depth_factor,
-        "depth_scale": float(depth_scale),
+        "depth_scale": 1.0 / depth_factor,
         "d": list(color_intr.coeffs),
     }
 

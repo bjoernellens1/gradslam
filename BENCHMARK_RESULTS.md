@@ -18,28 +18,27 @@ python scripts/run_slam.py tum \
   --keyframe-db-size 500 --loop-closure-min-inliers 15
 ```
 
-**Hardware:** AMD Radeon 8060S (ROCm 7.2.2, PyTorch 2.7.1), CPU-bound tracking loop.
+**Hardware:** AMD Radeon 8060S (ROCm 7.2.2, PyTorch 2.7.1) — **run in container** (`docker compose run gradslam`). CPU runs are not valid for FPS comparisons.
 
-| Sequence | ATE RMSE | Track FPS | Note |
-|---|---|---|---|
-| **freiburg1_desk** | **0.066 m ✓** | 4.0 | below 0.10 m target |
-| **freiburg1_xyz** | **0.016 m ✓** | 5.5 | |
+| Sequence | ATE RMSE | Note |
+|---|---|---|
+| **freiburg1_desk** | **0.066 m ✓** | below 0.10 m target |
+| **freiburg1_xyz** | **0.016 m ✓** | |
 
 **Target ATE < 0.10 m: achieved on both sequences.**
 
-### Before/after: review-fixes branch vs prior `perf-and-accuracy` head
+> FPS column intentionally omitted — these ATE numbers were measured on CPU (no container).
+> Re-run in the container (see Reproduce section) to get valid GPU FPS numbers.
 
-| Sequence | Before (perf-and-accuracy) | After (review-fixes) | Delta |
+### Before/after: review-fixes branch vs prior `perf-and-accuracy` head (ATE only)
+
+| Sequence | Before (perf-and-accuracy, GPU) | After (review-fixes, CPU run) | Delta |
 |---|---|---|---|
 | freiburg1_desk | 0.100 m | **0.066 m** | −34% |
 | freiburg1_xyz | 0.014 m | **0.016 m** | +14% (within noise) |
-| freiburg1_desk FPS | 4.6 | 4.0 | −0.6 (CPU noise) |
-| freiburg1_xyz FPS | 6.1 | 5.5 | −0.6 (CPU noise) |
 
 ATE improvement on fr1_desk is likely driven by the corrected ICP pyramid masking
-and the fixed relocalization PnP direction. FPS delta is within measurement noise —
-the ICP hot-path speedups (live_vertex hoisting, R,t transform) are real but swamped
-by TSDF integrate + raycast cost at the e2e level.
+and the fixed relocalization PnP direction. GPU FPS comparison pending container run.
 
 ### Ablation (fr1_desk, showing each lever's contribution)
 
