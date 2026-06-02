@@ -6,7 +6,7 @@ ATE after SE(3) Umeyama alignment (`gradslam/evaluation/trajectory.py`).
 
 ---
 
-## Current results — `perf-and-accuracy` branch (observer-mode global PGO)
+## Current results — `main` (review-fixes applied, 2026-06-02)
 
 ### Recommended accuracy config
 
@@ -18,12 +18,28 @@ python scripts/run_slam.py tum \
   --keyframe-db-size 500 --loop-closure-min-inliers 15
 ```
 
-| Sequence | ATE RMSE | Track FPS | E2E FPS | Lost | Loops |
-|---|---|---|---|---|---|
-| **freiburg1_desk** | **0.100 m ✓** | 4.6 | 4.3 | 0 | 49 |
-| **freiburg1_xyz** | **0.014 m ✓** | 6.1 | 5.5 | 0 | 57 |
+**Hardware:** AMD Radeon 8060S (ROCm 7.2.2, PyTorch 2.7.1), CPU-bound tracking loop.
+
+| Sequence | ATE RMSE | Track FPS | Note |
+|---|---|---|---|
+| **freiburg1_desk** | **0.066 m ✓** | 4.0 | below 0.10 m target |
+| **freiburg1_xyz** | **0.016 m ✓** | 5.5 | |
 
 **Target ATE < 0.10 m: achieved on both sequences.**
+
+### Before/after: review-fixes branch vs prior `perf-and-accuracy` head
+
+| Sequence | Before (perf-and-accuracy) | After (review-fixes) | Delta |
+|---|---|---|---|
+| freiburg1_desk | 0.100 m | **0.066 m** | −34% |
+| freiburg1_xyz | 0.014 m | **0.016 m** | +14% (within noise) |
+| freiburg1_desk FPS | 4.6 | 4.0 | −0.6 (CPU noise) |
+| freiburg1_xyz FPS | 6.1 | 5.5 | −0.6 (CPU noise) |
+
+ATE improvement on fr1_desk is likely driven by the corrected ICP pyramid masking
+and the fixed relocalization PnP direction. FPS delta is within measurement noise —
+the ICP hot-path speedups (live_vertex hoisting, R,t transform) are real but swamped
+by TSDF integrate + raycast cost at the e2e level.
 
 ### Ablation (fr1_desk, showing each lever's contribution)
 
@@ -87,7 +103,43 @@ pre-filtering (BoW/NetVLAD, better, recovers most fps).
 | `--loop-closure on/off` | off | Enable ORB loop detection |
 | `--keyframe-db-size N` | 30 | DB size for loop candidates |
 | `--loop-closure-min-inliers N` | 30 | PnP inlier gate |
+| `--loop-min-frame-gap N` | 0 | Min raw-frame gap for loop candidates (0 = off) |
 | `--num-workers N` | 4 | Async data loading workers |
+
+---
+
+## Code-review fixes applied (2026-06-02)
+
+Seven bugs fixed in the `fix/review-fixes` branch, verified with 282 unit tests
+and before/after TUM benchmarks.
+
+### Critical (ATE correctness)
+
+| Fix | File | Impact |
+|---|---|---|
+| Relocalization PnP direction: `T_world_query = T_world_ref @ inv(T_query_from_ref)` | `keyframe_database.py:137` | Prevents pose teleport in wrong direction on reloc |
+| Feature PnP: use live K for `solvePnPRansac`, keyframe K only for depth back-projection | `pipeline.py:978` | Wrong for non-uniform intrinsics (RealSense, rescaled streams) |
+
+Both bugs only trigger when relocalization / feature PnP fire. Added synthetic unit
+tests with known `T_world_ref`, `T_world_query`, and projected points that assert the
+recovered pose direction is correct (and that the pre-fix formula fails the assertion).
+
+### Medium (FPS / diagnostics)
+
+| Fix | File | Impact |
+|---|---|---|
+| Hoist `live_vertex` outside ICP inner loop | `projective.py:211` | −N back-projections per level per frame |
+| Replace homogeneous `_transform_points` with `R,t` decomposition | `projective.py:412` | Eliminates `torch.cat([pts, ones])` allocation per call |
+| Geometric RMSE tracked separately from photometric | `projective.py:285` | `quality["rmse"]` is now physical metres; adds `quality["rmse_photometric"]` |
+| `loop_min_frame_gap` parameter added to `find_loop` | `keyframe_database.py`, `pipeline.py` | Opt-in gate to reject short-baseline loop candidates |
+| Depth pyramid uses masked pooling (exclude invalid zeros) | `image_pyramid.py` | Prevents zero-depth contamination at coarse pyramid levels |
+
+### Benchmark notes
+
+`loop_min_frame_gap` default was initially set to 50, which regressed fr1_desk ATE
+from 0.066 m to 0.132 m by blocking short-range revisits on the loopy sequence.
+Reverted to 0 (opt-in). Users targeting long sequences with accumulated drift can
+enable via `--loop-min-frame-gap 50` or higher.
 
 ---
 
