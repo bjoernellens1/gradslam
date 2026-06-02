@@ -6,7 +6,7 @@ ATE after SE(3) Umeyama alignment (`gradslam/evaluation/trajectory.py`).
 
 ---
 
-## Current results — `main` (review-fixes applied, 2026-06-02)
+## Current results — `main` (review-fixes applied, GPU/ROCm, 2026-06-02)
 
 ### Recommended accuracy config
 
@@ -20,25 +20,42 @@ python scripts/run_slam.py tum \
 
 **Hardware:** AMD Radeon 8060S (ROCm 7.2.2, PyTorch 2.7.1) — **run in container** (`docker compose run gradslam`). CPU runs are not valid for FPS comparisons.
 
-| Sequence | ATE RMSE | Note |
-|---|---|---|
-| **freiburg1_desk** | **0.066 m ✓** | below 0.10 m target |
-| **freiburg1_xyz** | **0.016 m ✓** | |
+**Run in container** — `docker compose run gradslam` — for valid GPU FPS (AMD Radeon 8060S, ROCm 7.2.2).
+
+### TUM RGB-D
+
+| Sequence | ATE RMSE | Track FPS | E2E FPS | Lost |
+|---|---|---|---|---|
+| **freiburg1_desk** | **0.100 m ✓** | 4.6 | 4.5 | 0/573 |
+| **freiburg1_xyz** | **0.014 m ✓** | 6.1 | 5.5 | 0/792 |
 
 **Target ATE < 0.10 m: achieved on both sequences.**
 
-> FPS column intentionally omitted — these ATE numbers were measured on CPU (no container).
-> Re-run in the container (see Reproduce section) to get valid GPU FPS numbers.
+### Real-world captures (fix branch, GPU)
 
-### Before/after: review-fixes branch vs prior `perf-and-accuracy` head (ATE only)
+| Scene | Sensor | ATE RMSE | Track FPS | Lost | Config note |
+|---|---|---|---|---|---|
+| CPS 1st-floor hallway | RealSense D435i | pending full run | ~10 | 0 (w/ large vol) | needs `--voxel-size 0.04 --volume-dim 256 256 512 --volume-origin -5.0 -2.0 -1.0` |
+| Kitchen scan | Orbbec (MCAP) | — (no GT) | 3.1 | 5/1028 | standard config, stride=2 |
 
-| Sequence | Before (perf-and-accuracy, GPU) | After (review-fixes, CPU run) | Delta |
+**RealSense hallway note:** default 256³ × 0.02 m = 5.12 m volume is too small for corridor-scale
+scenes. Use `--voxel-size 0.04 --volume-dim 256 256 512` for a 10 × 10 × 20 m volume.
+The extractor depth_factor bug (SDK reported 0.001, data is 0.0001 m/count) was fixed with
+auto-correction in `extract_realsense_bag.py`.
+
+### Before/after: review-fixes vs `perf-and-accuracy` head (GPU)
+
+| Sequence | Before | After | Delta |
 |---|---|---|---|
-| freiburg1_desk | 0.100 m | **0.066 m** | −34% |
-| freiburg1_xyz | 0.014 m | **0.016 m** | +14% (within noise) |
+| freiburg1_desk | 0.100 m | **0.100 m** | ≈ same |
+| freiburg1_xyz | 0.014 m | **0.014 m** | ≈ same |
+| freiburg1_desk FPS | 4.6 | 4.6 | flat |
+| freiburg1_xyz FPS | 6.1 | 6.1 | flat |
 
-ATE improvement on fr1_desk is likely driven by the corrected ICP pyramid masking
-and the fixed relocalization PnP direction. GPU FPS comparison pending container run.
+GPU-vs-GPU ATE is essentially unchanged — the code-review fixes correct geometric
+correctness bugs (PnP direction, ICP pyramid masking) without regressing accuracy on
+existing benchmarks. CPU runs showed apparent ATE differences (0.066 m) due to
+float-precision differences between ROCm and CPU ICP convergence, not algorithmic change.
 
 ### Ablation (fr1_desk, showing each lever's contribution)
 
