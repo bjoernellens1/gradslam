@@ -86,3 +86,13 @@ If you find `gradslam` useful in your work, and are writing up a report/paper ab
 * Soroush Saryazdi
 * Krishna Murthy Jatavallabhula
 * Ganesh Iyer
+
+## Ecosystem
+
+This fork is the differentiable dense SLAM backend for the
+**Splatograph** streaming 3DGS stack. See
+[bjoernellens1/splatograph/docs/ECOSYSTEM_CONTRIBUTIONS.md](https://github.com/bjoernellens1/splatograph/blob/main/docs/ECOSYSTEM_CONTRIBUTIONS.md)
+for the full dependency graph, the per-repo contributions (A1–A5
+performance work, B1–B3 GlobalPoseGraph, C/D/E correctness + tracking
+observability), and AMD/ROCm (gfx1151) + NVIDIA/CUDA port notes.
+
