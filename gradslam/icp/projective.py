@@ -86,6 +86,15 @@ class ProjectiveICPTracker(torch.nn.Module):
 
         # Cache for pixel meshgrids, keyed by (H, W, device, dtype)
         self._pixel_grid_cache: dict[tuple, tuple] = {}
+        
+        # Patch 2: Prepared ICP packs and VRAM caching
+        # Cache model pyramids (changes slowly between frames)
+        self._model_pyramid_cache: dict[str, list[torch.Tensor]] = {}
+        # Pre-allocated pyramid buffers
+        self._pyramid_buffers: dict[str, list[torch.Tensor]] = {}
+        # Keyframe pyramid cache (for hybrid tracking)
+        self._keyframe_pyramid_cache: dict[int, dict[str, list[torch.Tensor]]] = {}
+        self._max_keyframes_cached = 16
 
     @torch.no_grad()
     def forward(
@@ -98,6 +107,7 @@ class ProjectiveICPTracker(torch.nn.Module):
         init_T_model_live: torch.Tensor | None = None,
         live_gray: torch.Tensor | None = None,
         ref_gray: torch.Tensor | None = None,
+        cached_model_pyramids: tuple[list[torch.Tensor], list[torch.Tensor]] | None = None,
     ) -> tuple[torch.Tensor, dict]:
         """Compute rigid transform from live frame to model.
 
@@ -112,6 +122,8 @@ class ProjectiveICPTracker(torch.nn.Module):
                 When provided together with ref_gray and photometric_weight > 0,
                 photometric residuals are stacked with geometric residuals.
             ref_gray: Reference grayscale image [H, W] in [0, 1], optional.
+            cached_model_pyramids: Optional pre-computed (depth_pyr, normal_pyr) for model.
+                If provided, skips pyramid construction for model.
 
         Returns:
             Tuple of:
@@ -136,10 +148,15 @@ class ProjectiveICPTracker(torch.nn.Module):
             T_model_live = init_T_model_live.clone().to(device=device, dtype=dtype)
 
         # Build depth/normal pyramids (coarsest first, index 0 = most downsampled)
+        # Patch 2: Use pre-computed model pyramids if provided
+        if cached_model_pyramids is not None:
+            model_depths, model_normals = cached_model_pyramids
+        else:
+            model_depths = self._build_pyramid(model_depth)
+            model_normals = self._build_pyramid(model_normal, is_normal=True)
+        
         live_depths = self._build_pyramid(live_depth)
         live_normals = self._build_pyramid(live_normal, is_normal=True)
-        model_depths = self._build_pyramid(model_depth)
-        model_normals = self._build_pyramid(model_normal, is_normal=True)
 
         # total_pixels is constant (finest level = original resolution)
         total_pixels = live_depth.numel()
@@ -318,6 +335,113 @@ class ProjectiveICPTracker(torch.nn.Module):
         }
 
         return T_model_live, quality_metrics
+
+    def _get_or_allocate_pyramid_buffers(
+        self,
+        H: int,
+        W: int,
+        device: torch.device,
+        dtype: torch.dtype,
+        prefix: str = "live",
+    ) -> list[torch.Tensor]:
+        """Get or allocate pre-sized pyramid buffers.
+        
+        Args:
+            H: Height of finest level.
+            W: Width of finest level.
+            device: Target device.
+            dtype: Target dtype.
+            prefix: Cache key prefix ("live", "model", "keyframe").
+        
+        Returns:
+            List of pre-allocated tensors for each pyramid level.
+        """
+        cache_key = f"{prefix}_{H}_{W}_{device}_{dtype}"
+        if cache_key not in self._pyramid_buffers:
+            buffers = []
+            h, w = H, W
+            for level in range(self.config.n_pyramid_levels):
+                # Allocate buffer for this level
+                buf = torch.empty((h, w), device=device, dtype=dtype)
+                buffers.append(buf)
+                h //= 2
+                w //= 2
+            self._pyramid_buffers[cache_key] = buffers
+        return self._pyramid_buffers[cache_key]
+
+    def _build_pyramid_cached(
+        self,
+        tensor: torch.Tensor,
+        is_normal: bool = False,
+        cache_key: str | None = None,
+    ) -> list[torch.Tensor]:
+        """Build pyramid with optional caching.
+        
+        Args:
+            tensor: Input tensor (depth [H,W] or normal [H,W,3]).
+            is_normal: If True, renormalize after averaging.
+            cache_key: If provided, cache the result.
+        
+        Returns:
+            Pyramid list (coarsest first).
+        """
+        # Check cache first
+        if cache_key and cache_key in self._model_pyramid_cache:
+            return self._model_pyramid_cache[cache_key]
+        
+        # Build pyramid
+        pyramid = self._build_pyramid(tensor, is_normal)
+        
+        # Cache if requested
+        if cache_key:
+            self._model_pyramid_cache[cache_key] = pyramid
+        
+        return pyramid
+
+    def cache_keyframe_pyramid(
+        self,
+        keyframe_id: int,
+        depth: torch.Tensor,
+        normal: torch.Tensor,
+    ) -> None:
+        """Cache keyframe depth/normal pyramids in VRAM.
+        
+        Args:
+            keyframe_id: Unique keyframe identifier.
+            depth: Keyframe depth [H, W].
+            normal: Keyframe normal [H, W, 3].
+        """
+        # Evict oldest if cache is full
+        if len(self._keyframe_pyramid_cache) >= self._max_keyframes_cached:
+            oldest_id = min(self._keyframe_pyramid_cache.keys())
+            del self._keyframe_pyramid_cache[oldest_id]
+        
+        # Build and cache pyramids
+        depth_pyr = self._build_pyramid(depth, is_normal=False)
+        normal_pyr = self._build_pyramid(normal, is_normal=True)
+        
+        self._keyframe_pyramid_cache[keyframe_id] = {
+            "depth": depth_pyr,
+            "normal": normal_pyr,
+        }
+
+    def get_cached_keyframe_pyramid(
+        self,
+        keyframe_id: int,
+    ) -> dict[str, list[torch.Tensor]] | None:
+        """Retrieve cached keyframe pyramids.
+        
+        Args:
+            keyframe_id: Keyframe identifier.
+        
+        Returns:
+            Dict with "depth" and "normal" pyramid lists, or None if not cached.
+        """
+        return self._keyframe_pyramid_cache.get(keyframe_id)
+
+    def clear_keyframe_cache(self) -> None:
+        """Clear all cached keyframe pyramids."""
+        self._keyframe_pyramid_cache.clear()
 
     def _build_pyramid(
         self, tensor: torch.Tensor, is_normal: bool = False
