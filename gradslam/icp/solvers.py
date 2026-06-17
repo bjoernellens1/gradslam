@@ -5,6 +5,12 @@ from __future__ import annotations
 import torch
 
 
+# Patch 4: Pre-allocated buffers for normal equations (thread-local cache)
+_ATA_BUFFER = {}
+_ATB_BUFFER = {}
+_I_BUFFER = {}
+
+
 def solve_lm_6x6(A: torch.Tensor, b: torch.Tensor, damp: float = 1e-4) -> torch.Tensor:
     """Solve damped normal equations for 6-DOF SE(3) optimization.
 
@@ -34,12 +40,22 @@ def solve_lm_6x6(A: torch.Tensor, b: torch.Tensor, damp: float = 1e-4) -> torch.
     A = A.float()
     b = b.float()
 
-    # Compute normal equations: (A^T A + damp*I)
-    AtA = torch.matmul(A.t(), A)  # [6, 6]
-    Atb = torch.matmul(A.t(), b)  # [6, 1]
+    # Patch 4: Use pre-allocated buffers for normal equations
+    device_key = str(device)
+    if device_key not in _ATA_BUFFER:
+        _ATA_BUFFER[device_key] = torch.empty((6, 6), device=device, dtype=torch.float32)
+        _ATB_BUFFER[device_key] = torch.empty((6, 1), device=device, dtype=torch.float32)
+        _I_BUFFER[device_key] = torch.eye(6, device=device, dtype=torch.float32)
+    
+    AtA = _ATA_BUFFER[device_key]
+    Atb = _ATB_BUFFER[device_key]
+    I = _I_BUFFER[device_key]
 
-    # Add damping to diagonal
-    I = torch.eye(6, device=device, dtype=AtA.dtype)
+    # Compute normal equations: (A^T A + damp*I) using in-place operations
+    torch.matmul(A.t(), A, out=AtA)  # [6, 6]
+    torch.matmul(A.t(), b, out=Atb)  # [6, 1]
+
+    # Add damping to diagonal (in-place)
     H = AtA + damp * I
 
     # Solve H @ x = Atb via LU decomposition
