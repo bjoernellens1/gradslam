@@ -919,7 +919,8 @@ class RGBDTSDFSLAM(torch.nn.Module):
                 T_refs_inv = torch.linalg.inv(T_refs)
                 rel = T_refs_inv @ predicted_pose.unsqueeze(0)
                 scores = torch.linalg.norm(rel[:, :3, 3], dim=-1)
-                best_local_idx = int(torch.argmin(scores).item())
+                # Patch 3: Single .item() call for argmin
+                best_local_idx = torch.argmin(scores).item()
                 candidates.append(self.keyframes[valid_indices[best_local_idx]])
 
         return candidates
@@ -939,7 +940,9 @@ class RGBDTSDFSLAM(torch.nn.Module):
         limit = self.local_map_candidates if self.tracking_mode == "local_map" else 3
         k = min(limit, len(valid_indices))
         topk_indices = torch.topk(scores, k=k, largest=False).indices
-        return [self.keyframes[valid_indices[int(i)]] for i in topk_indices]
+        # Patch 3: Batch convert topk indices to Python ints (single sync)
+        topk_list = topk_indices.tolist()
+        return [self.keyframes[valid_indices[i]] for i in topk_list]
 
     def _set_feature_keyframe(
         self,
@@ -1630,26 +1633,27 @@ class RGBDTSDFSLAM(torch.nn.Module):
         return None
 
     def _annotate_motion_quality(self, candidate_pose: torch.Tensor, quality: dict) -> None:
+        """Annotate quality dict with motion metrics.
+        
+        Patch 3: Keep translation/angle as GPU tensors, only convert when storing.
+        """
         assert self.T_world_camera is not None
         rel = torch.linalg.inv(self.T_world_camera) @ candidate_pose
         translation = torch.norm(rel[:3, 3])
         trace = torch.trace(rel[:3, :3])
         cos_angle = ((trace - 1.0) * 0.5).clamp(-1.0, 1.0)
         angle = torch.acos(cos_angle)
-        t_val = float(translation.item())
-        a_val = float((angle * 180.0 / torch.pi).item())
-        quality["frame_translation"] = t_val
-        quality["frame_rotation_deg"] = a_val
-        translation_ok = (
-            self.max_frame_translation <= 0.0
-            or t_val <= self.max_frame_translation
-        )
-        rotation_ok = (
-            self.max_frame_rotation_rad <= 0.0
-            or a_val <= self.max_frame_rotation_rad
-        )
-        if not (translation_ok and rotation_ok):
+        
+        # Patch 3: Use GPU tensor comparisons for gating
+        t_ok = (self.max_frame_translation <= 0.0) or (translation <= self.max_frame_translation)
+        r_ok = (self.max_frame_rotation_rad <= 0.0) or (angle <= self.max_frame_rotation_rad)
+        
+        if not (t_ok and r_ok):
             quality["motion_gate"] = False
+        
+        # Only convert to Python floats for storage in quality dict
+        quality["frame_translation"] = float(translation.item())
+        quality["frame_rotation_deg"] = float((angle * 180.0 / torch.pi).item())
 
     def _photometric_reprojection_error(
         self,
