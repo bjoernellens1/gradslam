@@ -171,6 +171,9 @@ class ProjectiveICPTracker(torch.nn.Module):
 
             # model_vertex is constant within the level — compute outside inner loop
             model_vertex = self._depth_to_vertex(model_d, K, device, dtype)  # [H_l, W_l, 3]
+            
+            # live_vertex is also constant within the level — compute outside inner loop
+            live_vertex = self._depth_to_vertex(live_d, K, device, dtype)  # [H_l, W_l, 3]
 
             # Compute photometric setup once per level (not per iteration):
             # gray interpolation and Sobel gradients depend only on the pyramid level,
@@ -208,9 +211,8 @@ class ProjectiveICPTracker(torch.nn.Module):
             # Run ICP iterations at this level
             for it in range(self.config.iterations[level]):
                 # Transform live vertices using current estimate
-                live_vertex = self._depth_to_vertex(live_d, K, device, dtype)  # [H_l, W_l, 3]
-                live_vertex_model = self._transform_points(live_vertex, T_model_live)
-                live_n_model = self._transform_normals(live_n, T_model_live)
+                live_vertex_model = self._transform_points_fast(live_vertex, T_model_live)
+                live_n_model = self._transform_normals_fast(live_n, T_model_live)
 
                 # Find correspondences via projective lookup
                 assoc_vertex, assoc_normal, valid = self._find_correspondences(
@@ -424,6 +426,61 @@ class ProjectiveICPTracker(torch.nn.Module):
         normals_t = torch.matmul(normals.reshape(-1, 3), R.t())
         return torch.nn.functional.normalize(normals_t.reshape_as(normals), dim=-1)
 
+    @staticmethod
+    def _transform_points_fast(points: torch.Tensor, T: torch.Tensor) -> torch.Tensor:
+        """Transform points via affine rigid transform (no homogeneous coords).
+        
+        Args:
+            points: Points [H, W, 3] or [N, 3].
+            T: Transform [4, 4].
+        
+        Returns:
+            Transformed points, same shape.
+        """
+        R = T[:3, :3]
+        t = T[:3, 3]
+        was_batched = points.dim() == 3
+        if was_batched:
+            H, W, _ = points.shape
+            points_flat = points.reshape(-1, 3)
+        else:
+            points_flat = points
+        
+        # Affine transform: R @ p + t
+        points_t = torch.matmul(points_flat, R.t()) + t
+        
+        if was_batched:
+            points_t = points_t.reshape(H, W, 3)
+        
+        return points_t
+
+    @staticmethod
+    def _transform_normals_fast(normals: torch.Tensor, T: torch.Tensor) -> torch.Tensor:
+        """Rotate normal vectors by SE(3) rotation block (no renormalize).
+        
+        Args:
+            normals: Normals [H, W, 3] or [N, 3].
+            T: Transform [4, 4].
+        
+        Returns:
+            Rotated normals, same shape.
+        """
+        R = T[:3, :3]
+        was_batched = normals.dim() == 3
+        if was_batched:
+            H, W, _ = normals.shape
+            normals_flat = normals.reshape(-1, 3)
+        else:
+            normals_flat = normals
+        
+        # Rotation preserves normal length
+        normals_t = torch.matmul(normals_flat, R.t())
+        
+        if was_batched:
+            normals_t = normals_t.reshape(H, W, 3)
+        
+        return normals_t
+
     def _find_correspondences(
         self,
         live_vertex: torch.Tensor,
@@ -534,17 +591,17 @@ class ProjectiveICPTracker(torch.nn.Module):
         return A * sqrt_w, b * sqrt_w
 
     def _check_normal_angle(self, n1: torch.Tensor, n2: torch.Tensor) -> torch.Tensor:
-        """Check if normal angle is below threshold.
-
+        """Check if normal angle is below threshold using dot product.
+        
         Args:
             n1: Normals [H, W, 3].
             n2: Normals [H, W, 3].
-
+        
         Returns:
             Mask [H, W] indicating acceptable angles.
         """
+        import math
         dot = torch.sum(n1 * n2, dim=-1)  # [H, W]
-        dot = torch.clamp(dot, -1.0, 1.0)
-        angle = torch.acos(dot)  # radians
-        angle_deg = angle * 180.0 / 3.14159265359
-        return angle_deg < self.config.max_normal_angle_deg
+        # angle < threshold  <=>  cos(angle) > cos(threshold)
+        cos_thresh = math.cos(math.radians(self.config.max_normal_angle_deg))
+        return dot > cos_thresh
