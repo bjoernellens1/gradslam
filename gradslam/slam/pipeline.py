@@ -853,7 +853,12 @@ class RGBDTSDFSLAM(torch.nn.Module):
             is_keyframe=used_keyframe,
         )
         self._last_reference = ref
-        self._last_rgb_cpu = _rgb_to_uint8_cpu(rgb)
+        need_cpu_rgb = (
+            (self.feature_interval > 0 and self.frame_count % self.feature_interval == 0)
+            or (self.relocalization_enabled and self._consecutive_lost >= 5)
+            or self.loop_closure_enabled
+        )
+        self._last_rgb_cpu = _rgb_to_uint8_cpu(rgb) if need_cpu_rgb else None
         if used_keyframe:
             self.keyframes.append(ref)
             if len(self.keyframes) > self.max_keyframes:
@@ -907,14 +912,15 @@ class RGBDTSDFSLAM(torch.nn.Module):
             self.keyframe_tracking_interval > 0
             and self.frame_count % self.keyframe_tracking_interval == 0
         ):
-            scored = []
-            for ref in self.keyframes:
-                if any(id(ref) == id(candidate) for candidate in candidates):
-                    continue
-                rel = torch.linalg.inv(ref.T_world_camera) @ predicted_pose
-                scored.append((torch.norm(rel[:3, 3]).item(), ref))
-            if scored:
-                candidates.append(min(scored, key=lambda item: item[0])[1])
+            candidate_ids = {id(c) for c in candidates}
+            valid_indices = [i for i, ref in enumerate(self.keyframes) if id(ref) not in candidate_ids]
+            if valid_indices:
+                T_refs = torch.stack([self.keyframes[i].T_world_camera for i in valid_indices], dim=0)
+                T_refs_inv = torch.linalg.inv(T_refs)
+                rel = T_refs_inv @ predicted_pose.unsqueeze(0)
+                scores = torch.linalg.norm(rel[:, :3, 3], dim=-1)
+                best_local_idx = int(torch.argmin(scores).item())
+                candidates.append(self.keyframes[valid_indices[best_local_idx]])
 
         return candidates
 
@@ -923,14 +929,17 @@ class RGBDTSDFSLAM(torch.nn.Module):
         predicted_pose: torch.Tensor,
         tried_ref_ids: list[int],
     ) -> list[_LocalReference]:
-        scored = []
-        for ref in self.keyframes:
-            if id(ref) in tried_ref_ids:
-                continue
-            rel = torch.linalg.inv(ref.T_world_camera) @ predicted_pose
-            scored.append((torch.norm(rel[:3, 3]).item(), ref))
+        valid_indices = [i for i, ref in enumerate(self.keyframes) if id(ref) not in tried_ref_ids]
+        if not valid_indices:
+            return []
+        T_refs = torch.stack([self.keyframes[i].T_world_camera for i in valid_indices], dim=0)
+        T_refs_inv = torch.linalg.inv(T_refs)
+        rel = T_refs_inv @ predicted_pose.unsqueeze(0)
+        scores = torch.linalg.norm(rel[:, :3, 3], dim=-1)
         limit = self.local_map_candidates if self.tracking_mode == "local_map" else 3
-        return [ref for _, ref in sorted(scored, key=lambda item: item[0])[:limit]]
+        k = min(limit, len(valid_indices))
+        topk_indices = torch.topk(scores, k=k, largest=False).indices
+        return [self.keyframes[valid_indices[int(i)]] for i in topk_indices]
 
     def _set_feature_keyframe(
         self,
@@ -1509,10 +1518,12 @@ class RGBDTSDFSLAM(torch.nn.Module):
         trace = torch.trace(self._last_T_prev_curr[:3, :3])
         cos_angle = ((trace - 1.0) * 0.5).clamp(-1.0, 1.0)
         angle = torch.acos(cos_angle)
-        if translation > self.max_velocity_translation or angle > self.max_velocity_rotation:
+        t_ok = translation <= self.max_velocity_translation
+        r_ok = angle <= self.max_velocity_rotation
+        if not (t_ok and r_ok):
             _logger.debug(
                 "velocity gate fallback at frame %d: t=%.4fm rot=%.3frad (limits: %.3f, %.3f)",
-                self.frame_count, translation.item(), angle.item(),
+                self.frame_count, float(translation.item()), float(angle.item()),
                 self.max_velocity_translation, self.max_velocity_rotation
             )
             self._velocity_fallback_count += 1
@@ -1525,12 +1536,14 @@ class RGBDTSDFSLAM(torch.nn.Module):
             candidates.append(self._last_reference)
 
         if self.keyframes:
-            scored = []
-            for ref in self.keyframes:
-                rel = torch.linalg.inv(ref.T_world_camera) @ predicted_pose
-                score = torch.norm(rel[:3, 3]).item()
-                scored.append((score, ref))
-            for _, ref in sorted(scored, key=lambda item: item[0])[:3]:
+            T_refs = torch.stack([ref.T_world_camera for ref in self.keyframes], dim=0)
+            T_refs_inv = torch.linalg.inv(T_refs)
+            rel = T_refs_inv @ predicted_pose.unsqueeze(0)
+            scores = torch.linalg.norm(rel[:, :3, 3], dim=-1)
+            k = min(3, len(self.keyframes))
+            topk_indices = torch.topk(scores, k=k, largest=False).indices
+            for idx in topk_indices:
+                ref = self.keyframes[int(idx)]
                 if not any(id(ref) == id(candidate) for candidate in candidates):
                     candidates.append(ref)
         return candidates
@@ -1542,11 +1555,11 @@ class RGBDTSDFSLAM(torch.nn.Module):
             return True
         last_keyframe = self.keyframes[-1]
         rel_key = torch.linalg.inv(last_keyframe.T_world_camera) @ self.T_world_camera
-        key_translation = torch.norm(rel_key[:3, 3]).item()
+        key_translation = torch.norm(rel_key[:3, 3])
         frame_gap = self.frame_count - last_keyframe.frame_idx
-        frame_translation = torch.norm(T_prev_live[:3, 3]).item()
+        frame_translation = torch.norm(T_prev_live[:3, 3])
         inlier_ratio = quality.get("inlier_ratio", 1.0)
-        return (
+        return bool(
             frame_gap >= self.keyframe_max_frames
             or key_translation > self.keyframe_motion_thresh
             or frame_translation > self.keyframe_motion_thresh
@@ -1623,15 +1636,17 @@ class RGBDTSDFSLAM(torch.nn.Module):
         trace = torch.trace(rel[:3, :3])
         cos_angle = ((trace - 1.0) * 0.5).clamp(-1.0, 1.0)
         angle = torch.acos(cos_angle)
-        quality["frame_translation"] = float(translation.item())
-        quality["frame_rotation_deg"] = float((angle * 180.0 / torch.pi).item())
+        t_val = float(translation.item())
+        a_val = float((angle * 180.0 / torch.pi).item())
+        quality["frame_translation"] = t_val
+        quality["frame_rotation_deg"] = a_val
         translation_ok = (
             self.max_frame_translation <= 0.0
-            or quality["frame_translation"] <= self.max_frame_translation
+            or t_val <= self.max_frame_translation
         )
         rotation_ok = (
             self.max_frame_rotation_rad <= 0.0
-            or float(angle.item()) <= self.max_frame_rotation_rad
+            or a_val <= self.max_frame_rotation_rad
         )
         if not (translation_ok and rotation_ok):
             quality["motion_gate"] = False

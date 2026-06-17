@@ -385,7 +385,18 @@ def build_parser():
         p.add_argument("--prefetch-factor", type=int, default=2,
                        help="DataLoader prefetch factor (only used when --num-workers > 0)")
         p.add_argument("--no-pin-memory", action="store_true",
-                       help="Disable pinned memory in DataLoader")
+                        help="Disable pinned memory in DataLoader")
+        p.add_argument("--ingestion-mode", choices=["sync", "async"], default="async",
+                        help="Frame ingestion mode: sync (legacy DataLoader) or async "
+                             "(background decode workers with pinned memory, default)")
+        p.add_argument("--ingestion-workers", type=int, default=4,
+                        help="Number of background decode workers (async mode only)")
+        p.add_argument("--ingestion-queue-size", type=int, default=8,
+                        help="Prefetch queue size (async mode only)")
+        p.add_argument("--gpu-preprocess", action="store_true", default=True,
+                        help="Do resize/normalize on GPU instead of CPU (default: on)")
+        p.add_argument("--no-gpu-preprocess", action="store_false", dest="gpu_preprocess",
+                        help="Disable GPU preprocessing (use legacy CPU resize)")
         p.add_argument("--candidate-disagreement-penalty", type=float, default=1.0,
                        help="Lambda for penalizing candidate motion disagreement vs velocity prediction")
         p.add_argument("--scale-veto-ratio", type=float, default=3.0,
@@ -557,13 +568,53 @@ def run_slam(args, dataset, extractor, device):
     gt_poses_by_ts: list | dict = []
     tracking_log = []
     tracking_times_ms = []
+    timing_log = []
     warmup_frames = getattr(args, 'tracking_warmup_frames', 10)
 
     num_workers = getattr(args, 'num_workers', 0)
     pin_memory = not getattr(args, 'no_pin_memory', False) and num_workers > 0
     prefetch_factor = getattr(args, 'prefetch_factor', 2)
 
-    if num_workers > 0:
+    ingestion_mode = getattr(args, 'ingestion_mode', 'async')
+    async_source = None
+    _async_extractor = None
+
+    if ingestion_mode == "async" and args.dataset_type in ("tum", "normalized"):
+        from gradslam.ingestion import AsyncRGBDSource, TumSource, NormalizedSource
+        from gradslam.ingestion.gpu_preprocess import gpu_preprocess
+
+        if args.dataset_type == "tum":
+            base_source = TumSource(
+                basedir=args.dataset_root,
+                sequence=args.sequence,
+            )
+        else:
+            base_source = NormalizedSource(capture_dir=args.capture_dir)
+
+        async_source = AsyncRGBDSource(
+            base_source,
+            num_workers=getattr(args, "ingestion_workers", 4),
+            queue_size=getattr(args, "ingestion_queue_size", 8),
+        )
+        async_source.start()
+
+        def _async_data_iter():
+            for idx in range(min(n_frames, len(async_source))):
+                frame = async_source.next(timeout=10.0)
+                if frame is None:
+                    break
+                target_h = int(getattr(dataset, "height", 480)) if getattr(args, "gpu_preprocess", True) else None
+                target_w = int(getattr(dataset, "width", 640)) if getattr(args, "gpu_preprocess", True) else None
+                rgb, depth_m, K = gpu_preprocess(frame, device, target_h, target_w)
+                yield idx, (rgb, depth_m, K, None, frame.timestamp)
+
+        data_iter = _async_data_iter()
+        loader = None
+
+        def _async_extractor(sample, dev):
+            return sample
+        extractor = _async_extractor
+    elif num_workers > 0:
         from torch.utils.data import DataLoader, Subset
         subset = Subset(dataset, list(range(n_frames)))
         loader = DataLoader(
@@ -609,7 +660,11 @@ def run_slam(args, dataset, extractor, device):
         for idx, sample in tqdm(data_iter, total=n_frames, desc="SLAM"):
             if _STOP_REQUESTED:
                 break
+
+            t_load_start = time.perf_counter()
             colors, depths, intrinsics, gt_pose, ts = extractor(sample, device)
+            t_load_end = time.perf_counter()
+            load_ms = (t_load_end - t_load_start) * 1000.0
 
             if depths is None or intrinsics is None:
                 continue
@@ -630,6 +685,12 @@ def run_slam(args, dataset, extractor, device):
             else:
                 track_ms = (time.perf_counter() - start_wall) * 1000.0
             tracking_times_ms.append(track_ms)
+
+            timing_log.append({
+                "load_ms": load_ms,
+                "track_ms": track_ms,
+                "queue_depth": async_source.queue_depth if async_source is not None else -1,
+            })
 
             # Pipeline frame index for this frame = frame_count BEFORE its
             # post-increment, i.e. the count after process_frame minus 1.
@@ -670,6 +731,20 @@ def run_slam(args, dataset, extractor, device):
     fps = n_frames / elapsed
     timed = tracking_times_ms[min(warmup_frames, len(tracking_times_ms)):]
     tracking_fps = 1000.0 / (sum(timed) / len(timed)) if timed else 0.0
+
+    if timing_log:
+        timed_entries = timing_log[min(warmup_frames, len(timing_log)):]
+        if timed_entries:
+            avg_load_ms = sum(t["load_ms"] for t in timed_entries) / len(timed_entries)
+            avg_track_ms = sum(t["track_ms"] for t in timed_entries) / len(timed_entries)
+            depths = [t["queue_depth"] for t in timed_entries if t["queue_depth"] >= 0]
+            avg_qdepth = sum(depths) / len(depths) if depths else -1
+            print(f"Timing breakdown (warmup-excluded avg ms): "
+                  f"load={avg_load_ms:.2f}  track={avg_track_ms:.2f}  "
+                  f"queue_depth={avg_qdepth:.1f}")
+
+    if async_source is not None:
+        async_source.close()
 
     # B3: online trajectory re-export. After a final global pose-graph
     # optimization, re-derive each per-frame pose from its (now corrected) anchor
