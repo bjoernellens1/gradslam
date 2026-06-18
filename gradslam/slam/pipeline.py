@@ -499,9 +499,10 @@ class RGBDTSDFSLAM(torch.nn.Module):
         self.frame_count += 1
 
         # --- Keyframe policy ---
-        translation = T_model_live[:3, 3].norm().item()
+        # Patch 5: Use GPU tensor comparison for keyframe policy
+        translation = T_model_live[:3, 3].norm()
         inlier_ratio = quality.get("inlier_ratio", 1.0)
-        used_keyframe = (
+        used_keyframe = bool(
             self.frame_count % self.keyframe_max_frames == 0
             or translation > self.keyframe_motion_thresh
             or inlier_ratio < self.keyframe_inlier_ratio_thresh
@@ -621,7 +622,9 @@ class RGBDTSDFSLAM(torch.nn.Module):
         predicted_pose = self._predict_pose()
 
         predicted_rel = torch.linalg.inv(self.T_world_camera) @ predicted_pose
-        t_predicted = float(torch.norm(predicted_rel[:3, 3]).item())
+        # Patch 5: Keep t_predicted as tensor, only convert when storing
+        t_predicted_tensor = torch.norm(predicted_rel[:3, 3])
+        t_predicted = float(t_predicted_tensor.item())
 
         best_pose = predicted_pose
         best_rel = predicted_rel
