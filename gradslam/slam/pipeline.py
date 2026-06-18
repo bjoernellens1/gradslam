@@ -622,9 +622,7 @@ class RGBDTSDFSLAM(torch.nn.Module):
         predicted_pose = self._predict_pose()
 
         predicted_rel = torch.linalg.inv(self.T_world_camera) @ predicted_pose
-        # Patch 5: Keep t_predicted as tensor, only convert when storing
-        t_predicted_tensor = torch.norm(predicted_rel[:3, 3])
-        t_predicted = float(t_predicted_tensor.item())
+        t_predicted = float(torch.norm(predicted_rel[:3, 3]).item())
 
         best_pose = predicted_pose
         best_rel = predicted_rel
