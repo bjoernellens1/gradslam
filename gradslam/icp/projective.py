@@ -86,6 +86,15 @@ class ProjectiveICPTracker(torch.nn.Module):
 
         # Cache for pixel meshgrids, keyed by (H, W, device, dtype)
         self._pixel_grid_cache: dict[tuple, tuple] = {}
+        
+        # Patch 2: Prepared ICP packs and VRAM caching
+        # Cache model pyramids (changes slowly between frames)
+        self._model_pyramid_cache: dict[str, list[torch.Tensor]] = {}
+        # Pre-allocated pyramid buffers
+        self._pyramid_buffers: dict[str, list[torch.Tensor]] = {}
+        # Keyframe pyramid cache (for hybrid tracking)
+        self._keyframe_pyramid_cache: dict[int, dict[str, list[torch.Tensor]]] = {}
+        self._max_keyframes_cached = 16
 
     @torch.no_grad()
     def forward(
@@ -98,6 +107,7 @@ class ProjectiveICPTracker(torch.nn.Module):
         init_T_model_live: torch.Tensor | None = None,
         live_gray: torch.Tensor | None = None,
         ref_gray: torch.Tensor | None = None,
+        cached_model_pyramids: tuple[list[torch.Tensor], list[torch.Tensor]] | None = None,
     ) -> tuple[torch.Tensor, dict]:
         """Compute rigid transform from live frame to model.
 
@@ -112,6 +122,8 @@ class ProjectiveICPTracker(torch.nn.Module):
                 When provided together with ref_gray and photometric_weight > 0,
                 photometric residuals are stacked with geometric residuals.
             ref_gray: Reference grayscale image [H, W] in [0, 1], optional.
+            cached_model_pyramids: Optional pre-computed (depth_pyr, normal_pyr) for model.
+                If provided, skips pyramid construction for model.
 
         Returns:
             Tuple of:
@@ -136,10 +148,15 @@ class ProjectiveICPTracker(torch.nn.Module):
             T_model_live = init_T_model_live.clone().to(device=device, dtype=dtype)
 
         # Build depth/normal pyramids (coarsest first, index 0 = most downsampled)
+        # Patch 2: Use pre-computed model pyramids if provided
+        if cached_model_pyramids is not None:
+            model_depths, model_normals = cached_model_pyramids
+        else:
+            model_depths = self._build_pyramid(model_depth)
+            model_normals = self._build_pyramid(model_normal, is_normal=True)
+        
         live_depths = self._build_pyramid(live_depth)
         live_normals = self._build_pyramid(live_normal, is_normal=True)
-        model_depths = self._build_pyramid(model_depth)
-        model_normals = self._build_pyramid(model_normal, is_normal=True)
 
         # total_pixels is constant (finest level = original resolution)
         total_pixels = live_depth.numel()
@@ -171,6 +188,9 @@ class ProjectiveICPTracker(torch.nn.Module):
 
             # model_vertex is constant within the level — compute outside inner loop
             model_vertex = self._depth_to_vertex(model_d, K, device, dtype)  # [H_l, W_l, 3]
+            
+            # live_vertex is also constant within the level — compute outside inner loop
+            live_vertex = self._depth_to_vertex(live_d, K, device, dtype)  # [H_l, W_l, 3]
 
             # Compute photometric setup once per level (not per iteration):
             # gray interpolation and Sobel gradients depend only on the pyramid level,
@@ -208,9 +228,8 @@ class ProjectiveICPTracker(torch.nn.Module):
             # Run ICP iterations at this level
             for it in range(self.config.iterations[level]):
                 # Transform live vertices using current estimate
-                live_vertex = self._depth_to_vertex(live_d, K, device, dtype)  # [H_l, W_l, 3]
-                live_vertex_model = self._transform_points(live_vertex, T_model_live)
-                live_n_model = self._transform_normals(live_n, T_model_live)
+                live_vertex_model = self._transform_points_fast(live_vertex, T_model_live)
+                live_n_model = self._transform_normals_fast(live_n, T_model_live)
 
                 # Find correspondences via projective lookup
                 assoc_vertex, assoc_normal, valid = self._find_correspondences(
@@ -316,6 +335,113 @@ class ProjectiveICPTracker(torch.nn.Module):
         }
 
         return T_model_live, quality_metrics
+
+    def _get_or_allocate_pyramid_buffers(
+        self,
+        H: int,
+        W: int,
+        device: torch.device,
+        dtype: torch.dtype,
+        prefix: str = "live",
+    ) -> list[torch.Tensor]:
+        """Get or allocate pre-sized pyramid buffers.
+        
+        Args:
+            H: Height of finest level.
+            W: Width of finest level.
+            device: Target device.
+            dtype: Target dtype.
+            prefix: Cache key prefix ("live", "model", "keyframe").
+        
+        Returns:
+            List of pre-allocated tensors for each pyramid level.
+        """
+        cache_key = f"{prefix}_{H}_{W}_{device}_{dtype}"
+        if cache_key not in self._pyramid_buffers:
+            buffers = []
+            h, w = H, W
+            for level in range(self.config.n_pyramid_levels):
+                # Allocate buffer for this level
+                buf = torch.empty((h, w), device=device, dtype=dtype)
+                buffers.append(buf)
+                h //= 2
+                w //= 2
+            self._pyramid_buffers[cache_key] = buffers
+        return self._pyramid_buffers[cache_key]
+
+    def _build_pyramid_cached(
+        self,
+        tensor: torch.Tensor,
+        is_normal: bool = False,
+        cache_key: str | None = None,
+    ) -> list[torch.Tensor]:
+        """Build pyramid with optional caching.
+        
+        Args:
+            tensor: Input tensor (depth [H,W] or normal [H,W,3]).
+            is_normal: If True, renormalize after averaging.
+            cache_key: If provided, cache the result.
+        
+        Returns:
+            Pyramid list (coarsest first).
+        """
+        # Check cache first
+        if cache_key and cache_key in self._model_pyramid_cache:
+            return self._model_pyramid_cache[cache_key]
+        
+        # Build pyramid
+        pyramid = self._build_pyramid(tensor, is_normal)
+        
+        # Cache if requested
+        if cache_key:
+            self._model_pyramid_cache[cache_key] = pyramid
+        
+        return pyramid
+
+    def cache_keyframe_pyramid(
+        self,
+        keyframe_id: int,
+        depth: torch.Tensor,
+        normal: torch.Tensor,
+    ) -> None:
+        """Cache keyframe depth/normal pyramids in VRAM.
+        
+        Args:
+            keyframe_id: Unique keyframe identifier.
+            depth: Keyframe depth [H, W].
+            normal: Keyframe normal [H, W, 3].
+        """
+        # Evict oldest if cache is full
+        if len(self._keyframe_pyramid_cache) >= self._max_keyframes_cached:
+            oldest_id = min(self._keyframe_pyramid_cache.keys())
+            del self._keyframe_pyramid_cache[oldest_id]
+        
+        # Build and cache pyramids
+        depth_pyr = self._build_pyramid(depth, is_normal=False)
+        normal_pyr = self._build_pyramid(normal, is_normal=True)
+        
+        self._keyframe_pyramid_cache[keyframe_id] = {
+            "depth": depth_pyr,
+            "normal": normal_pyr,
+        }
+
+    def get_cached_keyframe_pyramid(
+        self,
+        keyframe_id: int,
+    ) -> dict[str, list[torch.Tensor]] | None:
+        """Retrieve cached keyframe pyramids.
+        
+        Args:
+            keyframe_id: Keyframe identifier.
+        
+        Returns:
+            Dict with "depth" and "normal" pyramid lists, or None if not cached.
+        """
+        return self._keyframe_pyramid_cache.get(keyframe_id)
+
+    def clear_keyframe_cache(self) -> None:
+        """Clear all cached keyframe pyramids."""
+        self._keyframe_pyramid_cache.clear()
 
     def _build_pyramid(
         self, tensor: torch.Tensor, is_normal: bool = False
@@ -423,6 +549,61 @@ class ProjectiveICPTracker(torch.nn.Module):
         R = T[:3, :3]
         normals_t = torch.matmul(normals.reshape(-1, 3), R.t())
         return torch.nn.functional.normalize(normals_t.reshape_as(normals), dim=-1)
+
+    @staticmethod
+    def _transform_points_fast(points: torch.Tensor, T: torch.Tensor) -> torch.Tensor:
+        """Transform points via affine rigid transform (no homogeneous coords).
+        
+        Args:
+            points: Points [H, W, 3] or [N, 3].
+            T: Transform [4, 4].
+        
+        Returns:
+            Transformed points, same shape.
+        """
+        R = T[:3, :3]
+        t = T[:3, 3]
+        was_batched = points.dim() == 3
+        if was_batched:
+            H, W, _ = points.shape
+            points_flat = points.reshape(-1, 3)
+        else:
+            points_flat = points
+        
+        # Affine transform: R @ p + t
+        points_t = torch.matmul(points_flat, R.t()) + t
+        
+        if was_batched:
+            points_t = points_t.reshape(H, W, 3)
+        
+        return points_t
+
+    @staticmethod
+    def _transform_normals_fast(normals: torch.Tensor, T: torch.Tensor) -> torch.Tensor:
+        """Rotate normal vectors by SE(3) rotation block (no renormalize).
+        
+        Args:
+            normals: Normals [H, W, 3] or [N, 3].
+            T: Transform [4, 4].
+        
+        Returns:
+            Rotated normals, same shape.
+        """
+        R = T[:3, :3]
+        was_batched = normals.dim() == 3
+        if was_batched:
+            H, W, _ = normals.shape
+            normals_flat = normals.reshape(-1, 3)
+        else:
+            normals_flat = normals
+        
+        # Rotation preserves normal length
+        normals_t = torch.matmul(normals_flat, R.t())
+        
+        if was_batched:
+            normals_t = normals_t.reshape(H, W, 3)
+        
+        return normals_t
 
     def _find_correspondences(
         self,
@@ -534,17 +715,17 @@ class ProjectiveICPTracker(torch.nn.Module):
         return A * sqrt_w, b * sqrt_w
 
     def _check_normal_angle(self, n1: torch.Tensor, n2: torch.Tensor) -> torch.Tensor:
-        """Check if normal angle is below threshold.
-
+        """Check if normal angle is below threshold using dot product.
+        
         Args:
             n1: Normals [H, W, 3].
             n2: Normals [H, W, 3].
-
+        
         Returns:
             Mask [H, W] indicating acceptable angles.
         """
+        import math
         dot = torch.sum(n1 * n2, dim=-1)  # [H, W]
-        dot = torch.clamp(dot, -1.0, 1.0)
-        angle = torch.acos(dot)  # radians
-        angle_deg = angle * 180.0 / 3.14159265359
-        return angle_deg < self.config.max_normal_angle_deg
+        # angle < threshold  <=>  cos(angle) > cos(threshold)
+        cos_thresh = math.cos(math.radians(self.config.max_normal_angle_deg))
+        return dot > cos_thresh
